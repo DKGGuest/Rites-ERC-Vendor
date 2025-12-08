@@ -613,4 +613,13 @@ export const GaugeForm = ({
   );
 };
 
-export default { InstrumentForm, ApprovalForm, GaugeForm };
+const CalibrationForms = { 
+  InstrumentForm, 
+  ApprovalForm, 
+  GaugeForm 
+};
+
+export default CalibrationForms;
+
+
+// export default { InstrumentForm, ApprovalForm, GaugeForm };

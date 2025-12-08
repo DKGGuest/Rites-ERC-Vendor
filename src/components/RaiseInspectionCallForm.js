@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   COMPANY_UNIT_MASTER,
-  MANUFACTURER_MASTER,
+  // MANUFACTURER_MASTER,
   HEAT_TC_MAPPING,
   CHEMICAL_ANALYSIS_HISTORY,
   RM_INSPECTION_CALLS,
@@ -13,7 +13,7 @@ import {
   LOT_NUMBERS,
   ERC_CONVERSION_FACTORS,
   PO_SERIAL_DETAILS,
-  VENDOR_PO_LIST
+  // VENDOR_PO_LIST
 } from '../data/vendorMockData';
 import '../styles/raiseInspectionCall.css';
 
