@@ -33,9 +33,9 @@ const formatDate = (dateStr) => {
 // Inspection stage options
 const INSPECTION_STAGES = [
   { value: '', label: 'Select Type of Call' },
-  { value: 'Raw Material', label: 'ERC Raw Material' },
-  { value: 'Process', label: 'ERC Process' },
-  { value: 'Final', label: 'ERC Final' }
+  { value: 'Raw Material', label: ' Raw Material' },
+  { value: 'Process', label: ' Process' },
+  { value: 'Final', label: ' Final' }
 ];
 
 // Initial form state generator

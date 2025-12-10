@@ -15,9 +15,9 @@ export const VENDOR_PO_LIST = [
     status: 'Fresh PO',
     location: 'Vendor Plant A',
     items: [
-      { id: 101, item_name: 'ERC MK-III Clips - Type A', item_qty: 5000, item_unit: 'Nos', item_status: 'Pending' },
-      { id: 102, item_name: 'ERC MK-III Clips - Type B', item_qty: 3000, item_unit: 'Nos', item_status: 'Pending' },
-      { id: 103, item_name: 'Rubber Pads', item_qty: 2000, item_unit: 'Nos', item_status: 'Pending' }
+      { id: 101, item_name: 'ERC MK-III Clips - Type A', item_qty: 5000, item_unit: 'Nos', item_status: 'Pending', po_serial_no: 'PO-2025-1001/01', consignee: 'RITES, Northern Region', delivery_period: '2025-12-31' },
+      { id: 102, item_name: 'ERC MK-III Clips - Type B', item_qty: 3000, item_unit: 'Nos', item_status: 'Pending', po_serial_no: 'PO-2025-1001/02', consignee: 'RITES, Western Region', delivery_period: '2025-12-31' },
+      { id: 103, item_name: 'Rubber Pads', item_qty: 2000, item_unit: 'Nos', item_status: 'Pending', po_serial_no: 'PO-2025-1001/03', consignee: 'RITES, Southern Region', delivery_period: '2025-12-31' }
     ]
   },
   {
@@ -31,8 +31,8 @@ export const VENDOR_PO_LIST = [
     status: 'Inspection under Process',
     location: 'Vendor Plant B',
     items: [
-      { id: 201, item_name: 'ERC MK-V Standard', item_qty: 5000, item_unit: 'Nos', item_status: 'Under Inspection' },
-      { id: 202, item_name: 'ERC MK-V Heavy Duty', item_qty: 3000, item_unit: 'Nos', item_status: 'Pending' }
+      { id: 201, item_name: 'ERC MK-V Standard', item_qty: 5000, item_unit: 'Nos', item_status: 'Under Inspection', po_serial_no: 'PO-2025-1002/01', consignee: 'RITES, Central Region', delivery_period: '2026-01-15' },
+      { id: 202, item_name: 'ERC MK-V Heavy Duty', item_qty: 3000, item_unit: 'Nos', item_status: 'Pending', po_serial_no: 'PO-2025-1002/02', consignee: 'RITES, Eastern Region', delivery_period: '2026-01-15' }
     ]
   },
   {
@@ -46,7 +46,7 @@ export const VENDOR_PO_LIST = [
     status: 'Order Executed',
     location: 'Vendor Plant A',
     items: [
-      { id: 301, item_name: 'ERC MK-III Clips - Standard', item_qty: 5000, item_unit: 'Nos', item_status: 'Completed' }
+      { id: 301, item_name: 'ERC MK-III Clips - Standard', item_qty: 5000, item_unit: 'Nos', item_status: 'Completed', po_serial_no: 'PO-2025-1003/01', consignee: 'RITES, Northern Region', delivery_period: '2025-12-20' }
     ]
   }
 ];

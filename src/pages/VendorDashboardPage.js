@@ -919,9 +919,11 @@ const VendorDashboardPage = ({ onBack }) => {
                                   <table className="po-items-table">
                                     <thead>
                                       <tr>
-                                        <th>Item Name</th>
-                                        <th>Quantity</th>
-                                        <th>Unit</th>
+                                        <th>Item Description</th>
+                                        <th>PO Serial No.</th>
+                                        <th>Consignee</th>
+                                        <th>Ordered Quantity</th>
+                                        <th>Delivery Period</th>
                                         <th>Status</th>
                                         <th>Action</th>
                                       </tr>
@@ -931,8 +933,10 @@ const VendorDashboardPage = ({ onBack }) => {
                                         po.items.map((item) => (
                                           <tr key={item.id}>
                                             <td>{item.item_name}</td>
-                                            <td>{item.item_qty}</td>
-                                            <td>{item.item_unit}</td>
+                                            <td>{item.po_serial_no}</td>
+                                            <td>{item.consignee}</td>
+                                            <td>{item.item_qty} {item.item_unit}</td>
+                                            <td>{formatDate(item.delivery_period)}</td>
                                             <td>
                                               <StatusBadge status={item.item_status} />
                                             </td>
@@ -948,7 +952,7 @@ const VendorDashboardPage = ({ onBack }) => {
                                         ))
                                       ) : (
                                         <tr>
-                                          <td colSpan={5} style={{ textAlign: 'center', color: '#6b7280' }}>
+                                          <td colSpan={7} style={{ textAlign: 'center', color: '#6b7280' }}>
                                             No items found for this PO
                                           </td>
                                         </tr>
