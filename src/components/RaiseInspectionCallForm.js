@@ -13,6 +13,7 @@ import {
   // LOT_NUMBERS, // Removed unused import
   ERC_CONVERSION_FACTORS,
   PO_SERIAL_DETAILS,
+  VENDOR_INVENTORY_ENTRIES, // Import inventory data
   // VENDOR_PO_LIST
 } from '../data/vendorMockData';
 import '../styles/raiseInspectionCall.css';
@@ -103,6 +104,26 @@ const INSPECTION_STAGES = [
   { value: 'Process', label: ' Process' },
   { value: 'Final', label: ' Final' }
 ];
+
+// Form field component - MOVED OUTSIDE to prevent re-creation on every render
+const FormField = ({ label, name, required, hint, children, fullWidth = false, errors = {} }) => (
+  <div className={`ric-form-group ${fullWidth ? 'ric-form-group--full-width' : ''}`}>
+    <label className="ric-form-label">
+      {label} {required && <span className="ric-required">*</span>}
+    </label>
+    {children}
+    {hint && <span className="ric-form-hint">{hint}</span>}
+    {errors[name] && <span className="ric-form-error">{errors[name]}</span>}
+  </div>
+);
+
+// Section header component - MOVED OUTSIDE to prevent re-creation on every render
+const SectionHeader = ({ title, subtitle }) => (
+  <div className="ric-section-header">
+    <h4 className="ric-section-title">{title}</h4>
+    {subtitle && <p className="ric-section-subtitle">{subtitle}</p>}
+  </div>
+);
 
 // Initial form state generator
 const getInitialFormState = (selectedPO = null) => {
@@ -306,42 +327,85 @@ export const RaiseInspectionCallForm = ({
     }
   }, [formData.rm_heat_quantities, formData.type_of_call, calculateErcFromMt]);
 
-  // Get available TC numbers based on heat number input
+  // Get available heat numbers from inventory (only Fresh or Inspection Requested status)
+  const availableHeatNumbers = useMemo(() => {
+    return VENDOR_INVENTORY_ENTRIES
+      .filter(entry =>
+        entry.status === 'Fresh' ||
+        entry.status === 'Inspection Requested' ||
+        entry.qtyLeftForInspection > 0
+      )
+      .map(entry => ({
+        heatNumber: entry.heatNumber,
+        tcNumber: entry.tcNumber,
+        rawMaterial: entry.rawMaterial,
+        supplierName: entry.supplierName,
+        qtyLeft: entry.qtyLeftForInspection,
+        unit: entry.unitOfMeasurement
+      }));
+  }, []);
+
+  // Get available TC numbers based on heat number input (from inventory)
   const availableTcNumbers = useMemo(() => {
     if (!formData.rm_heat_numbers) return [];
     const heatNumbers = formData.rm_heat_numbers.split(',').map(h => h.trim()).filter(h => h);
     const tcList = [];
     heatNumbers.forEach(heatNo => {
-      const heat = HEAT_TC_MAPPING.find(h => h.heatNumber === heatNo);
-      if (heat && !tcList.find(tc => tc.tcNumber === heat.tcNumber)) {
-        tcList.push(heat);
+      // First try to find in inventory
+      const inventoryEntry = VENDOR_INVENTORY_ENTRIES.find(entry => entry.heatNumber === heatNo);
+      if (inventoryEntry && !tcList.find(tc => tc.tcNumber === inventoryEntry.tcNumber)) {
+        tcList.push({
+          tcNumber: inventoryEntry.tcNumber,
+          heatNumber: inventoryEntry.heatNumber,
+          manufacturer: inventoryEntry.supplierName, // Using supplier as manufacturer
+          tcDate: inventoryEntry.tcDate,
+          invoiceNo: inventoryEntry.invoiceNumber,
+          invoiceDate: inventoryEntry.invoiceDate,
+          subPoNumber: inventoryEntry.subPoNumber,
+          subPoDate: inventoryEntry.subPoDate,
+          subPoQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
+          subPoTotalValue: `₹${(inventoryEntry.subPoQty * inventoryEntry.rateOfMaterial * (1 + inventoryEntry.rateOfGst / 100)).toFixed(2)}`,
+          tcQty: `${inventoryEntry.declaredQuantity} ${inventoryEntry.unitOfMeasurement}`,
+          tcQtyRemaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`
+        });
+      } else {
+        // Fallback to old HEAT_TC_MAPPING if not found in inventory
+        const heat = HEAT_TC_MAPPING.find(h => h.heatNumber === heatNo);
+        if (heat && !tcList.find(tc => tc.tcNumber === heat.tcNumber)) {
+          tcList.push(heat);
+        }
       }
     });
     return tcList;
   }, [formData.rm_heat_numbers]);
 
-  // Auto-fetch details when TC number is selected
+  // Auto-fetch details when TC number is selected (from inventory)
   useEffect(() => {
     if (formData.rm_tc_number) {
-      const tcData = HEAT_TC_MAPPING.find(h => h.tcNumber === formData.rm_tc_number);
-      if (tcData) {
+      // First try to find in inventory
+      const inventoryEntry = VENDOR_INVENTORY_ENTRIES.find(entry => entry.tcNumber === formData.rm_tc_number);
+
+      if (inventoryEntry) {
+        // Calculate total value
+        const totalValue = (inventoryEntry.subPoQty * inventoryEntry.rateOfMaterial * (1 + inventoryEntry.rateOfGst / 100)).toFixed(2);
+
         // Auto-fetch chemical analysis if exists
         const analysis = CHEMICAL_ANALYSIS_HISTORY.find(a =>
-          a.heatNumber === tcData.heatNumber && a.manufacturer === tcData.manufacturer
+          a.heatNumber === inventoryEntry.heatNumber
         );
 
         setFormData(prev => ({
           ...prev,
-          rm_tc_date: tcData.tcDate || '',
-          rm_manufacturer: tcData.manufacturer || '',
-          rm_invoice_no: tcData.invoiceNo || '',
-          rm_invoice_date: tcData.invoiceDate || '',
-          rm_sub_po_number: tcData.subPoNumber || '',
-          rm_sub_po_date: tcData.subPoDate || '',
-          rm_sub_po_qty: tcData.subPoQty || '',
-          rm_sub_po_total_value: tcData.subPoTotalValue || '',
-          rm_tc_qty: tcData.tcQty || '',
-          rm_tc_qty_remaining: tcData.tcQtyRemaining || '',
+          rm_tc_date: inventoryEntry.tcDate || '',
+          rm_manufacturer: inventoryEntry.supplierName || '',
+          rm_invoice_no: inventoryEntry.invoiceNumber || '',
+          rm_invoice_date: inventoryEntry.invoiceDate || '',
+          rm_sub_po_number: inventoryEntry.subPoNumber || '',
+          rm_sub_po_date: inventoryEntry.subPoDate || '',
+          rm_sub_po_qty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
+          rm_sub_po_total_value: `₹${totalValue}`,
+          rm_tc_qty: `${inventoryEntry.declaredQuantity} ${inventoryEntry.unitOfMeasurement}`,
+          rm_tc_qty_remaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`,
           // Auto-fill chemical analysis if available
           rm_chemical_carbon: analysis?.carbon || '',
           rm_chemical_manganese: analysis?.manganese || '',
@@ -350,6 +414,35 @@ export const RaiseInspectionCallForm = ({
           rm_chemical_phosphorus: analysis?.phosphorus || '',
           rm_chemical_chromium: analysis?.chromium || ''
         }));
+      } else {
+        // Fallback to old HEAT_TC_MAPPING
+        const tcData = HEAT_TC_MAPPING.find(h => h.tcNumber === formData.rm_tc_number);
+        if (tcData) {
+          const analysis = CHEMICAL_ANALYSIS_HISTORY.find(a =>
+            a.heatNumber === tcData.heatNumber && a.manufacturer === tcData.manufacturer
+          );
+
+          setFormData(prev => ({
+            ...prev,
+            rm_tc_date: tcData.tcDate || '',
+            rm_manufacturer: tcData.manufacturer || '',
+            rm_invoice_no: tcData.invoiceNo || '',
+            rm_invoice_date: tcData.invoiceDate || '',
+            rm_sub_po_number: tcData.subPoNumber || '',
+            rm_sub_po_date: tcData.subPoDate || '',
+            rm_sub_po_qty: tcData.subPoQty || '',
+            rm_sub_po_total_value: tcData.subPoTotalValue || '',
+            rm_tc_qty: tcData.tcQty || '',
+            rm_tc_qty_remaining: tcData.tcQtyRemaining || '',
+            // Auto-fill chemical analysis if available
+            rm_chemical_carbon: analysis?.carbon || '',
+            rm_chemical_manganese: analysis?.manganese || '',
+            rm_chemical_silicon: analysis?.silicon || '',
+            rm_chemical_sulphur: analysis?.sulphur || '',
+            rm_chemical_phosphorus: analysis?.phosphorus || '',
+            rm_chemical_chromium: analysis?.chromium || ''
+          }));
+        }
       }
     }
   }, [formData.rm_tc_number]);
@@ -605,26 +698,6 @@ export const RaiseInspectionCallForm = ({
     setErrors({});
   };
 
-  // Form field component
-  const FormField = ({ label, name, required, hint, children, fullWidth = false }) => (
-    <div className={`ric-form-group ${fullWidth ? 'ric-form-group--full-width' : ''}`}>
-      <label className="ric-form-label">
-        {label} {required && <span className="ric-required">*</span>}
-      </label>
-      {children}
-      {hint && <span className="ric-form-hint">{hint}</span>}
-      {errors[name] && <span className="ric-form-error">{errors[name]}</span>}
-    </div>
-  );
-
-  // Section header component
-  const SectionHeader = ({ title, subtitle }) => (
-    <div className="ric-section-header">
-      <h4 className="ric-section-title">{title}</h4>
-      {subtitle && <p className="ric-section-subtitle">{subtitle}</p>}
-    </div>
-  );
-
   return (
     <div className="ric-form">
       {/* ============ COMMON SECTION ============ */}
@@ -634,7 +707,7 @@ export const RaiseInspectionCallForm = ({
       />
 
       <div className="ric-form-grid">
-        <FormField label="PO Serial Number" name="po_serial_no" required hint={selectedItem ? "Auto Fetched" : "Select to auto-fetch PO data"}>
+        <FormField label="PO Serial Number" name="po_serial_no" required hint={selectedItem ? "Auto Fetched" : "Select to auto-fetch PO data"} errors={errors}>
           {selectedItem ? (
             <input
               type="text"
@@ -658,24 +731,24 @@ export const RaiseInspectionCallForm = ({
           )}
         </FormField>
 
-        <FormField label="PO Number" name="po_no" hint="Auto Fetched">
+        <FormField label="PO Number" name="po_no" hint="Auto Fetched" errors={errors}>
           <input type="text" className="ric-form-input ric-form-input--disabled" value={formData.po_no} disabled />
         </FormField>
 
-        <FormField label="PO Date" name="po_date" hint="Auto Fetched">
+        <FormField label="PO Date" name="po_date" hint="Auto Fetched" errors={errors}>
           <input type="text" className="ric-form-input ric-form-input--disabled" value={formData.po_date ? formatDate(formData.po_date) : ''} disabled />
         </FormField>
 
-        <FormField label="PO Quantity" name="po_qty" hint="Auto Fetched">
+        <FormField label="PO Quantity" name="po_qty" hint="Auto Fetched" errors={errors}>
           <input type="text" className="ric-form-input ric-form-input--disabled" value={`${formData.po_qty} ${formData.po_unit}`} disabled />
         </FormField>
 
         {formData.amendment_no && (
           <>
-            <FormField label="Amendment No." name="amendment_no" hint="Auto Fetched">
+            <FormField label="Amendment No." name="amendment_no" hint="Auto Fetched" errors={errors}>
               <input type="text" className="ric-form-input ric-form-input--disabled" value={formData.amendment_no} disabled />
             </FormField>
-            <FormField label="Amendment Date" name="amendment_date" hint="Auto Fetched">
+            <FormField label="Amendment Date" name="amendment_date" hint="Auto Fetched" errors={errors}>
               <input type="text" className="ric-form-input ric-form-input--disabled" value={formatDate(formData.amendment_date)} disabled />
             </FormField>
           </>
@@ -768,7 +841,7 @@ export const RaiseInspectionCallForm = ({
       <SectionHeader title="Call Details" subtitle="Select type of inspection call" />
 
       <div className="ric-form-grid">
-        <FormField label="Type of Call" name="type_of_call" required hint="Select inspection stage">
+        <FormField label="Type of Call" name="type_of_call" required hint="Select inspection stage" errors={errors}>
           <select
             name="type_of_call"
             className="ric-form-select"
@@ -786,7 +859,7 @@ export const RaiseInspectionCallForm = ({
       {formData.type_of_call && (
         <>
           <div className="ric-form-grid">
-            <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="">
+            <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="" errors={errors}>
               <input
                 type="date"
                 name="desired_inspection_date"
@@ -826,24 +899,37 @@ export const RaiseInspectionCallForm = ({
             <>
               <SectionHeader
                 title="ERC Raw Material Details"
-                subtitle="Enter heat numbers and select TC from inventory"
+                subtitle="Select heat numbers from inventory and TC will be auto-fetched"
               />
 
               <div className="ric-form-grid">
-                {/* Heat Number - Manual String Input  required hint="Enter heat number(s), comma-separated for multiple" */ }
-                <FormField label="Heat Number" name="rm_heat_numbers" >
-                  <input
-                    type="text"
+                {/* Heat Number - Dropdown from Inventory */}
+                <FormField
+                  label="Heat Number"
+                  name="rm_heat_numbers"
+                  required
+                  hint="Selected from inventory list (comma-separated for multiple)"
+                >
+                  <select
                     name="rm_heat_numbers"
-                    className="ric-form-input"
+                    className="ric-form-select"
                     value={formData.rm_heat_numbers}
                     onChange={handleChange}
-                    placeholder="e.g., H001, H002, H003"
-                  />
+                  >
+                    <option value="">-- Select Heat Number --</option>
+                    {availableHeatNumbers.map(heat => (
+                      <option key={heat.heatNumber} value={heat.heatNumber}>
+                        {heat.heatNumber} - {heat.rawMaterial} ({heat.supplierName}) - Qty Left: {heat.qtyLeft} {heat.unit}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280' }}>
+                    💡 For multiple heat numbers, select one and manually add others separated by comma
+                  </div>
                 </FormField>
 
                 {/* TC Number - Dropdown based on Heat Number */}
-                <FormField label="TC (Test Certificate) Number" name="rm_tc_number" required hint="Select from inventory">
+                <FormField label="TC (Test Certificate) Number" name="rm_tc_number" required hint="Auto-fetched from inventory" errors={errors}>
                   <select
                     name="rm_tc_number"
                     className="ric-form-select"
@@ -854,14 +940,14 @@ export const RaiseInspectionCallForm = ({
                     <option value="">Select TC Number</option>
                     {availableTcNumbers.map(tc => (
                       <option key={tc.tcNumber} value={tc.tcNumber}>
-                        {tc.tcNumber} (Heat: {tc.heatNumber}, Manufacturer: {tc.manufacturer})
+                        {tc.tcNumber} (Heat: {tc.heatNumber}, Supplier: {tc.manufacturer})
                       </option>
                     ))}
                   </select>
                 </FormField>
 
                 {/* TC Date - Auto-fetched */}
-                <FormField label="TC Date" name="rm_tc_date" hint="Auto-fetched">
+                <FormField label="TC Date" name="rm_tc_date" hint="Auto-fetched" errors={errors}>
                   <input
                     type="text"
                     className="ric-form-input ric-form-input--disabled"
@@ -871,7 +957,7 @@ export const RaiseInspectionCallForm = ({
                 </FormField>
 
                 {/* Manufacturer - Auto-fetched */}
-                <FormField label="Manufacturer Name" name="rm_manufacturer" hint="Auto-fetched">
+                <FormField label="Manufacturer Name" name="rm_manufacturer" hint="Auto-fetched" errors={errors}>
                   <input
                     type="text"
                     className="ric-form-input ric-form-input--disabled"
@@ -881,7 +967,7 @@ export const RaiseInspectionCallForm = ({
                 </FormField>
 
                 {/* Invoice Number - Auto-fetched */}
-                <FormField label="Invoice Number" name="rm_invoice_no" hint="Auto-fetched">
+                <FormField label="Invoice Number" name="rm_invoice_no" hint="Auto-fetched" errors={errors}>
                   <input
                     type="text"
                     className="ric-form-input ric-form-input--disabled"
@@ -959,7 +1045,7 @@ export const RaiseInspectionCallForm = ({
                 subtitle="Enter chemical composition percentages (auto-filled if previously entered)"
               />
               <div className="ric-form-grid">
-                <FormField label="Carbon (C) %" name="rm_chemical_carbon" required>
+                <FormField label="Carbon (C) %" name="rm_chemical_carbon" required errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_carbon"
@@ -973,7 +1059,7 @@ export const RaiseInspectionCallForm = ({
                   />
                 </FormField>
 
-                <FormField label="Manganese (Mn) %" name="rm_chemical_manganese" required>
+                <FormField label="Manganese (Mn) %" name="rm_chemical_manganese" required errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_manganese"
@@ -987,7 +1073,7 @@ export const RaiseInspectionCallForm = ({
                   />
                 </FormField>
 
-                <FormField label="Silicon (Si) %" name="rm_chemical_silicon" required>
+                <FormField label="Silicon (Si) %" name="rm_chemical_silicon" required errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_silicon"
@@ -1001,7 +1087,7 @@ export const RaiseInspectionCallForm = ({
                   />
                 </FormField>
 
-                <FormField label="Sulphur (S) %" name="rm_chemical_sulphur" required>
+                <FormField label="Sulphur (S) %" name="rm_chemical_sulphur" required errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_sulphur"
@@ -1015,7 +1101,7 @@ export const RaiseInspectionCallForm = ({
                   />
                 </FormField>
 
-                <FormField label="Phosphorus (P) %" name="rm_chemical_phosphorus" required>
+                <FormField label="Phosphorus (P) %" name="rm_chemical_phosphorus" required errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_phosphorus"
@@ -1029,7 +1115,7 @@ export const RaiseInspectionCallForm = ({
                   />
                 </FormField>
 
-                <FormField label="Chromium (Cr) %" name="rm_chemical_chromium" required>
+                <FormField label="Chromium (Cr) %" name="rm_chemical_chromium" required errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_chromium"
@@ -1054,19 +1140,20 @@ export const RaiseInspectionCallForm = ({
               {formData.rm_heat_quantities.length > 0 && (
                 <div className="ric-heat-quantities">
                   {formData.rm_heat_quantities.map((heat) => (
-                    <div key={heat.heatNumber} className="ric-heat-quantity-row">
+                    <div key={`${heat.heatNumber}-${heat.tcNumber}`} className="ric-heat-quantity-row">
                       <div className="ric-form-grid">
                         <FormField
-                          label={`Heat ${heat.heatNumber} - Offered Qty (MT)`}
-                          name={`heat_qty_${heat.heatNumber}`}
+                          label={`Heat ${heat.heatNumber} - TC ${heat.tcNumber} - Offered Qty (MT)`}
+                          name={`heat_qty_${heat.heatNumber}_${heat.tcNumber}`}
                           required
-                          hint="Enter quantity in MT"
+                          hint={`Enter quantity in MT (Max: ${heat.maxQty} ${heat.unit})`}
+                          errors={errors}
                         >
                           <input
                             type="number"
                             className="ric-form-input"
                             value={heat.offeredQty}
-                            onChange={(e) => handleHeatQuantityChange(heat.heatNumber, e.target.value)}
+                            onChange={(e) => handleHeatQuantityChange(heat.heatNumber, heat.tcNumber, e.target.value)}
                             step="0.001"
                             min="0"
                             placeholder="Enter quantity in MT"
@@ -1097,6 +1184,8 @@ export const RaiseInspectionCallForm = ({
                   label="Approx. No. of ERC to be Supplied"
                   name="rm_offered_qty_erc"
                   // hint="Auto-calculated from Total Qty (1.150 MT per 1000 ERCs)"
+                  hint="total offfered Qty / 1.170 (MK-V)
+                        total offered Qty / (will tell) -- MK-III"
                 >
                   <input
                     type="text"

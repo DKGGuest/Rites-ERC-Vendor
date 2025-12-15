@@ -881,10 +881,11 @@ export const HEAT_TC_MAPPING = [
 ];
 
 // Chemical Analysis History (for auto-fetch in Raw Material)
+// Manufacturer names should match supplier names from inventory
 export const CHEMICAL_ANALYSIS_HISTORY = [
-  { heatNumber: 'HT-2025-001', manufacturer: 'SAIL', carbon: 0.42, manganese: 0.75, silicon: 0.25, sulphur: 0.025, phosphorus: 0.030, chromium: 0.15 },
-  { heatNumber: 'HT-2025-002', manufacturer: 'TATA', carbon: 0.45, manganese: 0.80, silicon: 0.28, sulphur: 0.020, phosphorus: 0.025, chromium: 0.18 },
-  { heatNumber: 'HT-2025-003', manufacturer: 'JSW', carbon: 0.40, manganese: 0.72, silicon: 0.22, sulphur: 0.028, phosphorus: 0.032, chromium: 0.12 }
+  { heatNumber: 'HT-2025-001', manufacturer: 'Steel India Ltd', carbon: 0.42, manganese: 0.75, silicon: 0.25, sulphur: 0.025, phosphorus: 0.030, chromium: 0.15 },
+  { heatNumber: 'HT-2025-002', manufacturer: 'XYZ Materials Co.', carbon: 0.45, manganese: 0.80, silicon: 0.28, sulphur: 0.020, phosphorus: 0.025, chromium: 0.18 },
+  { heatNumber: 'HT-2025-003', manufacturer: 'JSW Steel Ltd', carbon: 0.40, manganese: 0.72, silicon: 0.22, sulphur: 0.028, phosphorus: 0.032, chromium: 0.12 }
 ];
 
 // Raw Material Inspection Calls (Completed) - for Process stage selection
@@ -958,7 +959,7 @@ export const VENDOR_INVENTORY_ENTRIES = [
     supplierName: 'Steel India Ltd',
     supplierAddress: 'Sector 18, Gurugram, Haryana - 122015',
     gradeSpecification: 'IS 2062',
-    heatNumber: 'HT-2025-001',
+    heatNumber: 'HT-2025-001', // Heat Number for Steel
     tcNumber: 'TC-45678',
     tcDate: '2025-11-15',
     invoiceNumber: 'INV-2025-1001',
@@ -981,7 +982,7 @@ export const VENDOR_INVENTORY_ENTRIES = [
     supplierName: 'National Cement Corp',
     supplierAddress: 'NH-8, Bhiwadi, Rajasthan - 301019',
     gradeSpecification: 'OPC 53',
-    heatNumber: 'BN-2025-089',
+    heatNumber: 'BN-2025-089', // Batch Number for Cement
     tcNumber: 'TC-45679',
     tcDate: '2025-11-12',
     invoiceNumber: 'INV-2025-1002',
@@ -1004,7 +1005,7 @@ export const VENDOR_INVENTORY_ENTRIES = [
     supplierName: 'ABC Suppliers Pvt Ltd',
     supplierAddress: 'Plot No. 45, Industrial Area, Phase II, New Delhi - 110020',
     gradeSpecification: 'Grade A',
-    heatNumber: 'BN-2025-045',
+    heatNumber: 'BN-2025-045', // Batch Number for Rubber
     tcNumber: 'TC-45680',
     tcDate: '2025-11-18',
     invoiceNumber: 'INV-2025-1003',
@@ -1046,11 +1047,34 @@ export const VENDOR_INVENTORY_ENTRIES = [
   },
   {
     id: 5,
+    rawMaterial: 'Steel Round',
+    supplierName: 'JSW Steel Ltd',
+    supplierAddress: 'JSW Complex, Vijayanagar, Karnataka - 583275',
+    gradeSpecification: 'IS 2062',
+    heatNumber: 'HT-2025-003', // Heat Number for Steel
+    tcNumber: 'TC-45690',
+    tcDate: '2025-11-18',
+    invoiceNumber: 'INV-2025-1010',
+    invoiceDate: '2025-11-20',
+    subPoNumber: 'SPO-2025-106',
+    subPoDate: '2025-11-12',
+    subPoQty: 7500,
+    rateOfMaterial: 88.00,
+    rateOfGst: 18,
+    declaredQuantity: 7500,
+    qtyOfferedForInspection: 0,
+    qtyLeftForInspection: 7500,
+    unitOfMeasurement: 'Kg',
+    status: 'Fresh',
+    entryDate: '2025-11-24'
+  },
+  {
+    id: 6,
     rawMaterial: 'Aggregate',
     supplierName: 'ABC Suppliers Pvt Ltd',
     supplierAddress: 'Plot No. 45, Industrial Area, Phase II, New Delhi - 110020',
     gradeSpecification: 'Grade B',
-    heatNumber: 'LN-2025-012',
+    heatNumber: 'LN-2025-012', // Lot Number for Aggregate
     tcNumber: 'TC-45682',
     tcDate: '2025-11-22',
     invoiceNumber: 'INV-2025-1005',
