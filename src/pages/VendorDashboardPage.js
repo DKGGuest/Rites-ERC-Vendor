@@ -1,5 +1,5 @@
 // src/pages/VendorDashboardPage.js
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import Tabs from '../components/Tabs';
 import DataTable from '../components/DataTable';
 import StatusBadge from '../components/StatusBadge';
@@ -8,6 +8,7 @@ import { PaymentForm } from '../components/PaymentForm';
 import { RaiseInspectionCallForm } from '../components/RaiseInspectionCallForm';
 import { MasterUpdatingForm } from '../components/MasterUpdatingForm';
 import NewInventoryEntryForm from '../components/NewInventoryEntryForm';
+import AddSubPOForm from '../components/AddSubPOForm';
 import {
   VENDOR_PO_LIST,
   VENDOR_REQUESTED_CALLS,
@@ -22,9 +23,11 @@ import {
   CALIBRATION_MASTER_DATA,
   PAYMENT_MASTER_DATA,
   CALIBRATION_REQUIREMENTS,
-  VENDOR_PRODUCT_TYPE
+  VENDOR_PRODUCT_TYPE,
+  VENDOR_SUB_PO_LIST
 } from '../data/vendorMockData';
 import { formatDate } from '../utils/helpers';
+import useVendorWorkflow from '../hooks/useVendorWorkflow';
 import '../styles/vendorDashboard.css';
 
 const VendorDashboardPage = ({ onBack }) => {
@@ -41,6 +44,13 @@ const VendorDashboardPage = ({ onBack }) => {
   // Modal state for Raise Inspection Request form
   const [isInspectionModalOpen, setIsInspectionModalOpen] = useState(false);
   const [selectedPOItem, setSelectedPOItem] = useState(null);
+
+  // Modal state for Add Sub PO form
+  const [isAddSubPOModalOpen, setIsAddSubPOModalOpen] = useState(false);
+  const [selectedSubPOItem, setSelectedSubPOItem] = useState(null);
+
+  // State to track selected Sub PO for each item
+  const [selectedSubPOsByItem, setSelectedSubPOsByItem] = useState({});
 
   // Expanded PO rows state
   const [expandedPORows, setExpandedPORows] = useState({});
@@ -71,6 +81,35 @@ const VendorDashboardPage = ({ onBack }) => {
   const [approvalItems, setApprovalItems] = useState(VENDOR_APPROVAL_ITEMS);
   const [gaugeItems, setGaugeItems] = useState(VENDOR_GAUGE_ITEMS);
   const [paymentItems, setPaymentItems] = useState(VENDOR_PAYMENT_ITEMS);
+  const [subPOList, setSubPOList] = useState(VENDOR_SUB_PO_LIST);
+
+  // ============ VENDOR WORKFLOW API INTEGRATION ============
+  // Initialize the workflow hook for API calls
+  const {
+    loading: workflowLoading,
+    errors: workflowErrors,
+    transitionHistory,
+    paymentBlockedRecords,
+    pendingTransitions,
+    initiateWorkflow,
+    performTransitionAction,
+    fetchTransitionHistory,
+    fetchPaymentBlockedTransitions,
+    fetchPendingTransitions,
+    clearError,
+    WORKFLOW_ACTIONS
+  } = useVendorWorkflow();
+
+  // State for workflow transition history modal
+  const [isTransitionHistoryModalOpen, setIsTransitionHistoryModalOpen] = useState(false);
+  const [selectedIcForHistory, setSelectedIcForHistory] = useState(null);
+
+  // Current user context (would be from auth context in production)
+  const currentUser = useMemo(() => ({
+    id: 'vendor-user-001',
+    role: 'VENDOR',
+    email: 'vendor@example.com'
+  }), []);
 
   // Filtered payment items based on status and date
   const filteredPaymentItems = useMemo(() => {
@@ -423,8 +462,8 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   // ============ RAISE INSPECTION REQUEST HANDLERS ============
-  const handleOpenInspectionModal = (po, item) => {
-    setSelectedPOItem({ po, item });
+  const handleOpenInspectionModal = (po, item, subPO = null) => {
+    setSelectedPOItem({ po, item, subPO });
     setIsInspectionModalOpen(true);
   };
 
@@ -436,14 +475,90 @@ const VendorDashboardPage = ({ onBack }) => {
   const handleSubmitInspectionRequest = async (data) => {
     setIsLoading(true);
     try {
-      console.log('Inspection request submitted:', data);
-      alert(`Inspection Request submitted successfully for ${selectedPOItem?.item?.item_name}!`);
+      // Step 1: Save inspection call data (currently mock - replace with actual save API)
+      const savedInspectionCall = {
+        ...data,
+        icId: `IC-${Date.now()}`, // Generated IC ID from backend
+        vendorId: currentUser.id,
+        createdBy: currentUser.id,
+        createdAt: new Date().toISOString()
+      };
+
+      // Step 2: Call initiateWorkflow API after saving inspection call
+      // This initiates the inspection workflow in the backend
+      try {
+        const workflowResponse = await initiateWorkflow({
+          icId: savedInspectionCall.icId,
+          poNo: data.po_no,
+          poSerialNo: data.po_serial_no,
+          vendorId: currentUser.id,
+          stage: data.type_of_call,
+          callDetails: {
+            desiredInspectionDate: data.desired_inspection_date,
+            offeredQty: data.rm_offered_qty_mt || data.process_offered_qty || data.final_erc_qty,
+            companyId: data.company_id,
+            unitId: data.unit_id,
+            remarks: data.remarks
+          }
+        });
+
+        console.log('Workflow initiated:', workflowResponse);
+        alert(`Inspection Request submitted successfully for ${selectedPOItem?.item?.item_name}!\nWorkflow initiated with IC ID: ${savedInspectionCall.icId}`);
+      } catch (workflowError) {
+        // If workflow initiation fails, still show success for the save but warn about workflow
+        console.warn('Workflow initiation failed:', workflowError);
+        alert(`Inspection Request saved for ${selectedPOItem?.item?.item_name}.\nNote: Workflow initiation pending - will be retried automatically.`);
+      }
+
       handleCloseInspectionModal();
     } catch (error) {
       console.error('Error submitting inspection request:', error);
+      alert('Failed to submit inspection request. Please try again.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // ============ ADD SUB PO HANDLERS ============
+  const handleOpenAddSubPOModal = (po, item) => {
+    setSelectedSubPOItem({ po, item });
+    setIsAddSubPOModalOpen(true);
+  };
+
+  const handleCloseAddSubPOModal = () => {
+    setIsAddSubPOModalOpen(false);
+    setSelectedSubPOItem(null);
+  };
+
+  const handleSubmitSubPO = async (subPOData) => {
+    setIsLoading(true);
+    try {
+      // Generate new Sub PO ID
+      const newSubPO = {
+        ...subPOData,
+        id: subPOList.length + 1,
+        submitted_date: new Date().toISOString().split('T')[0]
+      };
+
+      // Add to Sub PO list
+      setSubPOList(prev => [...prev, newSubPO]);
+
+      alert(`Sub PO ${subPOData.sub_po_number} submitted for approval successfully!`);
+      handleCloseAddSubPOModal();
+    } catch (error) {
+      console.error('Error submitting Sub PO:', error);
+      alert('Failed to submit Sub PO. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Get approved Sub POs for a specific PO (all items)
+  const getApprovedSubPOsForPO = (po) => {
+    const poItemIds = po.items?.map(item => item.id) || [];
+    return subPOList.filter(
+      subPO => poItemIds.includes(subPO.po_item_id) && subPO.approval_status === 'Approved'
+    );
   };
 
   // ============ INSPECTION CALL ROW HANDLERS ============
@@ -524,6 +639,89 @@ const VendorDashboardPage = ({ onBack }) => {
     setSelectedCompletedCall(null);
   };
 
+  // ============ WORKFLOW API HANDLERS ============
+
+  /**
+   * Open transition history modal and fetch history for an IC
+   * Uses workflowTransitionHistory API
+   */
+  const handleViewTransitionHistory = useCallback(async (call) => {
+    setSelectedIcForHistory(call);
+    setIsTransitionHistoryModalOpen(true);
+
+    try {
+      await fetchTransitionHistory(call.ic_number || call.call_no);
+    } catch (error) {
+      console.error('Failed to fetch transition history:', error);
+    }
+  }, [fetchTransitionHistory]);
+
+  /**
+   * Close transition history modal
+   */
+  const handleCloseTransitionHistoryModal = useCallback(() => {
+    setIsTransitionHistoryModalOpen(false);
+    setSelectedIcForHistory(null);
+  }, []);
+
+  /**
+   * Perform workflow action (verify, approve, reject)
+   * Uses performTransitionAction API
+   */
+  const handlePerformWorkflowAction = useCallback(async (call, action, remarks = '') => {
+    try {
+      const response = await performTransitionAction({
+        icId: call.ic_number || call.call_no,
+        action: action,
+        performedBy: currentUser.id,
+        roleName: currentUser.role,
+        remarks: remarks,
+        timestamp: new Date().toISOString()
+      });
+
+      alert(`Action "${action}" performed successfully on ${call.call_no}`);
+      return response;
+    } catch (error) {
+      console.error('Failed to perform action:', error);
+      alert(`Failed to perform action: ${error.message || 'Unknown error'}`);
+      throw error;
+    }
+  }, [performTransitionAction, currentUser]);
+
+  /**
+   * Fetch payment blocked records
+   * Uses workflowTransitionsPaymentBlocked API
+   */
+  const handleFetchPaymentBlockedRecords = useCallback(async () => {
+    try {
+      await fetchPaymentBlockedTransitions({
+        vendorId: currentUser.id
+      });
+    } catch (error) {
+      console.error('Failed to fetch payment blocked records:', error);
+    }
+  }, [fetchPaymentBlockedTransitions, currentUser.id]);
+
+  /**
+   * Fetch pending transitions for the current user's role
+   * Uses allPendingWorkflowtrasition API
+   * Note: API returns all for role, then filters by createdBy == userId
+   */
+  const handleFetchPendingTransitions = useCallback(async () => {
+    try {
+      await fetchPendingTransitions(currentUser.role, currentUser.id);
+    } catch (error) {
+      console.error('Failed to fetch pending transitions:', error);
+    }
+  }, [fetchPendingTransitions, currentUser]);
+
+  // Fetch pending transitions when requested calls tab is active
+  useEffect(() => {
+    if (activeTab === 'requested-calls') {
+      handleFetchPendingTransitions();
+    }
+  }, [activeTab, handleFetchPendingTransitions]);
+
   // Summary numbers for tab badges
   const totalPOs = VENDOR_PO_LIST.length;
   const pendingRequests = useMemo(
@@ -587,7 +785,6 @@ const VendorDashboardPage = ({ onBack }) => {
 
   const poColumns = [
     { key: 'po_no', label: 'PO No.' },
-    { key: 'sub_po_no', label: 'Sub PO No.' },
     {
       key: 'po_date',
       label: 'PO Date',
@@ -596,7 +793,7 @@ const VendorDashboardPage = ({ onBack }) => {
     { key: 'description', label: 'Description' },
     { key: 'quantity', label: 'Qty' },
     { key: 'unit', label: 'Unit' },
-    { key: 'location', label: 'Location' },
+    // { key: 'location', label: 'Location' },
     {
       key: 'status',
       label: 'Status',
@@ -915,7 +1112,75 @@ const VendorDashboardPage = ({ onBack }) => {
                                 <div className="po-items-container">
                                   <div className="po-items-header">
                                     <span className="po-items-title">Items in {po.po_no}</span>
+                                    {/* <button
+                                      className="btn btn-sm btn-secondary"
+                                      onClick={() => handleOpenAddSubPOModal(po, null)}
+                                      style={{ whiteSpace: 'nowrap' }}
+                                    >
+                                      + Add Sub PO
+                                    </button> */}
                                   </div>
+
+                                  {/* Sub PO List Table */}
+                                  {/* {(() => {
+                                    const poSubPOs = subPOList.filter(subPO =>
+                                      po.items?.some(item => item.id === subPO.po_item_id)
+                                    );
+
+                                    if (poSubPOs.length > 0) {
+                                      return (
+                                        <div className="sub-po-section">
+                                          <h4 className="sub-po-section-title">Sub POs for this PO</h4>
+                                          <table className="po-items-table sub-po-table">
+                                            <thead>
+                                              <tr>
+                                                <th>Sub-PO Number</th>
+                                                <th>Raw Material</th>
+                                                <th>Contractor</th>
+                                                <th>Manufacturer</th>
+                                                <th>Sub-PO Qty</th>
+                                                <th>Rate (₹)</th>
+                                                <th>Status</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {poSubPOs.map(subPO => (
+                                                <tr key={subPO.id}>
+                                                  <td>{subPO.sub_po_number}</td>
+                                                  <td>{subPO.raw_material_name}</td>
+                                                  <td>{subPO.contractor}</td>
+                                                  <td>{subPO.manufacturer}</td>
+                                                  <td>{subPO.sub_po_quantity}</td>
+                                                  <td>{subPO.rate}</td>
+                                                  <td>
+                                                    <span
+                                                      className="status-badge"
+                                                      style={{
+                                                        backgroundColor:
+                                                          subPO.approval_status === 'Approved' ? '#d1fae5' :
+                                                          subPO.approval_status === 'Rejected' ? '#fee2e2' :
+                                                          '#fef3c7',
+                                                        color:
+                                                          subPO.approval_status === 'Approved' ? '#065f46' :
+                                                          subPO.approval_status === 'Rejected' ? '#991b1b' :
+                                                          '#92400e'
+                                                      }}
+                                                    >
+                                                      {subPO.approval_status}
+                                                    </span>
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                  })()} */}
+
+                                  {/* PO Items Table */}
+                                  <h4 className="po-items-section-title">PO Items</h4>
                                   <table className="po-items-table">
                                     <thead>
                                       <tr>
@@ -930,26 +1195,64 @@ const VendorDashboardPage = ({ onBack }) => {
                                     </thead>
                                     <tbody>
                                       {po.items && po.items.length > 0 ? (
-                                        po.items.map((item) => (
-                                          <tr key={item.id}>
-                                            <td>{item.item_name}</td>
-                                            <td>{item.po_serial_no}</td>
-                                            <td>{item.consignee}</td>
-                                            <td>{item.item_qty} {item.item_unit}</td>
-                                            <td>{formatDate(item.delivery_period)}</td>
-                                            <td>
-                                              <StatusBadge status={item.item_status} />
-                                            </td>
-                                            <td>
-                                              <button
-                                                className="btn btn-sm btn-primary"
-                                                onClick={() => handleOpenInspectionModal(po, item)}
-                                              >
-                                                Raise Inspection Request
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        ))
+                                        (() => {
+                                          // Get all approved Sub POs for this PO (shared across all items)
+                                          const approvedSubPOs = getApprovedSubPOsForPO(po);
+
+                                          return po.items.map((item) => {
+                                            const selectedSubPO = selectedSubPOsByItem[item.id] || '';
+
+                                            return (
+                                              <tr key={item.id}>
+                                                <td>{item.item_name}</td>
+                                                <td>{item.po_serial_no}</td>
+                                                <td>{item.consignee}</td>
+                                                <td>{item.item_qty} {item.item_unit}</td>
+                                                <td>{formatDate(item.delivery_period)}</td>
+                                                <td>
+                                                  <StatusBadge status={item.item_status} />
+                                                </td>
+                                                <td>
+                                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    {/* Sub PO Dropdown - Always show for all items */}
+                                                    {/* <select
+                                                      className="ric-form-select"
+                                                      value={selectedSubPO}
+                                                      onChange={(e) => {
+                                                        setSelectedSubPOsByItem(prev => ({
+                                                          ...prev,
+                                                          [item.id]: e.target.value
+                                                        }));
+                                                      }}
+                                                      style={{ fontSize: '12px', padding: '4px' }}
+                                                    >
+                                                      <option value="">Select Sub PO (Optional)</option>
+                                                      {approvedSubPOs.map(subPO => (
+                                                        <option key={subPO.id} value={subPO.id}>
+                                                          {subPO.sub_po_number} - {subPO.raw_material_name}
+                                                        </option>
+                                                      ))}
+                                                    </select> */}
+
+                                                    {/* Raise Inspection Request Button */}
+                                                    <button
+                                                      className="btn btn-sm btn-primary"
+                                                      onClick={() => {
+                                                        const subPOData = selectedSubPO
+                                                          ? approvedSubPOs.find(sp => sp.id === parseInt(selectedSubPO))
+                                                          : null;
+                                                        handleOpenInspectionModal(po, item, subPOData);
+                                                      }}
+                                                      style={{ whiteSpace: 'nowrap' }}
+                                                    >
+                                                      Raise Inspection Request
+                                                    </button>
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            );
+                                          });
+                                        })()
                                       ) : (
                                         <tr>
                                           <td colSpan={7} style={{ textAlign: 'center', color: '#6b7280' }}>
@@ -1024,6 +1327,16 @@ const VendorDashboardPage = ({ onBack }) => {
                                     }}
                                   >
                                     View Full Inspection Call Details
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewTransitionHistory(call);
+                                    }}
+                                    disabled={workflowLoading.transitionHistory}
+                                  >
+                                    {workflowLoading.transitionHistory ? 'Loading...' : 'View Workflow History'}
                                   </button>
                                   <button
                                     className="btn btn-sm btn-outline"
@@ -1654,11 +1967,39 @@ const VendorDashboardPage = ({ onBack }) => {
                     <span className="info-label">Quantity:</span>
                     <span className="info-value">{selectedPOItem.item?.item_qty} {selectedPOItem.item?.item_unit}</span>
                   </div>
+                  {selectedPOItem.subPO && (
+                    <div className="inspection-info-row">
+                      <span className="info-label">Selected Sub PO:</span>
+                      <span className="info-value">{selectedPOItem.subPO.sub_po_number} - {selectedPOItem.subPO.raw_material_name}</span>
+                    </div>
+                  )}
                 </div>
               )}
               <RaiseInspectionCallForm
                 selectedPO={selectedPOItem?.po}
+                selectedItem={selectedPOItem?.item}
+                selectedSubPO={selectedPOItem?.subPO}
                 onSubmit={handleSubmitInspectionRequest}
+                isLoading={isLoading}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ ADD SUB PO MODAL ============ */}
+      {isAddSubPOModalOpen && (
+        <div className="modal-overlay" onClick={handleCloseAddSubPOModal}>
+          <div className="modal raise-inspection-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Add Sub PO</h3>
+              <button className="modal-close-btn" onClick={handleCloseAddSubPOModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <AddSubPOForm
+                selectedPO={selectedSubPOItem?.po}
+                selectedItem={selectedSubPOItem?.item}
+                onSubmit={handleSubmitSubPO}
                 isLoading={isLoading}
               />
             </div>
@@ -2037,6 +2378,114 @@ const VendorDashboardPage = ({ onBack }) => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ WORKFLOW TRANSITION HISTORY MODAL ============ */}
+      {isTransitionHistoryModalOpen && selectedIcForHistory && (
+        <div className="modal-overlay" onClick={handleCloseTransitionHistoryModal}>
+          <div className="modal workflow-history-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Workflow Transition History</h3>
+              <button className="modal-close-btn" onClick={handleCloseTransitionHistoryModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="inspection-modal-info" style={{ marginBottom: '20px' }}>
+                <div className="inspection-info-row">
+                  <span className="info-label">Call No:</span>
+                  <span className="info-value">{selectedIcForHistory.call_no}</span>
+                </div>
+                <div className="inspection-info-row">
+                  <span className="info-label">IC Number:</span>
+                  <span className="info-value">{selectedIcForHistory.ic_number || 'Pending'}</span>
+                </div>
+                <div className="inspection-info-row">
+                  <span className="info-label">Current Status:</span>
+                  <span className="info-value">
+                    <StatusBadge status={selectedIcForHistory.status} />
+                  </span>
+                </div>
+              </div>
+
+              {/* Loading State */}
+              {workflowLoading.transitionHistory && (
+                <div className="workflow-loading">
+                  <p>Loading transition history...</p>
+                </div>
+              )}
+
+              {/* Error State */}
+              {workflowErrors.transitionHistory && (
+                <div className="workflow-error">
+                  <p>Error: {workflowErrors.transitionHistory}</p>
+                  <button
+                    className="btn btn-sm btn-outline"
+                    onClick={() => {
+                      clearError('transitionHistory');
+                      handleViewTransitionHistory(selectedIcForHistory);
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {/* Transition History Timeline */}
+              {!workflowLoading.transitionHistory && !workflowErrors.transitionHistory && (
+                <div className="workflow-timeline">
+                  <h4 className="timeline-title">Transition Timeline</h4>
+                  {transitionHistory.length > 0 ? (
+                    <div className="timeline-container">
+                      {transitionHistory.map((transition, idx) => (
+                        <div key={idx} className="timeline-item">
+                          <div className="timeline-marker"></div>
+                          <div className="timeline-content">
+                            <div className="timeline-header">
+                              <span className="timeline-action">{transition.action}</span>
+                              <span className="timeline-date">
+                                {formatDate(transition.timestamp || transition.createdAt)}
+                              </span>
+                            </div>
+                            <div className="timeline-details">
+                              <span className="timeline-user">By: {transition.performedBy || transition.userName}</span>
+                              <span className="timeline-role">Role: {transition.roleName}</span>
+                            </div>
+                            {transition.remarks && (
+                              <div className="timeline-remarks">
+                                <span>Remarks: {transition.remarks}</span>
+                              </div>
+                            )}
+                            <div className="timeline-status-change">
+                              <span className="from-status">{transition.fromStatus}</span>
+                              <span className="status-arrow">→</span>
+                              <span className="to-status">{transition.toStatus}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="timeline-empty">
+                      <p>No transition history available yet.</p>
+                      <p className="timeline-empty-hint">
+                        Workflow history will appear here once actions are performed on this inspection call.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="form-actions" style={{ marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={handleCloseTransitionHistoryModal}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

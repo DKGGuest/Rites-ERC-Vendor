@@ -486,6 +486,9 @@
 }
 
 .po-items-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 12px;
 }
 
@@ -493,6 +496,38 @@
   font-size: 14px;
   font-weight: 600;
   color: #1e3a5f;
+}
+
+/* Sub PO Section Styles */
+.sub-po-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #fef9f3;
+  border-radius: 8px;
+  border: 1px solid #fed7aa;
+}
+
+.sub-po-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sub-po-table {
+  background: #ffffff;
+}
+
+.po-items-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 12px;
+  margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .po-items-table {
@@ -1838,5 +1873,227 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+}
+
+/* ============ WORKFLOW HISTORY MODAL STYLES ============ */
+
+.workflow-history-modal {
+  max-width: 700px;
+  width: 95%;
+}
+
+.workflow-loading,
+.workflow-error {
+  padding: 20px;
+  text-align: center;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.workflow-error {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.workflow-error p {
+  margin-bottom: 12px;
+}
+
+/* Timeline Styles */
+.workflow-timeline {
+  padding: 16px 0;
+}
+
+.timeline-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.timeline-container {
+  position: relative;
+  padding-left: 24px;
+}
+
+.timeline-container::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #e5e7eb;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -20px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  background-color: #3b82f6;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.timeline-content {
+  background-color: #f9fafb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.timeline-action {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+  text-transform: uppercase;
+  background-color: #dbeafe;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.timeline-date {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.timeline-details {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #4b5563;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.timeline-user,
+.timeline-role {
+  display: inline-block;
+}
+
+.timeline-remarks {
+  font-size: 13px;
+  color: #6b7280;
+  font-style: italic;
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: #fff;
+  border-radius: 4px;
+  border-left: 3px solid #3b82f6;
+}
+
+.timeline-status-change {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.from-status,
+.to-status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.from-status {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.to-status {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.status-arrow {
+  color: #9ca3af;
+  font-weight: bold;
+}
+
+.timeline-empty {
+  text-align: center;
+  padding: 32px 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px dashed #d1d5db;
+}
+
+.timeline-empty p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.timeline-empty-hint {
+  font-size: 12px;
+  margin-top: 8px !important;
+  color: #9ca3af;
+}
+
+/* Responsive Timeline */
+@media (max-width: 768px) {
+  .workflow-history-modal {
+    max-width: 100%;
+    margin: 16px;
+  }
+
+  .timeline-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .timeline-details {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .timeline-status-change {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .timeline-content {
+    padding: 10px 12px;
+  }
+
+  .timeline-action {
+    font-size: 12px;
+  }
+
+  .timeline-container {
+    padding-left: 20px;
+  }
+
+  .timeline-marker {
+    left: -16px;
+    width: 10px;
+    height: 10px;
   }
 }

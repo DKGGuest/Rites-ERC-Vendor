@@ -7,13 +7,12 @@ export const VENDOR_PO_LIST = [
   {
     id: 1,
     po_no: 'PO-2025-1001',
-    sub_po_no: 'SPO-01',
     po_date: '2025-11-01',
     description: 'ERC MK-III Clips',
     quantity: 10000,
     unit: 'Nos',
+    location: 'New delhi plant',
     status: 'Fresh PO',
-    location: 'Vendor Plant A',
     items: [
       { id: 101, item_name: 'ERC MK-III Clips - Type A', item_qty: 5000, item_unit: 'Nos', item_status: 'Pending', po_serial_no: 'PO-2025-1001/01', consignee: 'RITES, Northern Region', delivery_period: '2025-12-31' },
       { id: 102, item_name: 'ERC MK-III Clips - Type B', item_qty: 3000, item_unit: 'Nos', item_status: 'Pending', po_serial_no: 'PO-2025-1001/02', consignee: 'RITES, Western Region', delivery_period: '2025-12-31' },
@@ -23,13 +22,12 @@ export const VENDOR_PO_LIST = [
   {
     id: 2,
     po_no: 'PO-2025-1002',
-    sub_po_no: 'SPO-02',
     po_date: '2025-11-03',
     description: 'ERC MK-V',
     quantity: 8000,
     unit: 'Nos',
+    location: 'Mumbai plant',
     status: 'Inspection under Process',
-    location: 'Vendor Plant B',
     items: [
       { id: 201, item_name: 'ERC MK-V Standard', item_qty: 5000, item_unit: 'Nos', item_status: 'Under Inspection', po_serial_no: 'PO-2025-1002/01', consignee: 'RITES, Central Region', delivery_period: '2026-01-15' },
       { id: 202, item_name: 'ERC MK-V Heavy Duty', item_qty: 3000, item_unit: 'Nos', item_status: 'Pending', po_serial_no: 'PO-2025-1002/02', consignee: 'RITES, Eastern Region', delivery_period: '2026-01-15' }
@@ -38,13 +36,12 @@ export const VENDOR_PO_LIST = [
   {
     id: 3,
     po_no: 'PO-2025-1003',
-    sub_po_no: 'SPO-01',
     po_date: '2025-11-05',
+    location: 'Hyderabad plant',
     description: 'ERC MK-III Clips',
     quantity: 5000,
     unit: 'Nos',
     status: 'Order Executed',
-    location: 'Vendor Plant A',
     items: [
       { id: 301, item_name: 'ERC MK-III Clips - Standard', item_qty: 5000, item_unit: 'Nos', item_status: 'Completed', po_serial_no: 'PO-2025-1003/01', consignee: 'RITES, Northern Region', delivery_period: '2025-12-20' }
     ]
@@ -138,7 +135,8 @@ export const VENDOR_REQUESTED_CALLS = [
     call_date: '2025-11-07',
     quantity_offered: 2500,
     location: 'Vendor Plant A',
-    status: 'IC Pending',
+    status: 'Pending',
+    //  status: 'IC Pending',
     inspection_details: {
       inspector_name: 'Pradeep Gupta',
       inspection_date: '2025-11-12',
@@ -771,8 +769,22 @@ export const COMPANY_UNIT_MASTER = [
     companyName: 'ABC Industries Pvt Ltd',
     cin: 'U27100MH2020PTC123456',
     units: [
-      { id: 101, unitName: 'Unit 1 - Mumbai', gstin: '27AABCU9603R1ZM', address: 'Plot 1, MIDC Industrial Area, Andheri East, Mumbai - 400093' },
-      { id: 102, unitName: 'Unit 2 - Pune', gstin: '27AABCU9603R2ZL', address: 'Plot 5, Chakan MIDC, Pune - 410501' }
+      {
+        id: 101,
+        unitName: 'Unit 1 - Mumbai',
+        gstin: '27AABCU9603R1ZM',
+        address: 'Plot 1, MIDC Industrial Area, Andheri East, Mumbai - 400093',
+        contactPerson: 'Rajesh Kumar',
+        roleOfUnit: 'ERC Manufacturer'
+      },
+      {
+        id: 102,
+        unitName: 'Unit 2 - Pune',
+        gstin: '27AABCU9603R2ZL',
+        address: 'Plot 5, Chakan MIDC, Pune - 410501',
+        contactPerson: 'Priya Sharma',
+        roleOfUnit: 'Steel Round Supplier (ERC)'
+      }
     ]
   },
   {
@@ -780,7 +792,14 @@ export const COMPANY_UNIT_MASTER = [
     companyName: 'XYZ Steel Mills Ltd',
     cin: 'L27100DL2015PLC987654',
     units: [
-      { id: 201, unitName: 'Main Plant - Delhi', gstin: '07AABCX1234R1ZN', address: 'Industrial Area, Okhla Phase II, New Delhi - 110020' }
+      {
+        id: 201,
+        unitName: 'Main Plant - Delhi',
+        gstin: '07AABCX1234R1ZN',
+        address: 'Industrial Area, Okhla Phase II, New Delhi - 110020',
+        contactPerson: 'Amit Verma',
+        roleOfUnit: 'Sleeper Manufacturer'
+      }
     ]
   }
 ];
@@ -795,10 +814,70 @@ export const MANUFACTURER_MASTER = [
 
 // Heat Number to TC Mapping (from Inventory Management)
 export const HEAT_TC_MAPPING = [
-  { heatNumber: 'HT-2025-001', tcNumber: 'TC-45678', manufacturer: 'SAIL', invoiceNo: 'INV-2025-1001', invoiceDate: '2025-11-14', qtyAvailable: 2000, unit: 'Kg' },
-  { heatNumber: 'HT-2025-002', tcNumber: 'TC-45681', manufacturer: 'TATA', invoiceNo: 'INV-2025-1004', invoiceDate: '2025-11-19', qtyAvailable: 4000, unit: 'Kg' },
-  { heatNumber: 'HT-2025-003', tcNumber: 'TC-45690', manufacturer: 'JSW', invoiceNo: 'INV-2025-1010', invoiceDate: '2025-11-20', qtyAvailable: 3500, unit: 'Kg' },
-  { heatNumber: 'HT-2025-004', tcNumber: 'TC-45695', manufacturer: 'SAIL', invoiceNo: 'INV-2025-1015', invoiceDate: '2025-11-22', qtyAvailable: 5000, unit: 'Kg' }
+  {
+    heatNumber: 'HT-2025-001',
+    tcNumber: 'TC-45678',
+    tcDate: '2025-11-10',
+    manufacturer: 'SAIL',
+    invoiceNo: 'INV-2025-1001',
+    invoiceDate: '2025-11-14',
+    subPoNumber: 'SUB-PO-001',
+    subPoDate: '2025-11-05',
+    subPoQty: '50 MT',
+    subPoTotalValue: '₹25,00,000',
+    tcQty: '50 MT',
+    tcQtyRemaining: '48 MT',
+    qtyAvailable: 2000,
+    unit: 'Kg'
+  },
+  {
+    heatNumber: 'HT-2025-002',
+    tcNumber: 'TC-45681',
+    tcDate: '2025-11-15',
+    manufacturer: 'TATA',
+    invoiceNo: 'INV-2025-1004',
+    invoiceDate: '2025-11-19',
+    subPoNumber: 'SUB-PO-002',
+    subPoDate: '2025-11-10',
+    subPoQty: '100 MT',
+    subPoTotalValue: '₹52,00,000',
+    tcQty: '100 MT',
+    tcQtyRemaining: '96 MT',
+    qtyAvailable: 4000,
+    unit: 'Kg'
+  },
+  {
+    heatNumber: 'HT-2025-003',
+    tcNumber: 'TC-45690',
+    tcDate: '2025-11-18',
+    manufacturer: 'JSW',
+    invoiceNo: 'INV-2025-1010',
+    invoiceDate: '2025-11-20',
+    subPoNumber: 'SUB-PO-003',
+    subPoDate: '2025-11-12',
+    subPoQty: '75 MT',
+    subPoTotalValue: '₹38,50,000',
+    tcQty: '75 MT',
+    tcQtyRemaining: '71.5 MT',
+    qtyAvailable: 3500,
+    unit: 'Kg'
+  },
+  {
+    heatNumber: 'HT-2025-004',
+    tcNumber: 'TC-45695',
+    tcDate: '2025-11-20',
+    manufacturer: 'SAIL',
+    invoiceNo: 'INV-2025-1015',
+    invoiceDate: '2025-11-22',
+    subPoNumber: 'SUB-PO-004',
+    subPoDate: '2025-11-15',
+    subPoQty: '120 MT',
+    subPoTotalValue: '₹60,00,000',
+    tcQty: '120 MT',
+    tcQtyRemaining: '115 MT',
+    qtyAvailable: 5000,
+    unit: 'Kg'
+  }
 ];
 
 // Chemical Analysis History (for auto-fetch in Raw Material)
@@ -810,9 +889,10 @@ export const CHEMICAL_ANALYSIS_HISTORY = [
 
 // Raw Material Inspection Calls (Completed) - for Process stage selection
 export const RM_INSPECTION_CALLS = [
-  { icNumber: 'RM-IC-2025-001', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-001', qtyAccepted: 1800, qtyRejected: 200, icDate: '2025-11-18', status: 'Completed' },
-  { icNumber: 'RM-IC-2025-002', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-002', qtyAccepted: 3800, qtyRejected: 200, icDate: '2025-11-20', status: 'Completed' },
-  { icNumber: 'RM-IC-2025-003', poSerialNo: 'PO-2025-1002/01', heatNumber: 'HT-2025-003', qtyAccepted: 3200, qtyRejected: 300, icDate: '2025-11-22', status: 'Completed' }
+  { icNumber: 'RM-IC-2025-001', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-001', bookSetNo: 'BS-001', qtyAccepted: 1800, qtyRejected: 200, icDate: '2025-11-18', status: 'Completed' },
+  { icNumber: 'RM-IC-2025-002', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-002', bookSetNo: 'BS-002', qtyAccepted: 3800, qtyRejected: 200, icDate: '2025-11-20', status: 'Completed' },
+  { icNumber: 'RM-IC-2025-003', poSerialNo: 'PO-2025-1002/01', heatNumber: 'HT-2025-003', bookSetNo: 'BS-003', qtyAccepted: 3200, qtyRejected: 300, icDate: '2025-11-22', status: 'Completed' },
+  { icNumber: 'RM-IC-2025-004', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-004', bookSetNo: 'BS-004', qtyAccepted: 4500, qtyRejected: 500, icDate: '2025-11-24', status: 'Completed' }
 ];
 
 // Process Inspection Calls (Completed) - for Final stage selection
@@ -986,5 +1066,105 @@ export const VENDOR_INVENTORY_ENTRIES = [
     unitOfMeasurement: 'Cubic Meter',
     status: 'Inspection Requested',
     entryDate: '2025-11-23'
+  }
+];
+
+// Sub PO Data Structure
+export const VENDOR_SUB_PO_LIST = [
+  {
+    id: 1,
+    po_id: 1, // Links to VENDOR_PO_LIST
+    po_no: 'PO-2025-1001',
+    po_item_id: 101, // Links to specific item in PO
+    sub_po_number: 'SUB-PO-2025-001',
+    sub_po_date: '2025-11-10',
+    raw_material_name: 'High Carbon Steel',
+    contractor: 'ABC Contractors Pvt Ltd',
+    manufacturer: 'XYZ Steel Mills',
+    purchasing_authority: 'RITES Purchase Division',
+    bill_paying_officer: 'Mr. Rajesh Kumar',
+    consignee: 'RITES, Northern Region',
+    sub_po_quantity: 2500,
+    call_quantity: 0,
+    offered_quantity: 0,
+    rate: 150.50,
+    vendor_remarks: 'First batch of raw material',
+    approval_status: 'Approved', // Pending Approval, Approved, Rejected
+    submitted_date: '2025-11-10',
+    approved_date: '2025-11-12',
+    approved_by: 'Admin User',
+    rejection_reason: null
+  },
+  {
+    id: 2,
+    po_id: 1,
+    po_no: 'PO-2025-1001',
+    po_item_id: 101,
+    sub_po_number: 'SUB-PO-2025-002',
+    sub_po_date: '2025-11-15',
+    raw_material_name: 'Alloy Steel Grade A',
+    contractor: 'DEF Engineering Ltd',
+    manufacturer: 'PQR Metallurgy Corp',
+    purchasing_authority: 'RITES Purchase Division',
+    bill_paying_officer: 'Ms. Priya Sharma',
+    consignee: 'RITES, Northern Region',
+    sub_po_quantity: 2500,
+    call_quantity: 0,
+    offered_quantity: 0,
+    rate: 175.75,
+    vendor_remarks: 'Second batch - premium grade',
+    approval_status: 'Approved',
+    submitted_date: '2025-11-15',
+    approved_date: '2025-11-17',
+    approved_by: 'Admin User',
+    rejection_reason: null
+  },
+  {
+    id: 3,
+    po_id: 1,
+    po_no: 'PO-2025-1001',
+    po_item_id: 102,
+    sub_po_number: 'SUB-PO-2025-003',
+    sub_po_date: '2025-11-20',
+    raw_material_name: 'Carbon Steel Type B',
+    contractor: 'GHI Contractors',
+    manufacturer: 'LMN Steel Works',
+    purchasing_authority: 'RITES Purchase Division',
+    bill_paying_officer: 'Mr. Amit Patel',
+    consignee: 'RITES, Western Region',
+    sub_po_quantity: 1500,
+    call_quantity: 0,
+    offered_quantity: 0,
+    rate: 160.00,
+    vendor_remarks: 'Standard grade material',
+    approval_status: 'Pending Approval',
+    submitted_date: '2025-11-20',
+    approved_date: null,
+    approved_by: null,
+    rejection_reason: null
+  },
+  {
+    id: 4,
+    po_id: 2,
+    po_no: 'PO-2025-1002',
+    po_item_id: 201,
+    sub_po_number: 'SUB-PO-2025-004',
+    sub_po_date: '2025-11-18',
+    raw_material_name: 'Stainless Steel 304',
+    contractor: 'JKL Industries',
+    manufacturer: 'STU Alloys Ltd',
+    purchasing_authority: 'RITES Purchase Division',
+    bill_paying_officer: 'Dr. Sunita Verma',
+    consignee: 'RITES, Central Region',
+    sub_po_quantity: 3000,
+    call_quantity: 0,
+    offered_quantity: 0,
+    rate: 200.25,
+    vendor_remarks: 'High quality stainless steel',
+    approval_status: 'Approved',
+    submitted_date: '2025-11-18',
+    approved_date: '2025-11-19',
+    approved_by: 'Admin User',
+    rejection_reason: null
   }
 ];

@@ -92,6 +92,100 @@
   font-weight: 600;
 }
 
+/* Multi-Select Dropdown */
+.ric-multiselect-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.ric-multiselect-trigger {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #374151;
+  background-color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ric-multiselect-trigger:hover {
+  border-color: #9ca3af;
+}
+
+.ric-multiselect-trigger:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ric-multiselect-arrow {
+  color: #6b7280;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.ric-multiselect-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.ric-multiselect-option {
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.15s;
+}
+
+.ric-multiselect-option:hover {
+  background-color: #f3f4f6;
+}
+
+.ric-multiselect-option--selected {
+  background-color: #eff6ff;
+}
+
+.ric-multiselect-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Heat Quantities Section */
+.ric-heat-quantities {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.ric-heat-quantity-row {
+  padding: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
 .ric-form-textarea {
   resize: vertical;
   min-height: 80px;
@@ -127,7 +221,7 @@
 
 .ric-qty-summary__grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
 
