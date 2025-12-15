@@ -21,13 +21,13 @@ const AddSubPOForm = ({ selectedPO, selectedItem, onSubmit, isLoading = false })
   const [errors, setErrors] = useState({});
 
   // Get the currently selected item from PO
-  const getCurrentItem = () => {
-    if (selectedItem) return selectedItem;
-    if (selectedItemId && selectedPO?.items) {
-      return selectedPO.items.find(item => item.id === parseInt(selectedItemId));
-    }
-    return null;
-  };
+  // const getCurrentItem = () => {
+  //   if (selectedItem) return selectedItem;
+  //   if (selectedItemId && selectedPO?.items) {
+  //     return selectedPO.items.find(item => item.id === parseInt(selectedItemId));
+  //   }
+  //   return null;
+  // };
 
   const handleChange = (e) => {
     const { name, value } = e.target;

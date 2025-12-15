@@ -50,7 +50,7 @@ const VendorDashboardPage = ({ onBack }) => {
   const [selectedSubPOItem, setSelectedSubPOItem] = useState(null);
 
   // State to track selected Sub PO for each item
-  const [selectedSubPOsByItem, setSelectedSubPOsByItem] = useState({});
+  // const [selectedSubPOsByItem, setSelectedSubPOsByItem] = useState({});
 
   // Expanded PO rows state
   const [expandedPORows, setExpandedPORows] = useState({});
@@ -89,15 +89,15 @@ const VendorDashboardPage = ({ onBack }) => {
     loading: workflowLoading,
     errors: workflowErrors,
     transitionHistory,
-    paymentBlockedRecords,
-    pendingTransitions,
+    // paymentBlockedRecords,
+    // pendingTransitions,
     initiateWorkflow,
     performTransitionAction,
     fetchTransitionHistory,
     fetchPaymentBlockedTransitions,
     fetchPendingTransitions,
     clearError,
-    WORKFLOW_ACTIONS
+    // WORKFLOW_ACTIONS
   } = useVendorWorkflow();
 
   // State for workflow transition history modal
@@ -520,10 +520,10 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   // ============ ADD SUB PO HANDLERS ============
-  const handleOpenAddSubPOModal = (po, item) => {
-    setSelectedSubPOItem({ po, item });
-    setIsAddSubPOModalOpen(true);
-  };
+  // const handleOpenAddSubPOModal = (po, item) => {
+  //   setSelectedSubPOItem({ po, item });
+  //   setIsAddSubPOModalOpen(true);
+  // };
 
   const handleCloseAddSubPOModal = () => {
     setIsAddSubPOModalOpen(false);
@@ -668,39 +668,39 @@ const VendorDashboardPage = ({ onBack }) => {
    * Perform workflow action (verify, approve, reject)
    * Uses performTransitionAction API
    */
-  const handlePerformWorkflowAction = useCallback(async (call, action, remarks = '') => {
-    try {
-      const response = await performTransitionAction({
-        icId: call.ic_number || call.call_no,
-        action: action,
-        performedBy: currentUser.id,
-        roleName: currentUser.role,
-        remarks: remarks,
-        timestamp: new Date().toISOString()
-      });
+  // const handlePerformWorkflowAction = useCallback(async (call, action, remarks = '') => {
+  //   try {
+  //     const response = await performTransitionAction({
+  //       icId: call.ic_number || call.call_no,
+  //       action: action,
+  //       performedBy: currentUser.id,
+  //       roleName: currentUser.role,
+  //       remarks: remarks,
+  //       timestamp: new Date().toISOString()
+  //     });
 
-      alert(`Action "${action}" performed successfully on ${call.call_no}`);
-      return response;
-    } catch (error) {
-      console.error('Failed to perform action:', error);
-      alert(`Failed to perform action: ${error.message || 'Unknown error'}`);
-      throw error;
-    }
-  }, [performTransitionAction, currentUser]);
+  //     alert(`Action "${action}" performed successfully on ${call.call_no}`);
+  //     return response;
+  //   } catch (error) {
+  //     console.error('Failed to perform action:', error);
+  //     alert(`Failed to perform action: ${error.message || 'Unknown error'}`);
+  //     throw error;
+  //   }
+  // }, [performTransitionAction, currentUser]);
 
   /**
    * Fetch payment blocked records
    * Uses workflowTransitionsPaymentBlocked API
    */
-  const handleFetchPaymentBlockedRecords = useCallback(async () => {
-    try {
-      await fetchPaymentBlockedTransitions({
-        vendorId: currentUser.id
-      });
-    } catch (error) {
-      console.error('Failed to fetch payment blocked records:', error);
-    }
-  }, [fetchPaymentBlockedTransitions, currentUser.id]);
+  // const handleFetchPaymentBlockedRecords = useCallback(async () => {
+  //   try {
+  //     await fetchPaymentBlockedTransitions({
+  //       vendorId: currentUser.id
+  //     });
+  //   } catch (error) {
+  //     console.error('Failed to fetch payment blocked records:', error);
+  //   }
+  // }, [fetchPaymentBlockedTransitions, currentUser.id]);
 
   /**
    * Fetch pending transitions for the current user's role
