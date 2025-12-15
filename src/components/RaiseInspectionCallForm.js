@@ -10,7 +10,7 @@ import {
   CHEMICAL_ANALYSIS_HISTORY,
   RM_INSPECTION_CALLS,
   PROCESS_INSPECTION_CALLS,
-  LOT_NUMBERS,
+  // LOT_NUMBERS, // Removed unused import
   ERC_CONVERSION_FACTORS,
   PO_SERIAL_DETAILS,
   // VENDOR_PO_LIST
@@ -242,9 +242,9 @@ export const RaiseInspectionCallForm = ({
   }, [selectedPO]);
 
   // Get available heat numbers from inventory
-  const availableHeatNumbers = useMemo(() => {
-    return HEAT_TC_MAPPING.filter(h => h.qtyAvailable > 0);
-  }, []);
+  // const availableHeatNumbers = useMemo(() => {
+  //   return HEAT_TC_MAPPING.filter(h => h.qtyAvailable > 0);
+  // }, []);
 
   // Get available RM ICs for Process stage
   const availableRmIcs = useMemo(() => {
@@ -252,14 +252,14 @@ export const RaiseInspectionCallForm = ({
   }, []);
 
   // Get available Process ICs for Final stage
-  const availableProcessIcs = useMemo(() => {
-    return PROCESS_INSPECTION_CALLS.filter(ic => ic.status === 'Completed');
-  }, []);
+  // const availableProcessIcs = useMemo(() => {
+  //   return PROCESS_INSPECTION_CALLS.filter(ic => ic.status === 'Completed');
+  // }, []);
 
   // Get available lot numbers
-  const availableLots = useMemo(() => {
-    return LOT_NUMBERS.filter(l => l.qtyAvailable > 0);
-  }, []);
+  // const availableLots = useMemo(() => {
+  //   return LOT_NUMBERS.filter(l => l.qtyAvailable > 0);
+  // }, []);
 
   // Get units for selected company
   const unitOptions = useMemo(() => {

@@ -77,7 +77,7 @@ const AddSubPOForm = ({ selectedPO, selectedItem, onSubmit, isLoading = false })
     e.preventDefault();
 
     if (validateForm()) {
-      const currentItem = getCurrentItem();
+      // const currentItem = getCurrentItem(); // Removed unused variable
       const subPOData = {
         ...formData,
         po_id: selectedPO.id,
