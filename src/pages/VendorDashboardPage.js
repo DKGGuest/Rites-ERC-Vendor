@@ -1196,11 +1196,11 @@ const VendorDashboardPage = ({ onBack }) => {
                                     <tbody>
                                       {po.items && po.items.length > 0 ? (
                                         (() => {
-                                          // Get all approved Sub POs for this PO (shared across all items)
+                                          // Get all approved Sub POs for this PO (shared across all items,  selectedSubPOsByItem[item.id] || )
                                           const approvedSubPOs = getApprovedSubPOsForPO(po);
 
                                           return po.items.map((item) => {
-                                            const selectedSubPO = selectedSubPOsByItem[item.id] || '';
+                                            const selectedSubPO = '';
 
                                             return (
                                               <tr key={item.id}>
