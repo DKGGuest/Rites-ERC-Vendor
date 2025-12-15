@@ -92,9 +92,9 @@ const VendorDashboardPage = ({ onBack }) => {
     // paymentBlockedRecords,
     // pendingTransitions,
     initiateWorkflow,
-    performTransitionAction,
+    // performTransitionAction,
     fetchTransitionHistory,
-    fetchPaymentBlockedTransitions,
+    // fetchPaymentBlockedTransitions,
     fetchPendingTransitions,
     clearError,
     // WORKFLOW_ACTIONS
