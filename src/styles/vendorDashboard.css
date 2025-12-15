@@ -413,25 +413,39 @@
 /* ============ INVENTORY FORM SECTION ============ */
 .inventory-form-section {
   margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
+  padding-top: 32px;
+  border-top: 2px solid #e5e7eb;
 }
 
 .inventory-form-header {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-left: 4px solid #3b82f6;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .inventory-form-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
   color: #1e3a5f;
-  margin: 0 0 4px 0;
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inventory-form-title::before {
+  content: "📝";
+  font-size: 20px;
 }
 
 .inventory-form-subtitle {
   font-size: 13px;
-  color: #64748b;
+  color: #475569;
   margin: 0;
+  line-height: 1.5;
 }
 
 /* ============ EXPANDABLE PO TABLE ============ */

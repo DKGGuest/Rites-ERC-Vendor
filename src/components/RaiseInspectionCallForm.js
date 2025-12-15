@@ -908,7 +908,7 @@ export const RaiseInspectionCallForm = ({
                   label="Heat Number"
                   name="rm_heat_numbers"
                   required
-                  hint="Selected from inventory list (comma-separated for multiple)"
+                  // hint="Selected from inventory list (comma-separated for multiple)"
                 >
                   <select
                     name="rm_heat_numbers"
@@ -923,9 +923,9 @@ export const RaiseInspectionCallForm = ({
                       </option>
                     ))}
                   </select>
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280' }}>
+                  {/* <div style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280' }}>
                     💡 For multiple heat numbers, select one and manually add others separated by comma
-                  </div>
+                  </div> */}
                 </FormField>
 
                 {/* TC Number - Dropdown based on Heat Number */}
