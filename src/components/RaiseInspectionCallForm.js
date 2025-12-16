@@ -866,8 +866,8 @@ export const RaiseInspectionCallForm = ({
                 className="ric-form-input"
                 value={formData.desired_inspection_date}
                 onChange={handleChange}
-                min={getTodayDate()}
-                max={getMaxDate()}
+                // min={getTodayDate()}
+                // max={getMaxDate()}
               />
             </FormField>
 
