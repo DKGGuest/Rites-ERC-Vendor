@@ -10,7 +10,7 @@ import { MasterUpdatingForm } from '../components/MasterUpdatingForm';
 import NewInventoryEntryForm from '../components/NewInventoryEntryForm';
 import AddSubPOForm from '../components/AddSubPOForm';
 import {
-  VENDOR_PO_LIST,
+  // VENDOR_PO_LIST,
   VENDOR_REQUESTED_CALLS,
   VENDOR_COMPLETED_CALLS,
   VENDOR_CALIBRATION_ITEMS,
@@ -59,6 +59,7 @@ const VendorDashboardPage = ({ onBack }) => {
 
   // State for approved RM ICs per PO
   const [approvedRMICsByPO, setApprovedRMICsByPO] = useState({});
+  // eslint-disable-next-line no-unused-vars
   const [loadingRMICs, setLoadingRMICs] = useState({});
 
   // Expanded Inspection Call rows state (for Requested Calls tab)

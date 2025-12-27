@@ -16,7 +16,7 @@ import {
   VENDOR_INVENTORY_ENTRIES, // Import inventory data
   // VENDOR_PO_LIST
 } from '../data/vendorMockData';
-import inspectionCallService from '../services/inspectionCallService';
+// import inspectionCallService from '../services/inspectionCallService';
 import '../styles/raiseInspectionCall.css';
 
 // Multi-Select Dropdown Component
@@ -299,9 +299,13 @@ export const RaiseInspectionCallForm = ({
   const [selectedPoSerial, setSelectedPoSerial] = useState(selectedItem?.po_serial_no || '');
 
   // State for approved RM ICs and heat numbers (for Process IC)
+  // eslint-disable-next-line no-unused-vars
   const [approvedRMICsForProcess, setApprovedRMICsForProcess] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [processHeatNumbers, setProcessHeatNumbers] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [loadingRMICs, setLoadingRMICs] = useState(false);
+  // eslint-disable-next-line no-unused-vars
   const [loadingHeats, setLoadingHeats] = useState(false);
 
   // Handle PO Serial selection
@@ -479,6 +483,7 @@ export const RaiseInspectionCallForm = ({
   }, []);
 
   // Calculate remaining quantity for each stage
+  // eslint-disable-next-line no-unused-vars
   const remainingQty = useMemo(() => {
     const poSerial = PO_SERIAL_DETAILS.find(p => p.serialNo === formData.po_serial_no);
     if (!poSerial) return { rm: 0, process: 0, final: 0 };
@@ -668,6 +673,7 @@ export const RaiseInspectionCallForm = ({
   };
 
   // Handle offered quantity change for process lot-heat
+  // eslint-disable-next-line no-unused-vars
   const handleProcessOfferedQtyChange = (id, offeredQty) => {
     setFormData(prev => ({
       ...prev,
