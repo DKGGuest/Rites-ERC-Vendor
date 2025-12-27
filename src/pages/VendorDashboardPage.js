@@ -28,6 +28,8 @@ import {
 } from '../data/vendorMockData';
 import { formatDate } from '../utils/helpers';
 import useVendorWorkflow from '../hooks/useVendorWorkflow';
+import inspectionCallService from '../services/inspectionCallService';
+import poAssignedService from '../services/poAssignedService';
 import '../styles/vendorDashboard.css';
 
 const VendorDashboardPage = ({ onBack }) => {
@@ -54,6 +56,10 @@ const VendorDashboardPage = ({ onBack }) => {
 
   // Expanded PO rows state
   const [expandedPORows, setExpandedPORows] = useState({});
+
+  // State for approved RM ICs per PO
+  const [approvedRMICsByPO, setApprovedRMICsByPO] = useState({});
+  const [loadingRMICs, setLoadingRMICs] = useState({});
 
   // Expanded Inspection Call rows state (for Requested Calls tab)
   const [expandedCallRows, setExpandedCallRows] = useState({});
@@ -83,6 +89,11 @@ const VendorDashboardPage = ({ onBack }) => {
   const [paymentItems, setPaymentItems] = useState(VENDOR_PAYMENT_ITEMS);
   const [subPOList, setSubPOList] = useState(VENDOR_SUB_PO_LIST);
 
+  // PO Assigned data state - using real API
+  const [poAssignedList, setPoAssignedList] = useState([]);
+  const [loadingPOData, setLoadingPOData] = useState(false);
+  const [poDataError, setPoDataError] = useState(null);
+
   // ============ VENDOR WORKFLOW API INTEGRATION ============
   // Initialize the workflow hook for API calls
   const {
@@ -110,6 +121,63 @@ const VendorDashboardPage = ({ onBack }) => {
     role: 'VENDOR',
     email: 'vendor@example.com'
   }), []);
+
+  // ============ FETCH PO ASSIGNED DATA ============
+  useEffect(() => {
+    const fetchPOAssignedData = async () => {
+      setLoadingPOData(true);
+      setPoDataError(null);
+      try {
+        // TODO: Replace ':13101' with actual vendor code from auth context
+        // For testing, using vendor code ':13101' from database
+        const response = await poAssignedService.getPoAssigned(':13101');
+
+        if (response.success && response.data) {
+          // Transform API data to match frontend structure
+          // Backend returns VendorPoHeaderResponseDto with: poNo, poDate, poDes, qty, unit, poItem[]
+          const transformedData = response.data.map((item, index) => ({
+            id: index + 1, // Generate ID since backend doesn't return it
+            po_no: item.poNo || '',
+            po_date: item.poDate || '',
+            description: item.poDes || '',
+            quantity: item.qty || 0,
+            unit: item.unit || '',
+            status: 'Fresh PO', // Backend doesn't return status, using default
+            amendment_no: '',
+            amendment_date: '',
+            items: (item.poItem || []).map((poItem, itemIndex) => ({
+              id: itemIndex + 1,
+              item_name: poItem.poDes || '',
+              item_qty: poItem.orderedQty || 0,
+              item_unit: item.unit || '',
+              item_status: 'Fresh PO',
+              po_serial_no: poItem.poSerialNo || '',
+              consignee: poItem.conigness || '',
+              delivery_period: poItem.deliveryPeriod || '',
+              item_code: '',
+              unit_price: 0,
+              total_price: 0
+            }))
+          }));
+
+          setPoAssignedList(transformedData);
+        } else {
+          setPoDataError('Failed to fetch PO data');
+          // Fallback to mock data
+          setPoAssignedList([]);
+        }
+      } catch (error) {
+        console.error('Error fetching PO assigned data:', error);
+        setPoDataError(error.message || 'Error fetching PO data');
+        // Fallback to mock data
+        setPoAssignedList([]);
+      } finally {
+        setLoadingPOData(false);
+      }
+    };
+
+    fetchPOAssignedData();
+  }, []);
 
   // Filtered payment items based on status and date
   const filteredPaymentItems = useMemo(() => {
@@ -454,11 +522,44 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   // ============ EXPANDABLE PO ROW HANDLERS ============
-  const togglePORow = (poId) => {
+  const togglePORow = async (poId) => {
+    const isExpanding = !expandedPORows[poId];
+
     setExpandedPORows(prev => ({
       ...prev,
-      [poId]: !prev[poId]
+      [poId]: isExpanding
     }));
+
+    // Fetch approved RM ICs when expanding a PO
+    if (isExpanding) {
+      const po = poAssignedList.find(p => p.id === poId);
+      if (po && !approvedRMICsByPO[po.po_no]) {
+        setLoadingRMICs(prev => ({ ...prev, [po.po_no]: true }));
+        try {
+          const response = await inspectionCallService.getApprovedRMICsWithHeatDetails(po.po_no);
+          if (response.success) {
+            const data = Array.isArray(response.data) ? response.data : [];
+            setApprovedRMICsByPO(prev => ({
+              ...prev,
+              [po.po_no]: data
+            }));
+          } else {
+            setApprovedRMICsByPO(prev => ({
+              ...prev,
+              [po.po_no]: []
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching approved RM ICs:', error);
+          setApprovedRMICsByPO(prev => ({
+            ...prev,
+            [po.po_no]: []
+          }));
+        } finally {
+          setLoadingRMICs(prev => ({ ...prev, [po.po_no]: false }));
+        }
+      }
+    }
   };
 
   // ============ RAISE INSPECTION REQUEST HANDLERS ============
@@ -475,45 +576,87 @@ const VendorDashboardPage = ({ onBack }) => {
   const handleSubmitInspectionRequest = async (data) => {
     setIsLoading(true);
     try {
-      // Step 1: Save inspection call data (currently mock - replace with actual save API)
-      const savedInspectionCall = {
-        ...data,
-        icId: `IC-${Date.now()}`, // Generated IC ID from backend
-        vendorId: currentUser.id,
-        createdBy: currentUser.id,
-        createdAt: new Date().toISOString()
-      };
+      // Step 1: Save inspection call data to DATABASE
+      console.log('💾 Saving inspection call to database...', data);
 
-      // Step 2: Call initiateWorkflow API after saving inspection call
-      // This initiates the inspection workflow in the backend
-      try {
-        const workflowResponse = await initiateWorkflow({
-          icId: savedInspectionCall.icId,
-          poNo: data.po_no,
-          poSerialNo: data.po_serial_no,
+      let savedInspectionCall;
+
+      // Call appropriate API based on inspection type
+      let response;
+
+      if (data.type_of_call === 'Raw Material') {
+        response = await inspectionCallService.createRMInspectionCall(data);
+      } else if (data.type_of_call === 'Process') {
+        // Transform Process IC data to match new backend API
+        const processData = {
+          rm_ic_number: data.process_rm_ic_numbers && data.process_rm_ic_numbers.length > 0
+            ? data.process_rm_ic_numbers[0]
+            : null,
+          heat_number: data.process_lot_heat_mapping && data.process_lot_heat_mapping.length > 0
+            ? data.process_lot_heat_mapping[0].heatNumber
+            : null,
+          lot_number: data.process_lot_heat_mapping && data.process_lot_heat_mapping.length > 0
+            ? data.process_lot_heat_mapping[0].lotNumber
+            : null,
+          offered_qty: data.process_lot_heat_mapping && data.process_lot_heat_mapping.length > 0
+            ? parseInt(data.process_lot_heat_mapping[0].offeredQty) || 0
+            : 0,
+          desired_inspection_date: data.desired_inspection_date,
+          remarks: data.remarks
+        };
+
+        console.log('📦 Transformed Process IC data:', processData);
+        response = await inspectionCallService.createProcessInspectionCall(processData);
+      } else if (data.type_of_call === 'Final') {
+        response = await inspectionCallService.createFinalInspectionCall(data);
+      } else {
+        throw new Error('Invalid inspection call type');
+      }
+
+      if (response.success) {
+        savedInspectionCall = {
+          ...data,
+          icId: response.data.inspection_call_id,
+          icNumber: response.data.ic_number,
           vendorId: currentUser.id,
-          stage: data.type_of_call,
-          callDetails: {
-            desiredInspectionDate: data.desired_inspection_date,
-            offeredQty: data.rm_offered_qty_mt || data.process_offered_qty || data.final_erc_qty,
-            companyId: data.company_id,
-            unitId: data.unit_id,
-            remarks: data.remarks
-          }
-        });
+          createdBy: currentUser.id,
+          createdAt: new Date().toISOString()
+        };
 
-        console.log('Workflow initiated:', workflowResponse);
-        alert(`Inspection Request submitted successfully for ${selectedPOItem?.item?.item_name}!\nWorkflow initiated with IC ID: ${savedInspectionCall.icId}`);
-      } catch (workflowError) {
-        // If workflow initiation fails, still show success for the save but warn about workflow
-        console.warn('Workflow initiation failed:', workflowError);
-        alert(`Inspection Request saved for ${selectedPOItem?.item?.item_name}.\nNote: Workflow initiation pending - will be retried automatically.`);
+        console.log('✅ Inspection call saved to database:', savedInspectionCall);
+
+        // Step 2: Call initiateWorkflow API (optional - for workflow management)
+        try {
+          const workflowResponse = await initiateWorkflow({
+            icId: savedInspectionCall.icNumber,
+            poNo: data.po_no,
+            poSerialNo: data.po_serial_no,
+            vendorId: currentUser.id,
+            stage: data.type_of_call,
+            callDetails: {
+              desiredInspectionDate: data.desired_inspection_date,
+              offeredQty: data.rm_offered_qty_mt || data.process_offered_qty || data.final_total_erc_qty,
+              companyId: data.company_id,
+              unitId: data.unit_id,
+              remarks: data.rm_remarks || data.process_remarks || data.final_remarks
+            }
+          });
+
+          console.log('✅ Workflow initiated:', workflowResponse);
+          alert(`✅ ${data.type_of_call} Inspection Request saved successfully!\n\nIC Number: ${savedInspectionCall.icNumber}\nItem: ${selectedPOItem?.item?.item_name}\n\nData has been saved to the database.`);
+        } catch (workflowError) {
+          // If workflow initiation fails, still show success for the save
+          console.warn('⚠️ Workflow initiation failed (optional):', workflowError);
+          alert(`✅ ${data.type_of_call} Inspection Request saved successfully!\n\nIC Number: ${savedInspectionCall.icNumber}\nItem: ${selectedPOItem?.item?.item_name}\n\nData has been saved to the database.\n\nNote: Workflow initiation pending - will be retried automatically.`);
+        }
+      } else {
+        throw new Error('Failed to save inspection call');
       }
 
       handleCloseInspectionModal();
     } catch (error) {
-      console.error('Error submitting inspection request:', error);
-      alert('Failed to submit inspection request. Please try again.');
+      console.error('❌ Error submitting inspection request:', error);
+      alert(`❌ Failed to save inspection request.\n\nError: ${error.message}\n\nPlease check:\n1. API server is running (http://localhost:8080)\n2. Database connection is working\n3. All required fields are filled`);
     } finally {
       setIsLoading(false);
     }
@@ -723,7 +866,7 @@ const VendorDashboardPage = ({ onBack }) => {
   }, [activeTab, handleFetchPendingTransitions]);
 
   // Summary numbers for tab badges
-  const totalPOs = VENDOR_PO_LIST.length;
+  const totalPOs = poAssignedList.length;
   const pendingRequests = useMemo(
     () => VENDOR_REQUESTED_CALLS.filter(c => c.status === 'Pending').length,
     []
@@ -1073,20 +1216,44 @@ const VendorDashboardPage = ({ onBack }) => {
                 </div>
               </div>
 
+              {/* Loading and Error States */}
+              {loadingPOData && (
+                <div className="text-center py-4">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading PO data...</span>
+                  </div>
+                  <p className="mt-2">Loading PO data...</p>
+                </div>
+              )}
+
+              {poDataError && (
+                <div className="alert alert-warning" role="alert">
+                  <strong>Warning:</strong> {poDataError}. Showing empty list.
+                </div>
+              )}
+
               {/* Custom Expandable PO Table */}
-              <div className="data-table-wrapper">
-                <div className="data-table-container">
-                  <table className="data-table expandable-po-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '50px' }}></th>
-                        {poColumns.map(col => (
-                          <th key={col.key}>{col.label}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {VENDOR_PO_LIST.map((po) => (
+              {!loadingPOData && (
+                <div className="data-table-wrapper">
+                  <div className="data-table-container">
+                    <table className="data-table expandable-po-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '50px' }}></th>
+                          {poColumns.map(col => (
+                            <th key={col.key}>{col.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {poAssignedList.length === 0 ? (
+                          <tr>
+                            <td colSpan={poColumns.length + 1} className="text-center py-4">
+                              No PO data available
+                            </td>
+                          </tr>
+                        ) : (
+                          poAssignedList.map((po) => (
                         <React.Fragment key={po.id}>
                           {/* PO Row */}
                           <tr className={`po-row ${expandedPORows[po.id] ? 'expanded' : ''}`}>
@@ -1262,16 +1429,79 @@ const VendorDashboardPage = ({ onBack }) => {
                                       )}
                                     </tbody>
                                   </table>
+
+                                  {/* Approved RM Inspection Calls Section */}
+                                  {/* <div className="approved-rm-ics-section" style={{ marginTop: '24px' }}>
+                                    <h4 className="po-items-section-title">Approved Raw Material Inspection Calls</h4>
+                                    <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px' }}>
+                                      List of approved RM inspection calls for this PO. These can be used for Process Inspection.
+                                    </p>
+                                    <table className="po-items-table">
+                                      <thead>
+                                        <tr>
+                                          <th>RM IC Number</th>
+                                          <th>PO Serial No.</th>
+                                          <th>Heat Numbers</th>
+                                          <th>Offered Qty (MT)</th>
+                                          <th>Offered Qty (ERCs)</th>
+                                          <th>Manufacturer</th>
+                                          <th>Inspection Date</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(() => {
+                                          // Get approved RM ICs from state
+                                          const rmICsData = approvedRMICsByPO[po.po_no];
+                                          const approvedRMICs = Array.isArray(rmICsData) ? rmICsData : [];
+                                          const isLoading = loadingRMICs[po.po_no];
+
+                                          if (isLoading) {
+                                            return (
+                                              <tr>
+                                                <td colSpan={7} style={{ textAlign: 'center', color: '#6b7280', padding: '16px' }}>
+                                                  Loading approved RM inspection calls...
+                                                </td>
+                                              </tr>
+                                            );
+                                          }
+
+                                          if (approvedRMICs.length === 0) {
+                                            return (
+                                              <tr>
+                                                <td colSpan={7} style={{ textAlign: 'center', color: '#6b7280', padding: '16px' }}>
+                                                  No approved RM inspection calls found for this PO
+                                                </td>
+                                              </tr>
+                                            );
+                                          }
+
+                                          return approvedRMICs.map((rmIC) => (
+                                            <tr key={rmIC.id}>
+                                              <td style={{ fontWeight: '600', color: '#2563eb' }}>{rmIC.ic_number}</td>
+                                              <td>{rmIC.po_serial_no}</td>
+                                              <td>{rmIC.heat_numbers || 'N/A'}</td>
+                                              <td>{rmIC.total_offered_qty_mt ? `${rmIC.total_offered_qty_mt} MT` : 'N/A'}</td>
+                                              <td>{rmIC.offered_qty_erc ? rmIC.offered_qty_erc.toLocaleString('en-IN') : 'N/A'}</td>
+                                              <td>{rmIC.manufacturer || 'N/A'}</td>
+                                              <td>{formatDate(rmIC.actual_inspection_date || rmIC.desired_inspection_date)}</td>
+                                            </tr>
+                                          ));
+                                        })()}
+                                      </tbody>
+                                    </table>
+                                  </div> */}
                                 </div>
                               </td>
                             </tr>
                           )}
                         </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
 

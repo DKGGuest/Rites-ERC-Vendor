@@ -16,6 +16,7 @@ import {
   VENDOR_INVENTORY_ENTRIES, // Import inventory data
   // VENDOR_PO_LIST
 } from '../data/vendorMockData';
+import inspectionCallService from '../services/inspectionCallService';
 import '../styles/raiseInspectionCall.css';
 
 // Multi-Select Dropdown Component
@@ -84,6 +85,61 @@ const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder })
   );
 };
 
+// ============================================================
+// MOCK DATA FOR TESTING PROCESS IC (TEMPORARY)
+// ============================================================
+const MOCK_APPROVED_RM_ICS = [
+  {
+    id: 1,
+    ic_number: 'RM-IC-2025-0001',
+    po_no: 'PO-2025-1001',
+    po_serial_no: '01',
+    heat_numbers: 'HT-2025-001, HT-2025-002',
+    offered_qty_erc: 135000,
+    manufacturer: 'ABC Steel Industries'
+  },
+  {
+    id: 2,
+    ic_number: 'RM-IC-2025-0002',
+    po_no: 'PO-2025-1001',
+    po_serial_no: '01',
+    heat_numbers: 'HT-2025-003, HT-2025-004',
+    offered_qty_erc: 180000,
+    manufacturer: 'XYZ Steel Corp'
+  }
+];
+
+const MOCK_HEAT_NUMBERS = {
+  'RM-IC-2025-0001': [
+    {
+      heat_number: 'HT-2025-001',
+      manufacturer: 'ABC Steel Industries',
+      qty_accepted_mt: 75.00,
+      qty_accepted: 67500
+    },
+    {
+      heat_number: 'HT-2025-002',
+      manufacturer: 'ABC Steel Industries',
+      qty_accepted_mt: 75.00,
+      qty_accepted: 67500
+    }
+  ],
+  'RM-IC-2025-0002': [
+    {
+      heat_number: 'HT-2025-003',
+      manufacturer: 'XYZ Steel Corp',
+      qty_accepted_mt: 100.00,
+      qty_accepted: 90000
+    },
+    {
+      heat_number: 'HT-2025-004',
+      manufacturer: 'XYZ Steel Corp',
+      qty_accepted_mt: 100.00,
+      qty_accepted: 90000
+    }
+  ]
+};
+
 // Helper functions
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 const getMaxDate = () => {
@@ -127,18 +183,19 @@ const SectionHeader = ({ title, subtitle }) => (
 
 // Initial form state generator
 const getInitialFormState = (selectedPO = null) => {
+  // Find the first PO serial for the selected PO
   const poSerial = selectedPO ? PO_SERIAL_DETAILS.find(p => p.poNo === selectedPO.po_no) : null;
 
   return {
     // === COMMON SECTION (Auto Fetched from IREPS) ===
     po_no: selectedPO?.po_no || '',
-    po_serial_no: poSerial?.serialNo || '',
+    po_serial_no: '', // Will be set when user selects from dropdown
     po_date: selectedPO?.po_date || '',
     po_description: selectedPO?.description || '',
-    po_qty: poSerial?.poQty || selectedPO?.quantity || 0,
-    po_unit: poSerial?.unit || selectedPO?.unit || '',
-    amendment_no: poSerial?.amendmentNo || '',
-    amendment_date: poSerial?.amendmentDate || '',
+    po_qty: 0, // Will be set when user selects PO serial
+    po_unit: selectedPO?.unit || '',
+    amendment_no: '',
+    amendment_date: '',
     vendor_contact_name: '',
     vendor_contact_phone: '',
 
@@ -152,36 +209,53 @@ const getInitialFormState = (selectedPO = null) => {
     qty_already_inspected_final: poSerial?.qtyAlreadyInspected?.final || 0,
 
     // === RAW MATERIAL STAGE FIELDS ===
-    rm_heat_numbers: '', // Manual string input (can add multiple, comma-separated)
-    rm_tc_number: '', // Dropdown - selected from inventory based on heat number
-    rm_tc_date: '',
-    rm_manufacturer: '',
-    rm_invoice_no: '',
-    rm_invoice_date: '',
-    rm_sub_po_number: '',
-    rm_sub_po_date: '',
-    rm_sub_po_qty: '',
-    rm_sub_po_total_value: '',
-    rm_tc_qty: '',
-    rm_tc_qty_remaining: '',
-    // Chemical Analysis - Manual input (editable)
+    // NEW: Array of heat-TC mappings with auto-fetched details
+    rm_heat_tc_mapping: [
+      {
+        id: Date.now(), // Unique ID for React key
+        heatNumber: '',
+        tcNumber: '',
+        tcDate: '',
+        manufacturer: '',
+        invoiceNo: '',
+        invoiceDate: '',
+        subPoNumber: '',
+        subPoDate: '',
+        subPoQty: '',
+        subPoTotalValue: '',
+        tcQty: '',
+        tcQtyRemaining: '',
+        offeredQty: '',
+        maxQty: '',
+        unit: '',
+        isLoading: false
+      }
+    ],
+    // Chemical Analysis - Manual input (editable) - shared across all heats
     rm_chemical_carbon: '',
     rm_chemical_manganese: '',
     rm_chemical_silicon: '',
     rm_chemical_sulphur: '',
     rm_chemical_phosphorus: '',
     rm_chemical_chromium: '',
-    // Heat-wise offered quantities (array of objects: [{heatNumber, offeredQty}])
-    rm_heat_quantities: [],
     rm_total_offered_qty_mt: 0, // Auto-calculated (sum of all heat quantities)
     rm_offered_qty_erc: 0, // Auto-calculated from total
 
     // === PROCESS STAGE FIELDS ===
     process_rm_ic_numbers: [], // Multi-select from completed RM ICs
     process_book_set_nos: [], // Auto-fetched based on selected RM ICs (array of {icNumber, bookSetNo})
-    process_lot_no: '', // Manual string entry
-    process_manufacturer_heat: '',
-    process_offered_qty: '',
+    // NEW: Array of lot-heat mappings
+    process_lot_heat_mapping: [
+      {
+        id: Date.now(),
+        lotNumber: '',
+        manufacturerHeat: '',
+        heatNumber: '',
+        manufacturer: '',
+        offeredQty: '',
+        isLoading: false
+      }
+    ],
     process_total_accepted_qty_rm: 0, // Total accepted quantity from selected RM ICs
 
     // === FINAL STAGE FIELDS ===
@@ -198,9 +272,9 @@ const getInitialFormState = (selectedPO = null) => {
     final_unit_address: '', // Auto-filled from Process IC
 
     // === PLACE OF INSPECTION ===
-    company_id: COMPANY_UNIT_MASTER[0]?.id || '', // Auto-filled with vendor's company
-    company_name: COMPANY_UNIT_MASTER[0]?.companyName || '', // Auto-filled with vendor's company (Name of Vendor)
-    cin: COMPANY_UNIT_MASTER[0]?.cin || '', // Auto-filled from master data
+    company_id: '', // User selects from dropdown
+    company_name: '', // Auto-filled based on company_id selection
+    cin: '', // Auto-filled from master data
     unit_id: '',
     unit_name: '',
     unit_address: '',
@@ -224,10 +298,17 @@ export const RaiseInspectionCallForm = ({
   const [errors, setErrors] = useState({});
   const [selectedPoSerial, setSelectedPoSerial] = useState(selectedItem?.po_serial_no || '');
 
+  // State for approved RM ICs and heat numbers (for Process IC)
+  const [approvedRMICsForProcess, setApprovedRMICsForProcess] = useState([]);
+  const [processHeatNumbers, setProcessHeatNumbers] = useState([]);
+  const [loadingRMICs, setLoadingRMICs] = useState(false);
+  const [loadingHeats, setLoadingHeats] = useState(false);
+
   // Handle PO Serial selection
-  const handlePoSerialChange = useCallback((serialNo) => {
+  const handlePoSerialChange = useCallback((serialNo, itemData = null) => {
     const poSerial = PO_SERIAL_DETAILS.find(p => p.serialNo === serialNo);
     if (poSerial) {
+      // Use mock data if found
       setSelectedPoSerial(serialNo);
       setFormData(prev => ({
         ...prev,
@@ -241,6 +322,18 @@ export const RaiseInspectionCallForm = ({
         qty_already_inspected_process: poSerial.qtyAlreadyInspected.process,
         qty_already_inspected_final: poSerial.qtyAlreadyInspected.final
       }));
+    } else if (itemData) {
+      // Use real data from API if mock data not found
+      setSelectedPoSerial(serialNo);
+      setFormData(prev => ({
+        ...prev,
+        po_serial_no: serialNo,
+        po_qty: itemData.item_qty || 0,
+        po_unit: itemData.item_unit || '',
+        qty_already_inspected_rm: 0,
+        qty_already_inspected_process: 0,
+        qty_already_inspected_final: 0
+      }));
     }
   }, []);
 
@@ -252,7 +345,7 @@ export const RaiseInspectionCallForm = ({
     // Auto-fill PO Serial Number if item is provided
     if (selectedItem?.po_serial_no) {
       setSelectedPoSerial(selectedItem.po_serial_no);
-      handlePoSerialChange(selectedItem.po_serial_no);
+      handlePoSerialChange(selectedItem.po_serial_no, selectedItem);
     }
   }, [selectedPO, selectedItem, handlePoSerialChange]);
 
@@ -266,6 +359,97 @@ export const RaiseInspectionCallForm = ({
   // const availableHeatNumbers = useMemo(() => {
   //   return HEAT_TC_MAPPING.filter(h => h.qtyAvailable > 0);
   // }, []);
+
+  // Fetch approved RM ICs when PO number changes and type is Process
+  useEffect(() => {
+    const fetchApprovedRMICs = async () => {
+      if (formData.type_of_call === 'Process' && formData.po_no) {
+        setLoadingRMICs(true);
+
+        // ⚡ USING MOCK DATA FOR TESTING - Remove this block when database is ready
+        setTimeout(() => {
+          console.log('🔍 Using MOCK approved RM ICs for PO:', formData.po_no);
+          const mockData = MOCK_APPROVED_RM_ICS.filter(
+            ic => ic.po_no === formData.po_no && ic.po_serial_no === formData.po_serial_no
+          );
+          console.log('✅ Setting MOCK approved RM ICs:', mockData);
+          setApprovedRMICsForProcess(mockData);
+          setLoadingRMICs(false);
+        }, 500); // Simulate API delay
+
+        /*
+        // 🔄 UNCOMMENT THIS WHEN DATABASE IS READY
+        try {
+          console.log('🔍 Fetching approved RM ICs for PO:', formData.po_no, formData.po_serial_no);
+          const response = await inspectionCallService.getApprovedRMInspectionCalls(
+            formData.po_no,
+            formData.po_serial_no
+          );
+          console.log('📦 Approved RM ICs response:', response);
+          if (response.success) {
+            const data = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting approved RM ICs:', data);
+            setApprovedRMICsForProcess(data);
+          } else {
+            console.log('⚠️ Response not successful, setting empty array');
+            setApprovedRMICsForProcess([]);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching approved RM ICs:', error);
+          setApprovedRMICsForProcess([]);
+        } finally {
+          setLoadingRMICs(false);
+        }
+        */
+      } else {
+        // Reset when not Process type
+        setApprovedRMICsForProcess([]);
+      }
+    };
+
+    fetchApprovedRMICs();
+  }, [formData.type_of_call, formData.po_no, formData.po_serial_no]);
+
+  // Fetch heat numbers when RM IC is selected
+  useEffect(() => {
+    const fetchHeatNumbers = async () => {
+      if (formData.type_of_call === 'Process' && formData.process_rm_ic_numbers && formData.process_rm_ic_numbers.length > 0) {
+        setLoadingHeats(true);
+
+        // ⚡ USING MOCK DATA FOR TESTING - Remove this block when database is ready
+        setTimeout(() => {
+          const rmIcNumber = formData.process_rm_ic_numbers[0]; // Get first selected RM IC
+          console.log('🔍 Using MOCK heat numbers for RM IC:', rmIcNumber);
+          const mockHeats = MOCK_HEAT_NUMBERS[rmIcNumber] || [];
+          console.log('✅ Setting MOCK heat numbers:', mockHeats);
+          setProcessHeatNumbers(mockHeats);
+          setLoadingHeats(false);
+        }, 300); // Simulate API delay
+
+        /*
+        // 🔄 UNCOMMENT THIS WHEN DATABASE IS READY
+        try {
+          const rmIcNumber = formData.process_rm_ic_numbers[0]; // Get first selected RM IC
+          const response = await inspectionCallService.getHeatNumbersFromRMIC(rmIcNumber);
+          if (response.success) {
+            setProcessHeatNumbers(Array.isArray(response.data) ? response.data : []);
+          } else {
+            setProcessHeatNumbers([]);
+          }
+        } catch (error) {
+          console.error('Error fetching heat numbers:', error);
+          setProcessHeatNumbers([]);
+        } finally {
+          setLoadingHeats(false);
+        }
+        */
+      } else {
+        setProcessHeatNumbers([]);
+      }
+    };
+
+    fetchHeatNumbers();
+  }, [formData.type_of_call, formData.process_rm_ic_numbers]);
 
   // Get available RM ICs for Process stage
   const availableRmIcs = useMemo(() => {
@@ -306,10 +490,10 @@ export const RaiseInspectionCallForm = ({
     };
   }, [formData.po_serial_no]);
 
-  // Auto-calculate total offered quantity and ERC when heat quantities change
+  // Auto-calculate total offered quantity and ERC when heat-TC mappings change
   useEffect(() => {
-    if (formData.type_of_call === 'Raw Material' && formData.rm_heat_quantities.length > 0) {
-      const totalMt = formData.rm_heat_quantities.reduce((sum, heat) => {
+    if (formData.type_of_call === 'Raw Material' && formData.rm_heat_tc_mapping.length > 0) {
+      const totalMt = formData.rm_heat_tc_mapping.reduce((sum, heat) => {
         return sum + (parseFloat(heat.offeredQty) || 0);
       }, 0);
       const ercQty = calculateErcFromMt(totalMt);
@@ -318,14 +502,14 @@ export const RaiseInspectionCallForm = ({
         rm_total_offered_qty_mt: totalMt,
         rm_offered_qty_erc: ercQty
       }));
-    } else if (formData.type_of_call === 'Raw Material' && formData.rm_heat_quantities.length === 0) {
+    } else if (formData.type_of_call === 'Raw Material' && formData.rm_heat_tc_mapping.length === 0) {
       setFormData(prev => ({
         ...prev,
         rm_total_offered_qty_mt: 0,
         rm_offered_qty_erc: 0
       }));
     }
-  }, [formData.rm_heat_quantities, formData.type_of_call, calculateErcFromMt]);
+  }, [formData.rm_heat_tc_mapping, formData.type_of_call, calculateErcFromMt]);
 
   // Get available heat numbers from inventory (only Fresh or Inspection Requested status)
   const availableHeatNumbers = useMemo(() => {
@@ -345,107 +529,44 @@ export const RaiseInspectionCallForm = ({
       }));
   }, []);
 
-  // Get available TC numbers based on heat number input (from inventory)
-  const availableTcNumbers = useMemo(() => {
-    if (!formData.rm_heat_numbers) return [];
-    const heatNumbers = formData.rm_heat_numbers.split(',').map(h => h.trim()).filter(h => h);
+  // Get available TC numbers for a specific heat number
+  const getAvailableTcNumbers = useCallback((heatNumber) => {
+    if (!heatNumber) return [];
+
     const tcList = [];
-    heatNumbers.forEach(heatNo => {
-      // First try to find in inventory
-      const inventoryEntry = VENDOR_INVENTORY_ENTRIES.find(entry => entry.heatNumber === heatNo);
-      if (inventoryEntry && !tcList.find(tc => tc.tcNumber === inventoryEntry.tcNumber)) {
+    // Find all inventory entries matching this heat number
+    const inventoryEntries = VENDOR_INVENTORY_ENTRIES.filter(entry => entry.heatNumber === heatNumber);
+
+    inventoryEntries.forEach(entry => {
+      if (!tcList.find(tc => tc.tcNumber === entry.tcNumber)) {
         tcList.push({
-          tcNumber: inventoryEntry.tcNumber,
-          heatNumber: inventoryEntry.heatNumber,
-          manufacturer: inventoryEntry.supplierName, // Using supplier as manufacturer
-          tcDate: inventoryEntry.tcDate,
-          invoiceNo: inventoryEntry.invoiceNumber,
-          invoiceDate: inventoryEntry.invoiceDate,
-          subPoNumber: inventoryEntry.subPoNumber,
-          subPoDate: inventoryEntry.subPoDate,
-          subPoQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
-          subPoTotalValue: `₹${(inventoryEntry.subPoQty * inventoryEntry.rateOfMaterial * (1 + inventoryEntry.rateOfGst / 100)).toFixed(2)}`,
-          tcQty: `${inventoryEntry.declaredQuantity} ${inventoryEntry.unitOfMeasurement}`,
-          tcQtyRemaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`
+          tcNumber: entry.tcNumber,
+          heatNumber: entry.heatNumber,
+          manufacturer: entry.supplierName,
+          tcDate: entry.tcDate
         });
-      } else {
-        // Fallback to old HEAT_TC_MAPPING if not found in inventory
-        const heat = HEAT_TC_MAPPING.find(h => h.heatNumber === heatNo);
-        if (heat && !tcList.find(tc => tc.tcNumber === heat.tcNumber)) {
-          tcList.push(heat);
-        }
       }
     });
-    return tcList;
-  }, [formData.rm_heat_numbers]);
 
-  // Auto-fetch details when TC number is selected (from inventory)
-  useEffect(() => {
-    if (formData.rm_tc_number) {
-      // First try to find in inventory
-      const inventoryEntry = VENDOR_INVENTORY_ENTRIES.find(entry => entry.tcNumber === formData.rm_tc_number);
-
-      if (inventoryEntry) {
-        // Calculate total value
-        const totalValue = (inventoryEntry.subPoQty * inventoryEntry.rateOfMaterial * (1 + inventoryEntry.rateOfGst / 100)).toFixed(2);
-
-        // Auto-fetch chemical analysis if exists
-        const analysis = CHEMICAL_ANALYSIS_HISTORY.find(a =>
-          a.heatNumber === inventoryEntry.heatNumber
-        );
-
-        setFormData(prev => ({
-          ...prev,
-          rm_tc_date: inventoryEntry.tcDate || '',
-          rm_manufacturer: inventoryEntry.supplierName || '',
-          rm_invoice_no: inventoryEntry.invoiceNumber || '',
-          rm_invoice_date: inventoryEntry.invoiceDate || '',
-          rm_sub_po_number: inventoryEntry.subPoNumber || '',
-          rm_sub_po_date: inventoryEntry.subPoDate || '',
-          rm_sub_po_qty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
-          rm_sub_po_total_value: `₹${totalValue}`,
-          rm_tc_qty: `${inventoryEntry.declaredQuantity} ${inventoryEntry.unitOfMeasurement}`,
-          rm_tc_qty_remaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`,
-          // Auto-fill chemical analysis if available
-          rm_chemical_carbon: analysis?.carbon || '',
-          rm_chemical_manganese: analysis?.manganese || '',
-          rm_chemical_silicon: analysis?.silicon || '',
-          rm_chemical_sulphur: analysis?.sulphur || '',
-          rm_chemical_phosphorus: analysis?.phosphorus || '',
-          rm_chemical_chromium: analysis?.chromium || ''
-        }));
-      } else {
-        // Fallback to old HEAT_TC_MAPPING
-        const tcData = HEAT_TC_MAPPING.find(h => h.tcNumber === formData.rm_tc_number);
-        if (tcData) {
-          const analysis = CHEMICAL_ANALYSIS_HISTORY.find(a =>
-            a.heatNumber === tcData.heatNumber && a.manufacturer === tcData.manufacturer
-          );
-
-          setFormData(prev => ({
-            ...prev,
-            rm_tc_date: tcData.tcDate || '',
-            rm_manufacturer: tcData.manufacturer || '',
-            rm_invoice_no: tcData.invoiceNo || '',
-            rm_invoice_date: tcData.invoiceDate || '',
-            rm_sub_po_number: tcData.subPoNumber || '',
-            rm_sub_po_date: tcData.subPoDate || '',
-            rm_sub_po_qty: tcData.subPoQty || '',
-            rm_sub_po_total_value: tcData.subPoTotalValue || '',
-            rm_tc_qty: tcData.tcQty || '',
-            rm_tc_qty_remaining: tcData.tcQtyRemaining || '',
-            // Auto-fill chemical analysis if available
-            rm_chemical_carbon: analysis?.carbon || '',
-            rm_chemical_manganese: analysis?.manganese || '',
-            rm_chemical_silicon: analysis?.silicon || '',
-            rm_chemical_sulphur: analysis?.sulphur || '',
-            rm_chemical_phosphorus: analysis?.phosphorus || '',
-            rm_chemical_chromium: analysis?.chromium || ''
-          }));
-        }
+    // Fallback to old HEAT_TC_MAPPING if not found in inventory
+    if (tcList.length === 0) {
+      const heat = HEAT_TC_MAPPING.find(h => h.heatNumber === heatNumber);
+      if (heat) {
+        tcList.push({
+          tcNumber: heat.tcNumber,
+          heatNumber: heat.heatNumber,
+          manufacturer: heat.manufacturer,
+          tcDate: heat.tcDate
+        });
       }
     }
-  }, [formData.rm_tc_number]);
+
+    return tcList;
+  }, []);
+
+  // OLD CODE - Commented out as we now handle per heat-TC combination
+  // const availableTcNumbers = useMemo(() => { ... }, [formData.rm_heat_numbers]);
+  // useEffect(() => { ... }, [formData.rm_tc_number]);
 
   // Handle unit selection (company is auto-filled, not changeable)
   const handleUnitChange = (unitId) => {
@@ -483,6 +604,80 @@ export const RaiseInspectionCallForm = ({
       process_total_accepted_qty_rm: totalAccepted
     }));
   };
+
+  // ========== PROCESS STAGE: LOT-HEAT MAPPING HANDLERS ==========
+
+  // Add new lot-heat entry
+  const handleAddProcessLotHeat = () => {
+    setFormData(prev => ({
+      ...prev,
+      process_lot_heat_mapping: [
+        ...prev.process_lot_heat_mapping,
+        {
+          id: Date.now(),
+          lotNumber: '',
+          manufacturerHeat: '',
+          heatNumber: '',
+          manufacturer: '',
+          offeredQty: '',
+          isLoading: false
+        }
+      ]
+    }));
+  };
+
+  // Remove lot-heat entry
+  const handleRemoveProcessLotHeat = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      process_lot_heat_mapping: prev.process_lot_heat_mapping.filter(item => item.id !== id)
+    }));
+  };
+
+  // Handle lot number change
+  const handleProcessLotNumberChange = (id, lotNumber) => {
+    setFormData(prev => ({
+      ...prev,
+      process_lot_heat_mapping: prev.process_lot_heat_mapping.map(item =>
+        item.id === id ? { ...item, lotNumber } : item
+      )
+    }));
+  };
+
+  // Handle manufacturer-heat selection and auto-fetch details
+  const handleProcessManufacturerHeatChange = (id, manufacturerHeat, heatNumber = null, manufacturer = null, maxQty = null) => {
+    // If heatNumber and manufacturer are not provided, parse from manufacturerHeat string
+    if (!heatNumber || !manufacturer) {
+      const parts = manufacturerHeat.split(' - ');
+      manufacturer = parts[0] || '';
+      heatNumber = parts[1] || '';
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      process_lot_heat_mapping: prev.process_lot_heat_mapping.map(item =>
+        item.id === id ? {
+          ...item,
+          manufacturerHeat,
+          manufacturer,
+          heatNumber,
+          maxQty: maxQty || item.maxQty
+        } : item
+      )
+    }));
+  };
+
+  // Handle offered quantity change for process lot-heat
+  const handleProcessOfferedQtyChange = (id, offeredQty) => {
+    setFormData(prev => ({
+      ...prev,
+      process_lot_heat_mapping: prev.process_lot_heat_mapping.map(item =>
+        item.id === id ? { ...item, offeredQty } : item
+      )
+    }));
+  };
+
+  // ========== FINAL STAGE HANDLERS ==========
 
   // Handle Lot selection for Final stage - auto-fetch manufacturer-heat and unit details
   const handleFinalLotSelection = (selectedLotNumbers) => {
@@ -543,28 +738,139 @@ export const RaiseInspectionCallForm = ({
     }
   }, [formData.final_erc_qty, formData.final_hdpe_bags]);
 
-  // Handle heat number input change - create heat quantity entries
-  const handleHeatNumbersChange = (value) => {
-    const heatNumbers = value.split(',').map(h => h.trim()).filter(h => h);
-    const newHeatQuantities = heatNumbers.map(heatNo => {
-      const existing = formData.rm_heat_quantities.find(h => h.heatNumber === heatNo);
-      return existing || { heatNumber: heatNo, offeredQty: '' };
-    });
+  // === NEW: Heat-TC Mapping Handlers ===
+
+  // Add new heat number section
+  const handleAddHeatNumber = () => {
     setFormData(prev => ({
       ...prev,
-      rm_heat_numbers: value,
-      rm_heat_quantities: newHeatQuantities
+      rm_heat_tc_mapping: [
+        ...prev.rm_heat_tc_mapping,
+        {
+          id: Date.now(),
+          heatNumber: '',
+          tcNumber: '',
+          tcDate: '',
+          manufacturer: '',
+          invoiceNo: '',
+          invoiceDate: '',
+          subPoNumber: '',
+          subPoDate: '',
+          subPoQty: '',
+          subPoTotalValue: '',
+          tcQty: '',
+          tcQtyRemaining: '',
+          offeredQty: '',
+          maxQty: '',
+          unit: '',
+          isLoading: false
+        }
+      ]
     }));
   };
 
-  // Handle individual heat quantity change
-  const handleHeatQuantityChange = (heatNumber, quantity) => {
-    const updatedQuantities = formData.rm_heat_quantities.map(heat =>
-      heat.heatNumber === heatNumber
-        ? { ...heat, offeredQty: quantity }
-        : heat
+  // Remove heat number section
+  const handleRemoveHeatNumber = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      rm_heat_tc_mapping: prev.rm_heat_tc_mapping.filter(heat => heat.id !== id)
+    }));
+  };
+
+  // Handle heat number selection for a specific section
+  const handleHeatNumberChange = (id, heatNumber) => {
+    setFormData(prev => ({
+      ...prev,
+      rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+        heat.id === id
+          ? { ...heat, heatNumber, tcNumber: '', tcDate: '', manufacturer: '', invoiceNo: '', invoiceDate: '', subPoNumber: '', subPoDate: '', subPoQty: '', subPoTotalValue: '', tcQty: '', tcQtyRemaining: '', maxQty: '', unit: '' }
+          : heat
+      )
+    }));
+  };
+
+  // Handle TC number selection and auto-fetch details
+  const handleTcNumberChange = (id, tcNumber) => {
+    const heatMapping = formData.rm_heat_tc_mapping.find(h => h.id === id);
+    if (!heatMapping) return;
+
+    // Set loading state
+    setFormData(prev => ({
+      ...prev,
+      rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+        heat.id === id ? { ...heat, isLoading: true, tcNumber } : heat
+      )
+    }));
+
+    // Find inventory entry matching heat number and TC number
+    const inventoryEntry = VENDOR_INVENTORY_ENTRIES.find(
+      entry => entry.heatNumber === heatMapping.heatNumber && entry.tcNumber === tcNumber
     );
-    setFormData(prev => ({ ...prev, rm_heat_quantities: updatedQuantities }));
+
+    if (inventoryEntry) {
+      // Calculate total value
+      const totalValue = (
+        inventoryEntry.subPoQty *
+        inventoryEntry.rateOfMaterial *
+        (1 + inventoryEntry.rateOfGst / 100)
+      ).toFixed(2);
+
+      // Auto-fetch chemical analysis if available
+      const analysis = CHEMICAL_ANALYSIS_HISTORY.find(
+        a => a.heatNumber === inventoryEntry.heatNumber && a.manufacturer === inventoryEntry.supplierName
+      );
+
+      // Update the specific heat mapping with fetched data
+      setFormData(prev => ({
+        ...prev,
+        rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+          heat.id === id
+            ? {
+                ...heat,
+                tcNumber,
+                tcDate: inventoryEntry.tcDate || '',
+                manufacturer: inventoryEntry.supplierName || '',
+                invoiceNo: inventoryEntry.invoiceNumber || '',
+                invoiceDate: inventoryEntry.invoiceDate || '',
+                subPoNumber: inventoryEntry.subPoNumber || '',
+                subPoDate: inventoryEntry.subPoDate || '',
+                subPoQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
+                subPoTotalValue: `₹${totalValue}`,
+                tcQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
+                tcQtyRemaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`,
+                maxQty: inventoryEntry.qtyLeftForInspection,
+                unit: inventoryEntry.unitOfMeasurement,
+                isLoading: false
+              }
+            : heat
+        ),
+        // Update chemical analysis if this is the first heat or if not already set
+        rm_chemical_carbon: prev.rm_chemical_carbon || analysis?.carbon || '',
+        rm_chemical_manganese: prev.rm_chemical_manganese || analysis?.manganese || '',
+        rm_chemical_silicon: prev.rm_chemical_silicon || analysis?.silicon || '',
+        rm_chemical_sulphur: prev.rm_chemical_sulphur || analysis?.sulphur || '',
+        rm_chemical_phosphorus: prev.rm_chemical_phosphorus || analysis?.phosphorus || '',
+        rm_chemical_chromium: prev.rm_chemical_chromium || analysis?.chromium || ''
+      }));
+    } else {
+      // No data found - clear loading state
+      setFormData(prev => ({
+        ...prev,
+        rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+          heat.id === id ? { ...heat, isLoading: false } : heat
+        )
+      }));
+    }
+  };
+
+  // Handle offered quantity change for a specific heat
+  const handleHeatOfferedQtyChange = (id, offeredQty) => {
+    setFormData(prev => ({
+      ...prev,
+      rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+        heat.id === id ? { ...heat, offeredQty } : heat
+      )
+    }));
   };
 
   // Generic change handler
@@ -583,8 +889,12 @@ export const RaiseInspectionCallForm = ({
     }
   };
 
-  // Validate form based on call type
-  const validate = () => {
+
+
+  const handleSubmit = () => {
+    console.log('🚀 Submitting form data:', formData);
+    console.log('📋 Validation starting...');
+
     const newErrors = {};
     const today = getTodayDate();
     const maxDate = getMaxDate();
@@ -604,92 +914,117 @@ export const RaiseInspectionCallForm = ({
 
     // Raw Material stage validations
     if (formData.type_of_call === 'Raw Material') {
-      if (!formData.rm_heat_numbers || formData.rm_heat_numbers.trim() === '') {
-        newErrors.rm_heat_numbers = 'Heat Number is required';
-      }
-      if (!formData.rm_tc_number) {
-        newErrors.rm_tc_number = 'TC Number is required';
-      }
-      // Validate heat quantities
-      if (formData.rm_heat_quantities.length === 0) {
-        newErrors.rm_heat_quantities = 'At least one heat with offered quantity is required';
-      } else {
-        const hasEmptyQuantity = formData.rm_heat_quantities.some(h => !h.offeredQty || parseFloat(h.offeredQty) <= 0);
-        if (hasEmptyQuantity) {
-          newErrors.rm_heat_quantities = 'All heat numbers must have offered quantity greater than 0';
+      // TEMPORARY: Make RM fields optional for testing without inventory data
+      // TODO: Re-enable strict validation once inventory module is implemented
+
+      // Only validate if user has started filling heat-TC mappings
+      const hasHeatData = formData.rm_heat_tc_mapping.some(heat =>
+        heat.heatNumber || heat.tcNumber || heat.offeredQty
+      );
+
+      if (hasHeatData) {
+        // Check each heat-TC mapping
+        formData.rm_heat_tc_mapping.forEach((heat, index) => {
+          if (heat.heatNumber || heat.tcNumber || heat.offeredQty) {
+            if (!heat.heatNumber) {
+              newErrors[`heat_${index}_heatNumber`] = 'Heat Number is required';
+            }
+            if (!heat.tcNumber) {
+              newErrors[`heat_${index}_tcNumber`] = 'TC Number is required';
+            }
+            if (!heat.offeredQty || parseFloat(heat.offeredQty) <= 0) {
+              newErrors[`heat_${index}_offeredQty`] = 'Offered Quantity must be greater than 0';
+            }
+          }
+        });
+
+        // Validate total offered quantity only if heat data is provided
+        if (!formData.rm_total_offered_qty_mt || parseFloat(formData.rm_total_offered_qty_mt) <= 0) {
+          newErrors.rm_total_offered_qty_mt = 'Total Offered Quantity (MT) must be greater than 0';
         }
-      }
-      // Validate total offered quantity
-      if (!formData.rm_total_offered_qty_mt || parseFloat(formData.rm_total_offered_qty_mt) <= 0) {
-        newErrors.rm_total_offered_qty_mt = 'Total Offered Quantity (MT) must be greater than 0';
-      } else if (parseFloat(formData.rm_total_offered_qty_mt) > remainingQty.rm) {
-        newErrors.rm_total_offered_qty_mt = `Total quantity cannot exceed remaining PO quantity (${remainingQty.rm} MT)`;
-      }
-      // Chemical analysis validations
-      if (!formData.rm_chemical_carbon) newErrors.rm_chemical_carbon = 'Carbon % is required';
-      if (!formData.rm_chemical_manganese) newErrors.rm_chemical_manganese = 'Manganese % is required';
-      if (!formData.rm_chemical_silicon) newErrors.rm_chemical_silicon = 'Silicon % is required';
-      if (!formData.rm_chemical_sulphur) newErrors.rm_chemical_sulphur = 'Sulphur % is required';
-      if (!formData.rm_chemical_phosphorus) newErrors.rm_chemical_phosphorus = 'Phosphorus % is required';
-      if (!formData.rm_chemical_chromium) newErrors.rm_chemical_chromium = 'Chromium % is required';
-    }
 
-    // Process stage validations
-    if (formData.type_of_call === 'Process') {
-      if (formData.process_rm_ic_numbers.length === 0) {
-        newErrors.process_rm_ic_numbers = 'At least one RM IC is required';
-      }
-      if (!formData.process_lot_no || formData.process_lot_no.trim() === '') {
-        newErrors.process_lot_no = 'Lot Number is required';
-      }
-      if (!formData.process_offered_qty || parseFloat(formData.process_offered_qty) <= 0) {
-        newErrors.process_offered_qty = 'Offered Quantity is required';
-      } else if (parseFloat(formData.process_offered_qty) > formData.process_total_accepted_qty_rm) {
-        newErrors.process_offered_qty = `Offered Qty cannot exceed Total Accepted Material in RM IC: ${formData.process_total_accepted_qty_rm}`;
+        // Chemical analysis validations only if heat data is provided
+        if (!formData.rm_chemical_carbon) newErrors.rm_chemical_carbon = 'Carbon % is required';
+        if (!formData.rm_chemical_manganese) newErrors.rm_chemical_manganese = 'Manganese % is required';
+        if (!formData.rm_chemical_silicon) newErrors.rm_chemical_silicon = 'Silicon % is required';
+        if (!formData.rm_chemical_sulphur) newErrors.rm_chemical_sulphur = 'Sulphur % is required';
+        if (!formData.rm_chemical_phosphorus) newErrors.rm_chemical_phosphorus = 'Phosphorus % is required';
+        if (!formData.rm_chemical_chromium) newErrors.rm_chemical_chromium = 'Chromium % is required';
       }
     }
 
-    // Final stage validations
-    if (formData.type_of_call === 'Final') {
-      if (formData.final_lot_numbers.length === 0) {
-        newErrors.final_lot_numbers = 'At least one Lot Number is required';
-      }
-      if (!formData.final_erc_qty || parseInt(formData.final_erc_qty) <= 0) {
-        newErrors.final_erc_qty = 'Quantity (No. of ERC) is required';
-      }
-      if (!formData.final_hdpe_bags || parseInt(formData.final_hdpe_bags) <= 0) {
-        newErrors.final_hdpe_bags = 'Number of HDPE Bags is required';
-      } else if (formData.final_erc_qty && formData.final_hdpe_bags) {
-        // Validate: Total Qty / No. of HDPE Bags <= 50
-        const totalQty = parseInt(formData.final_total_qty) || 0;
-        const bags = parseInt(formData.final_hdpe_bags);
-        const qtyPerBag = totalQty / bags;
-        if (qtyPerBag > 50) {
-          newErrors.final_hdpe_bags = `Total Qty / No. of HDPE Bags (${Math.ceil(qtyPerBag)}) exceeds limit of 50`;
-        }
-      }
-      if (formData.final_rm_ic_numbers.length === 0) {
-        newErrors.final_rm_ic_numbers = 'At least one RM IC is required';
-      }
-      if (formData.final_process_ic_numbers.length === 0) {
-        newErrors.final_process_ic_numbers = 'At least one Process IC is required';
-      }
-      // Validate: Offered Qty <= Total Accepted Material in Process IC
-      if (formData.final_erc_qty && formData.final_total_accepted_qty_process > 0) {
-        if (parseInt(formData.final_erc_qty) > formData.final_total_accepted_qty_process) {
-          newErrors.final_erc_qty = `Offered Qty cannot exceed Total Accepted Material in Process IC: ${formData.final_total_accepted_qty_process}`;
-        }
-      }
+    console.log('🔍 Validation errors:', newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      console.log('❌ Validation failed!', newErrors);
+      setErrors(newErrors);
+      return;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    console.log('✅ Validation passed!');
+    setErrors({});
 
-  const handleSubmit = () => {
-    if (validate()) {
-      onSubmit(formData);
+    // Filter data based on inspection type - send only relevant fields
+    let filteredData = {
+      // Common fields for all inspection types
+      po_no: formData.po_no,
+      po_serial_no: formData.po_serial_no,
+      po_date: formData.po_date,
+      po_description: formData.po_description,
+      po_qty: formData.po_qty,
+      po_unit: formData.po_unit,
+      type_of_call: formData.type_of_call,
+      desired_inspection_date: formData.desired_inspection_date,
+      company_id: formData.company_id,
+      company_name: formData.company_name,
+      unit_id: formData.unit_id,
+      unit_name: formData.unit_name,
+      unit_address: formData.unit_address,
+      remarks: formData.remarks
+    };
+
+    // Add type-specific fields
+    if (formData.type_of_call === 'Raw Material') {
+      filteredData = {
+        ...filteredData,
+        rm_heat_tc_mapping: formData.rm_heat_tc_mapping,
+        rm_chemical_carbon: formData.rm_chemical_carbon,
+        rm_chemical_manganese: formData.rm_chemical_manganese,
+        rm_chemical_silicon: formData.rm_chemical_silicon,
+        rm_chemical_sulphur: formData.rm_chemical_sulphur,
+        rm_chemical_phosphorus: formData.rm_chemical_phosphorus,
+        rm_chemical_chromium: formData.rm_chemical_chromium,
+        rm_total_offered_qty_mt: formData.rm_total_offered_qty_mt,
+        rm_offered_qty_erc: formData.rm_offered_qty_erc,
+        rm_remarks: formData.remarks
+      };
+    } else if (formData.type_of_call === 'Process') {
+      filteredData = {
+        ...filteredData,
+        process_rm_ic_numbers: formData.process_rm_ic_numbers,
+        process_book_set_nos: formData.process_book_set_nos,
+        process_lot_heat_mapping: formData.process_lot_heat_mapping,
+        process_total_accepted_qty_rm: formData.process_total_accepted_qty_rm
+      };
+    } else if (formData.type_of_call === 'Final') {
+      filteredData = {
+        ...filteredData,
+        final_lot_numbers: formData.final_lot_numbers,
+        final_manufacturer_heat: formData.final_manufacturer_heat,
+        final_erc_qty: formData.final_erc_qty,
+        final_total_qty: formData.final_total_qty,
+        final_hdpe_bags: formData.final_hdpe_bags,
+        final_rm_ic_numbers: formData.final_rm_ic_numbers,
+        final_process_ic_numbers: formData.final_process_ic_numbers,
+        final_total_accepted_qty_process: formData.final_total_accepted_qty_process,
+        final_unit_id: formData.final_unit_id,
+        final_unit_name: formData.final_unit_name,
+        final_unit_address: formData.final_unit_address
+      };
     }
+
+    console.log('📤 Calling onSubmit with filtered data:', filteredData);
+    onSubmit(filteredData);
   };
 
   const handleReset = () => {
@@ -753,6 +1088,20 @@ export const RaiseInspectionCallForm = ({
             </FormField>
           </>
         )}
+
+        <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="" errors={errors}>
+              <input
+                type="date"
+                name="desired_inspection_date"
+                className="ric-form-input"
+                value={formData.desired_inspection_date}
+                onChange={handleChange}
+                min={getTodayDate()}
+                // max={getMaxDate()}
+              />
+            </FormField>
+
+
       </div>
 
       {/* Quantity Already Inspected Summary */}
@@ -859,7 +1208,7 @@ export const RaiseInspectionCallForm = ({
       {formData.type_of_call && (
         <>
           <div className="ric-form-grid">
-            <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="" errors={errors}>
+            {/* <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="" errors={errors}>
               <input
                 type="date"
                 name="desired_inspection_date"
@@ -869,7 +1218,7 @@ export const RaiseInspectionCallForm = ({
                 // min={getTodayDate()}
                 // max={getMaxDate()}
               />
-            </FormField>
+            </FormField> */}
 
             {/* <FormField label="Vendor Contact Name" name="vendor_contact_name">
               <input
@@ -898,148 +1247,205 @@ export const RaiseInspectionCallForm = ({
           {formData.type_of_call === 'Raw Material' && (
             <>
               <SectionHeader
-                title="ERC Raw Material Details"
-                subtitle="Select heat numbers from inventory and TC will be auto-fetched"
+                title="ERC Raw Material Details - Heat Numbers & TC Information"
+                subtitle="Add multiple heat numbers and select TC for each. Details will be auto-fetched from inventory."
               />
 
-              <div className="ric-form-grid">
-                {/* Heat Number - Dropdown from Inventory */}
-                <FormField
-                  label="Heat Number"
-                  name="rm_heat_numbers"
-                  required
-                  // hint="Selected from inventory list (comma-separated for multiple)"
+              {/* Dynamic Heat-TC Mapping Sections */}
+              {formData.rm_heat_tc_mapping.map((heatMapping, index) => (
+                <div key={heatMapping.id} className="ric-heat-section">
+                  <div className="ric-heat-section-header">
+                    <h4 className="ric-heat-section-title">Heat Number {index + 1}</h4>
+                    {formData.rm_heat_tc_mapping.length > 1 && (
+                      <button
+                        type="button"
+                        className="ric-btn-remove-heat"
+                        onClick={() => handleRemoveHeatNumber(heatMapping.id)}
+                        title="Remove this heat number"
+                      >
+                        ✕ Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="ric-form-grid">
+                    {/* Heat Number - Dropdown from Inventory */}
+                    <FormField
+                      label="Heat Number"
+                      name={`heat_${index}_heatNumber`}
+                      required
+                      errors={errors}
+                    >
+                      <select
+                        className="ric-form-select"
+                        value={heatMapping.heatNumber}
+                        onChange={(e) => handleHeatNumberChange(heatMapping.id, e.target.value)}
+                      >
+                        <option value="">-- Select Heat Number --</option>
+                        {availableHeatNumbers.map(heat => (
+                          <option key={heat.heatNumber} value={heat.heatNumber}>
+                            {heat.heatNumber} - {heat.rawMaterial} ({heat.supplierName}) - Qty Left: {heat.qtyLeft} {heat.unit}
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
+
+                    {/* TC Number - Dropdown based on selected Heat Number */}
+                    <FormField
+                      label="TC (Test Certificate) Number"
+                      name={`heat_${index}_tcNumber`}
+                      required
+                      hint="Auto-fetched from inventory"
+                      errors={errors}
+                    >
+                      <select
+                        className="ric-form-select"
+                        value={heatMapping.tcNumber}
+                        onChange={(e) => handleTcNumberChange(heatMapping.id, e.target.value)}
+                        disabled={!heatMapping.heatNumber}
+                      >
+                        <option value="">Select TC Number</option>
+                        {getAvailableTcNumbers(heatMapping.heatNumber).map(tc => (
+                          <option key={tc.tcNumber} value={tc.tcNumber}>
+                            {tc.tcNumber} - {tc.manufacturer}
+                          </option>
+                        ))}
+                      </select>
+                      {heatMapping.isLoading && (
+                        <div style={{ marginTop: '4px', fontSize: '12px', color: '#2196f3' }}>
+                          Loading details...
+                        </div>
+                      )}
+                    </FormField>
+
+                    {/* TC Date - Auto-fetched */}
+                    <FormField label="TC Date" name={`heat_${index}_tcDate`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.tcDate ? formatDate(heatMapping.tcDate) : ''}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* Manufacturer - Auto-fetched */}
+                    <FormField label="Manufacturer Name" name={`heat_${index}_manufacturer`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.manufacturer}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* Invoice Number - Auto-fetched */}
+                    <FormField label="Invoice Number" name={`heat_${index}_invoiceNo`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.invoiceNo}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* Invoice Date - Auto-fetched */}
+                    <FormField label="Invoice Date" name={`heat_${index}_invoiceDate`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.invoiceDate ? formatDate(heatMapping.invoiceDate) : ''}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* Sub PO Number & Date - Auto-fetched */}
+                    <FormField label="Sub PO Number & Date" name={`heat_${index}_subPoNumber`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.subPoNumber && heatMapping.subPoDate
+                          ? `${heatMapping.subPoNumber} (${formatDate(heatMapping.subPoDate)})`
+                          : ''}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* Sub PO Qty - Auto-fetched */}
+                    <FormField label="Sub PO Qty" name={`heat_${index}_subPoQty`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.subPoQty}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* Total Value of Sub PO - Auto-fetched */}
+                    <FormField label="Total Value of Sub PO" name={`heat_${index}_subPoTotalValue`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.subPoTotalValue}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* TC Qty - Auto-fetched */}
+                    <FormField label="TC Qty" name={`heat_${index}_tcQty`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.tcQty}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* TC Qty Remaining with Vendor - Auto-fetched */}
+                    <FormField label="TC Qty Remaining with Vendor" name={`heat_${index}_tcQtyRemaining`} hint="Auto-fetched">
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--disabled"
+                        value={heatMapping.tcQtyRemaining}
+                        disabled
+                      />
+                    </FormField>
+
+                    {/* Offered Quantity for this Heat - Manual Input */}
+                    <FormField
+                      label="Offered Qty (MT)"
+                      name={`heat_${index}_offeredQty`}
+                      required
+                      hint={heatMapping.maxQty ? `Max: ${heatMapping.maxQty} ${heatMapping.unit}` : ''}
+                      errors={errors}
+                    >
+                      <input
+                        type="number"
+                        className="ric-form-input"
+                        value={heatMapping.offeredQty}
+                        onChange={(e) => handleHeatOfferedQtyChange(heatMapping.id, e.target.value)}
+                        step="0.001"
+                        min="0"
+                        max={heatMapping.maxQty || undefined}
+                        placeholder="Enter quantity in MT"
+                        disabled={!heatMapping.tcNumber}
+                      />
+                    </FormField>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add Heat Number Button */}
+              <div style={{ marginBottom: '24px' }}>
+                <button
+                  type="button"
+                  className="ric-btn-add-heat"
+                  onClick={handleAddHeatNumber}
                 >
-                  <select
-                    name="rm_heat_numbers"
-                    className="ric-form-select"
-                    value={formData.rm_heat_numbers}
-                    onChange={handleChange}
-                  >
-                    <option value="">-- Select Heat Number --</option>
-                    {availableHeatNumbers.map(heat => (
-                      <option key={heat.heatNumber} value={heat.heatNumber}>
-                        {heat.heatNumber} - {heat.rawMaterial} ({heat.supplierName}) - Qty Left: {heat.qtyLeft} {heat.unit}
-                      </option>
-                    ))}
-                  </select>
-                  {/* <div style={{ marginTop: '8px', fontSize: '12px', color: '#6b7280' }}>
-                    💡 For multiple heat numbers, select one and manually add others separated by comma
-                  </div> */}
-                </FormField>
-
-                {/* TC Number - Dropdown based on Heat Number */}
-                <FormField label="TC (Test Certificate) Number" name="rm_tc_number" required hint="Auto-fetched from inventory" errors={errors}>
-                  <select
-                    name="rm_tc_number"
-                    className="ric-form-select"
-                    value={formData.rm_tc_number}
-                    onChange={handleChange}
-                    disabled={!formData.rm_heat_numbers || availableTcNumbers.length === 0}
-                  >
-                    <option value="">Select TC Number</option>
-                    {availableTcNumbers.map(tc => (
-                      <option key={tc.tcNumber} value={tc.tcNumber}>
-                        {tc.tcNumber} (Heat: {tc.heatNumber}, Supplier: {tc.manufacturer})
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-
-                {/* TC Date - Auto-fetched */}
-                <FormField label="TC Date" name="rm_tc_date" hint="Auto-fetched" errors={errors}>
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_tc_date ? formatDate(formData.rm_tc_date) : ''}
-                    disabled
-                  />
-                </FormField>
-
-                {/* Manufacturer - Auto-fetched */}
-                <FormField label="Manufacturer Name" name="rm_manufacturer" hint="Auto-fetched" errors={errors}>
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_manufacturer}
-                    disabled
-                  />
-                </FormField>
-
-                {/* Invoice Number - Auto-fetched */}
-                <FormField label="Invoice Number" name="rm_invoice_no" hint="Auto-fetched" errors={errors}>
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_invoice_no}
-                    disabled
-                  />
-                </FormField>
-
-                {/* Invoice Date - Auto-fetched */}
-                <FormField label="Invoice Date" name="rm_invoice_date" hint="Auto-fetched">
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_invoice_date ? formatDate(formData.rm_invoice_date) : ''}
-                    disabled
-                  />
-                </FormField>
-
-                {/* Sub PO Number & Date - Auto-fetched */}
-                <FormField label="Sub PO Number & Date" name="rm_sub_po_number" hint="Auto-fetched">
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_sub_po_number && formData.rm_sub_po_date
-                      ? `${formData.rm_sub_po_number} (${formatDate(formData.rm_sub_po_date)})`
-                      : ''}
-                    disabled
-                  />
-                </FormField>
-
-                {/* Sub PO Qty - Auto-fetched */}
-                <FormField label="Sub PO Qty" name="rm_sub_po_qty" hint="Auto-fetched">
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_sub_po_qty}
-                    disabled
-                  />
-                </FormField>
-
-                {/* Total Value of Sub PO - Auto-fetched */}
-                <FormField label="Total Value of Sub PO" name="rm_sub_po_total_value" hint="Auto-fetched">
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_sub_po_total_value}
-                    disabled
-                  />
-                </FormField>
-
-                {/* TC Qty - Auto-fetched */}
-                <FormField label="TC Qty" name="rm_tc_qty" hint="Auto-fetched">
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_tc_qty}
-                    disabled
-                  />
-                </FormField>
-
-                {/* TC Qty Remaining with Vendor - Auto-fetched */}
-                <FormField label="TC Qty Remaining with Vendor" name="rm_tc_qty_remaining" hint="Auto-fetched">
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.rm_tc_qty_remaining}
-                    disabled
-                  />
-                </FormField>
+                  + Add Another Heat Number
+                </button>
               </div>
 
-              {/* Chemical Analysis - Manual Input (Editable) */}
+              {/* Chemical Analysis - Manual Input (Editable) - Shared across all heats */}
               <SectionHeader
                 title="Chemical Analysis of TC"
                 subtitle="Enter chemical composition percentages (auto-filled if previously entered)"
@@ -1130,42 +1536,11 @@ export const RaiseInspectionCallForm = ({
                 </FormField>
               </div>
 
-              {/* Offered Quantity Section */}
+              {/* Total Offered Quantity - Auto-calculated from all heats */}
               <SectionHeader
-                title="Offered Quantity (Heat-wise)"
-                // subtitle="Enter the quantity being offered for each heat number"
+                title="Total Offered Quantity Summary"
+                subtitle="Auto-calculated from all heat numbers"
               />
-
-              {/* Heat-wise Quantity Inputs */}
-              {formData.rm_heat_quantities.length > 0 && (
-                <div className="ric-heat-quantities">
-                  {formData.rm_heat_quantities.map((heat) => (
-                    <div key={`${heat.heatNumber}-${heat.tcNumber}`} className="ric-heat-quantity-row">
-                      <div className="ric-form-grid">
-                        <FormField
-                          label={`Heat ${heat.heatNumber} - TC ${heat.tcNumber} - Offered Qty (MT)`}
-                          name={`heat_qty_${heat.heatNumber}_${heat.tcNumber}`}
-                          required
-                          hint={`Enter quantity in MT (Max: ${heat.maxQty} ${heat.unit})`}
-                          errors={errors}
-                        >
-                          <input
-                            type="number"
-                            className="ric-form-input"
-                            value={heat.offeredQty}
-                            onChange={(e) => handleHeatQuantityChange(heat.heatNumber, heat.tcNumber, e.target.value)}
-                            step="0.001"
-                            min="0"
-                            placeholder="Enter quantity in MT"
-                          />
-                        </FormField>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Total Offered Quantity - Auto-calculated */}
               <div className="ric-form-grid">
                 <FormField
                   label="Total Offered Qty (MT)"
@@ -1207,21 +1582,19 @@ export const RaiseInspectionCallForm = ({
               />
 
               <div className="ric-form-grid">
-                {/* RM IC Numbers - Dropdown with Multiple Selection */}
+                {/* RM IC Numbers - Dropdown with Multiple Selection - HARDCODED FOR TESTING */}
                 <FormField
                   label="RM IC Numbers"
                   name="process_rm_ic_numbers"
                   required
-                  // hint="Dropdown options - all the IC of ERC Raw Material issued for that PO Serial Number for which vendor is requesting call. Multiple IC can be selected"
+                  hint="Select approved RM IC for this PO (Hardcoded for testing)"
                   fullWidth
                 >
                   <MultiSelectDropdown
-                    options={availableRmIcs
-                      .filter(ic => ic.poSerialNo === formData.po_serial_no)
-                      .map(ic => ({
-                        value: ic.icNumber,
-                        label: `${ic.icNumber} (Heat: ${ic.heatNumber}, Accepted: ${ic.qtyAccepted})`
-                      }))}
+                    options={[
+                      { value: 'RM-IC-2025-0001', label: 'RM-IC-2025-0001 (Heats: HT-2025-001, HT-2025-002, Accepted: 135000 ERCs)' },
+                      { value: 'RM-IC-2025-0002', label: 'RM-IC-2025-0002 (Heats: HT-2025-003, HT-2025-004, Accepted: 180000 ERCs)' }
+                    ]}
                     selectedValues={formData.process_rm_ic_numbers}
                     onChange={(selectedValues) => handleRmIcSelection(selectedValues)}
                     placeholder="Select RM IC Numbers"
@@ -1253,86 +1626,172 @@ export const RaiseInspectionCallForm = ({
                   </div>
                 </FormField>
 
-                {/* Lot No - Manual Entry */}
-                <FormField
-                  label="Lot No."
-                  name="process_lot_no"
-                  required
-                  hint="Manual Entry - String"
-                >
-                  <input
-                    type="text"
-                    name="process_lot_no"
-                    className="ric-form-input"
-                    value={formData.process_lot_no}
-                    onChange={handleChange}
-                    placeholder="Enter Lot Number (e.g., LOT-2025-001)"
-                  />
-                </FormField>
-
-                {/* Message for Multiple Lot Numbers */}
-                {formData.process_lot_no && formData.process_lot_no.includes(',') && (
+                {/* Info Message for Multiple Lots */}
+                {formData.process_lot_heat_mapping.length > 1 && (
                   <div className="ric-info-message" style={{ gridColumn: '1 / -1', padding: '12px', backgroundColor: '#e3f2fd', borderLeft: '4px solid #2196f3', marginBottom: '16px' }}>
                     <strong>Note:</strong> If more than 1 lot no. is added - "Process IC for all the Lots will be provided once all the lots are manufactured and inspected during process inspection"
                   </div>
                 )}
+              </div>
 
-                {/* Manufacturer-Heat Number - Dropdown */}
-                <FormField
-                  label="Manufacturer - Heat Number"
-                  name="process_manufacturer_heat"
-                  required
-                  // hint="Selected one from the list of Heat No.s which have been accepted in the RM IC Number selected above"
-                >
-                  <select
-                    name="process_manufacturer_heat"
-                    className="ric-form-select"
-                    value={formData.process_manufacturer_heat}
-                    onChange={handleChange}
+              {/* ========== LOT-HEAT MAPPING SECTION ========== */}
+              <div style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h4 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#1f2937' }}>
+                    Lot Numbers & Heat Numbers
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handleAddProcessLotHeat}
+                    className="ric-btn-secondary"
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500'
+                    }}
                   >
-                    <option value="">Select Manufacturer-Heat</option>
-                    {formData.process_rm_ic_numbers.length > 0 &&
-                      formData.process_rm_ic_numbers.map(icNumber => {
-                        const ic = RM_INSPECTION_CALLS.find(ic => ic.icNumber === icNumber);
-                        if (!ic) return null;
-                        const heat = HEAT_TC_MAPPING.find(h => h.heatNumber === ic.heatNumber);
-                        if (!heat) return null;
-                        return (
-                          <option key={ic.icNumber} value={`${heat.manufacturer}-${ic.heatNumber}`}>
-                            {heat.manufacturer} - {ic.heatNumber}
-                          </option>
-                        );
-                      })
-                    }
-                  </select>
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#d32f2f', fontWeight: '500' }}>
-                    {/* Process Inspection call can only be placed if: Offered Qty ≤ Total Accepted Material in RM Inspection Certificate */}
-                  </div>
-                </FormField>
+                    + Add Lot & Heat
+                  </button>
+                </div>
 
-                {/* Offered Quantity */}
-                <FormField
-                  label="Offered Qty"
-                  name="process_offered_qty"
-                  required
-                  // hint={`Max: ${formData.process_total_accepted_qty_rm} (Total Accepted in selected RM ICs)`}
-                >
-                  <input
-                    type="number"
-                    name="process_offered_qty"
-                    className="ric-form-input"
-                    value={formData.process_offered_qty}
-                    onChange={handleChange}
-                    min="0"
-                    max={formData.process_total_accepted_qty_rm}
-                    placeholder="Enter quantity"
-                  />
-                  {formData.process_total_accepted_qty_rm > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                      Total Accepted Material in RM IC: <strong>{formData.process_total_accepted_qty_rm}</strong>
+                {/* Lot-Heat Entries */}
+                {formData.process_lot_heat_mapping.map((lotHeat, index) => (
+                  <div
+                    key={lotHeat.id}
+                    style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      marginBottom: '16px',
+                      backgroundColor: '#f9fafb'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h5 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                        Entry #{index + 1}
+                      </h5>
+                      {formData.process_lot_heat_mapping.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveProcessLotHeat(lotHeat.id)}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: '12px',
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
-                  )}
-                </FormField>
+
+                    <div className="ric-form-grid">
+                      {/* Lot Number */}
+                      <FormField
+                        label="Lot No."
+                        name={`process_lot_no_${lotHeat.id}`}
+                        required
+                        hint="Manual Entry - String"
+                      >
+                        <input
+                          type="text"
+                          className="ric-form-input"
+                          value={lotHeat.lotNumber}
+                          onChange={(e) => handleProcessLotNumberChange(lotHeat.id, e.target.value)}
+                          placeholder="Enter Lot Number (e.g., LOT-2025-001)"
+                        />
+                      </FormField>
+
+                      {/* Heat Number */}
+                      <FormField
+                        label="Heat Number"
+                        name={`process_heat_number_${lotHeat.id}`}
+                        required
+                        hint="Select heat number from approved RM IC (Hardcoded for testing)"
+                      >
+                        <select
+                          className="ric-form-select"
+                          value={lotHeat.heatNumber}
+                          onChange={(e) => {
+                            const heatValue = e.target.value;
+                            // Hardcoded heat data for testing
+                            const hardcodedHeats = {
+                              'HT-2025-001': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
+                              'HT-2025-002': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
+                              'HT-2025-003': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 },
+                              'HT-2025-004': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 }
+                            };
+                            const selectedHeat = hardcodedHeats[heatValue];
+                            if (selectedHeat) {
+                              handleProcessManufacturerHeatChange(
+                                lotHeat.id,
+                                `${selectedHeat.manufacturer} - ${heatValue}`,
+                                heatValue,
+                                selectedHeat.manufacturer,
+                                selectedHeat.qty_accepted
+                              );
+                            }
+                          }}
+                        >
+                          <option value="">Select Heat Number</option>
+                          <option value="HT-2025-001">ABC Steel Industries - HT-2025-001 (Accepted: 67500 ERCs)</option>
+                          <option value="HT-2025-002">ABC Steel Industries - HT-2025-002 (Accepted: 67500 ERCs)</option>
+                          <option value="HT-2025-003">XYZ Steel Corp - HT-2025-003 (Accepted: 90000 ERCs)</option>
+                          <option value="HT-2025-004">XYZ Steel Corp - HT-2025-004 (Accepted: 90000 ERCs)</option>
+                        </select>
+                      </FormField>
+
+                      {/* Offered Quantity */}
+                      {/* <FormField
+                        label="Offered Qty (ERCs)"
+                        name={`process_offered_qty_${lotHeat.id}`}
+                        required
+                        hint={lotHeat.heatNumber && lotHeat.maxQty ? `Max: ${lotHeat.maxQty} ERCs (from RM IC)` : "Select heat number first"}
+                      >
+                        <input
+                          type="number"
+                          className="ric-form-input"
+                          value={lotHeat.offeredQty}
+                          onChange={(e) => handleProcessOfferedQtyChange(lotHeat.id, e.target.value)}
+                          min="0"
+                          max={lotHeat.maxQty || undefined}
+                          placeholder="Enter quantity"
+                          disabled={!lotHeat.heatNumber}
+                        />
+                      </FormField> */}
+
+                      {/* Offered Quantity */}
+                      {/* <FormField
+                        label="Offered Qty (ERC)"
+                        name={`process_offered_qty_${lotHeat.id}`}
+                        required
+                        hint={`Max: ${formData.process_total_accepted_qty_rm} (Total Accepted in RM IC)`}
+                      >
+                        <input
+                          type="number"
+                          className="ric-form-input"
+                          value={lotHeat.offeredQty}
+                          onChange={(e) => handleProcessOfferedQtyChange(lotHeat.id, e.target.value)}
+                          min="0"
+                          max={formData.process_total_accepted_qty_rm}
+                          placeholder="Enter quantity"
+                        />
+                      </FormField> */}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="ric-form-grid">
               </div>
             </>
           )}
@@ -1347,6 +1806,57 @@ export const RaiseInspectionCallForm = ({
 
               <div className="ric-form-grid">
                 {/* Lot No. - Dropdown with Multiple Selection */}
+                      {/* RM IC Numbers - Dropdown with Multiple Selection */}
+                      <FormField
+                        label="RM IC Numbers"
+                        name="final_rm_ic_numbers"
+                        required
+                        // hint="Dropdown - List of all RM IC made against this Serial Number. Multiple IC can be added"
+                        fullWidth
+                      >
+                        <MultiSelectDropdown
+                          options={availableRmIcs
+                            .filter(ic => ic.poSerialNo === formData.po_serial_no)
+                            .map(ic => ({
+                              value: ic.icNumber,
+                              label: `${ic.icNumber} (Heat: ${ic.heatNumber}, Accepted: ${ic.qtyAccepted})`
+                            }))}
+                          selectedValues={formData.final_rm_ic_numbers}
+                          onChange={(selectedValues) => setFormData(prev => ({ ...prev, final_rm_ic_numbers: selectedValues }))}
+                          placeholder="Select RM IC Numbers"
+                        />
+                        {formData.final_rm_ic_numbers.length > 0 && (
+                          <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+                            Selected: {formData.final_rm_ic_numbers.join(', ')}
+                          </div>
+                        )}
+                      </FormField>
+      
+                      {/* Process IC Numbers - Dropdown with Multiple Selection */}
+                      <FormField
+                        label="Process IC Numbers"
+                        name="final_process_ic_numbers"
+                        required
+                        // hint="Dropdown - List of all Process IC made against this Serial Number. Multiple IC can be added"
+                        fullWidth
+                      >
+                        <MultiSelectDropdown
+                          options={PROCESS_INSPECTION_CALLS
+                            .filter(ic => ic.poSerialNo === formData.po_serial_no && ic.status === 'Completed')
+                            .map(ic => ({
+                              value: ic.icNumber,
+                              label: `${ic.icNumber} (Lot: ${ic.lotNumber}, Accepted: ${ic.qtyAccepted})`
+                            }))}
+                          selectedValues={formData.final_process_ic_numbers}
+                          onChange={(selectedValues) => handleFinalProcessIcSelection(selectedValues)}
+                          placeholder="Select Process IC Numbers"
+                        />
+                        {formData.final_process_ic_numbers.length > 0 && (
+                          <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+                            Selected: {formData.final_process_ic_numbers.join(', ')}
+                          </div>
+                        )}
+                      </FormField>
                 <FormField
                   label="Lot No."
                   name="final_lot_numbers"
@@ -1457,57 +1967,6 @@ export const RaiseInspectionCallForm = ({
                   )}
                 </FormField>
 
-                {/* RM IC Numbers - Dropdown with Multiple Selection */}
-                <FormField
-                  label="RM IC Numbers"
-                  name="final_rm_ic_numbers"
-                  required
-                  // hint="Dropdown - List of all RM IC made against this Serial Number. Multiple IC can be added"
-                  fullWidth
-                >
-                  <MultiSelectDropdown
-                    options={availableRmIcs
-                      .filter(ic => ic.poSerialNo === formData.po_serial_no)
-                      .map(ic => ({
-                        value: ic.icNumber,
-                        label: `${ic.icNumber} (Heat: ${ic.heatNumber}, Accepted: ${ic.qtyAccepted})`
-                      }))}
-                    selectedValues={formData.final_rm_ic_numbers}
-                    onChange={(selectedValues) => setFormData(prev => ({ ...prev, final_rm_ic_numbers: selectedValues }))}
-                    placeholder="Select RM IC Numbers"
-                  />
-                  {formData.final_rm_ic_numbers.length > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                      Selected: {formData.final_rm_ic_numbers.join(', ')}
-                    </div>
-                  )}
-                </FormField>
-
-                {/* Process IC Numbers - Dropdown with Multiple Selection */}
-                <FormField
-                  label="Process IC Numbers"
-                  name="final_process_ic_numbers"
-                  required
-                  // hint="Dropdown - List of all Process IC made against this Serial Number. Multiple IC can be added"
-                  fullWidth
-                >
-                  <MultiSelectDropdown
-                    options={PROCESS_INSPECTION_CALLS
-                      .filter(ic => ic.poSerialNo === formData.po_serial_no && ic.status === 'Completed')
-                      .map(ic => ({
-                        value: ic.icNumber,
-                        label: `${ic.icNumber} (Lot: ${ic.lotNumber}, Accepted: ${ic.qtyAccepted})`
-                      }))}
-                    selectedValues={formData.final_process_ic_numbers}
-                    onChange={(selectedValues) => handleFinalProcessIcSelection(selectedValues)}
-                    placeholder="Select Process IC Numbers"
-                  />
-                  {formData.final_process_ic_numbers.length > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                      Selected: {formData.final_process_ic_numbers.join(', ')}
-                    </div>
-                  )}
-                </FormField>
               </div>
             </>
           )}
@@ -1516,25 +1975,46 @@ export const RaiseInspectionCallForm = ({
           <SectionHeader title="Place of Inspection" subtitle="Select unit for inspection" />
 
           <div className="ric-form-grid">
-            {/* Company Name - Auto-fill (Name of Vendor) */}
-            <FormField label="place of Inspection - Company Name" name="company_name" hint="Auto fill (Name of Vendor)">
-              <input
-                type="text"
-                className="ric-form-input ric-form-input--disabled"
-                value={formData.company_name}
-                disabled
-              />
+            {/* Company Name - Dropdown */}
+            <FormField label="Place of Inspection - Company Name" name="company_name" required errors={errors}>
+              <select
+                className="ric-form-select"
+                value={formData.company_id}
+                onChange={(e) => {
+                  const companyId = e.target.value;
+                  const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(companyId));
+                  setFormData(prev => ({
+                    ...prev,
+                    company_id: companyId,
+                    company_name: company?.companyName || '',
+                    cin: company?.cin || '',
+                    // Reset unit when company changes
+                    unit_id: '',
+                    unit_name: '',
+                    unit_address: '',
+                    unit_gstin: '',
+                    unit_contact_person: ''
+                  }));
+                }}
+              >
+                <option value="">-- Select Company --</option>
+                {COMPANY_UNIT_MASTER.map(company => (
+                  <option key={company.id} value={company.id}>
+                    {company.companyName}
+                  </option>
+                ))}
+              </select>
             </FormField>
 
             {/* CIN - Auto Fetch from master data */}
-            <FormField label="place of Inspection - CIN" name="cin" hint="Auto Fetch from master data">
+            {/* <FormField label="place of Inspection - CIN" name="cin" hint="Auto Fetch from master data">
               <input
                 type="text"
                 className="ric-form-input ric-form-input--disabled"
                 value={formData.cin}
                 disabled
               />
-            </FormField>
+            </FormField> */}
 
             {/* Unit Name - For Final stage: auto-filled from Process IC, For others: Dropdown */}
             {formData.type_of_call === 'Final' ? (
@@ -1598,7 +2078,7 @@ export const RaiseInspectionCallForm = ({
           </div>
 
           {/* Company Details Table - Show for non-Final stages when unit is selected, or for Final when lots are selected */}
-          {((formData.type_of_call !== 'Final' && formData.unit_id) || (formData.type_of_call === 'Final' && formData.final_unit_name)) && (
+          {/* {((formData.type_of_call !== 'Final' && formData.unit_id) || (formData.type_of_call === 'Final' && formData.final_unit_name)) && (
             <div style={{ marginTop: '24px', marginBottom: '24px' }}>
               <h4 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: '#333' }}>
                 Company Details Table
@@ -1642,7 +2122,7 @@ export const RaiseInspectionCallForm = ({
                 Note: Entries created by Admin or created by Vendor (approved by Admin)
               </div>
             </div>
-          )}
+          )} */}
 
           {/* ============ REMARKS ============ */}
           <SectionHeader title="Additional Information" />

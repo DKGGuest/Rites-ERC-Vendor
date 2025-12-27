@@ -759,7 +759,13 @@ export const VENDOR_MASTER_ITEMS = [
 ];
 
 // From "Raising an Inspection Call" – PO Data auto-fetched
-export const VENDOR_RAISE_CALL_PO = VENDOR_PO_LIST[0]; // first PO as sample
+export const VENDOR_RAISE_CALL_PO = {
+  po_no: 'AA195118100302',
+  po_date: '2019-11-25',
+  description: 'PNEUMATIC DRILL MACHINE',
+  quantity: 5,
+  unit: 'Nos'
+};
 
 // ============ INSPECTION CALL MASTER DATA ============
 // Company/Unit Master for Place of Inspection
@@ -801,6 +807,29 @@ export const COMPANY_UNIT_MASTER = [
         roleOfUnit: 'Sleeper Manufacturer'
       }
     ]
+  },
+  {
+    id: 3,
+    companyName: 'JSPL',
+    cin: 'L27106OR1979PLC001349',
+    units: [
+      {
+        id: 301,
+        unitName: 'Angul',
+        gstin: '21AABCJ1234R1ZP',
+        address: 'Jindal Steel Complex, Angul, Odisha - 759122',
+        contactPerson: 'Suresh Patel',
+        roleOfUnit: 'Steel Manufacturing Plant'
+      },
+      {
+        id: 302,
+        unitName: 'Raigarh',
+        gstin: '22AABCJ1234R2ZQ',
+        address: 'JSPL Steel Plant, Raigarh, Chhattisgarh - 496001',
+        contactPerson: 'Anita Deshmukh',
+        roleOfUnit: 'Integrated Steel Plant'
+      }
+    ]
   }
 ];
 
@@ -811,6 +840,65 @@ export const MANUFACTURER_MASTER = [
   { id: 3, name: 'JSW Steel Ltd', code: 'JSW' },
   { id: 4, name: 'Jindal Steel & Power Ltd', code: 'JSPL' }
 ];
+
+// Raw Material to Grade/Specification Mapping
+export const RAW_MATERIAL_GRADE_MAPPING = {
+  'Spring Steel Round Bars': [
+    '55Si7 SPRING STEEL ROUND 20.64MM',
+    '55Si7 SPRING STEEL ROUND 23MM',
+    '60Si7 SPRING STEEL ROUND 20.64MM',
+    '60Si7 SPRING STEEL ROUND 23MM',
+    'IS 4454 Grade 55Si7',
+    'IS 4454 Grade 60Si7'
+  ],
+  'Cement': [
+    'OPC 53 Grade (IS 12269)',
+    'OPC 43 Grade (IS 8112)',
+    'PPC (IS 1489)',
+    'PSC (IS 455)',
+    'Sulphate Resistant Cement'
+  ],
+  'HTS Wire': [
+    'HTS Wire 7mm (IS 6003)',
+    'HTS Wire 5mm (IS 6003)',
+    'Grade 1570 MPa',
+    'Grade 1670 MPa',
+    'Grade 1770 MPa'
+  ],
+  'Dowel': [
+    'MS Dowel Bar 20mm (IS 2062)',
+    'MS Dowel Bar 25mm (IS 2062)',
+    'TMT Dowel Bar 20mm',
+    'TMT Dowel Bar 25mm'
+  ],
+  'Aggregate': [
+    '20mm Nominal Size (IS 383)',
+    '10mm Nominal Size (IS 383)',
+    'Coarse Aggregate Grade I',
+    'Coarse Aggregate Grade II',
+    'Fine Aggregate (Zone II)',
+    'Fine Aggregate (Zone III)'
+  ],
+  'SGCI Insert': [
+    'SGCI Grade 420/12 (IS 2108)',
+    'SGCI Grade 350/22 (IS 2108)',
+    'SG Iron Insert Type A',
+    'SG Iron Insert Type B'
+  ],
+  'Steel Round': [
+    'IS 2062 Grade E250',
+    'IS 2062 Grade E350',
+    'IS 1786 Grade Fe 415',
+    'IS 1786 Grade Fe 500',
+    'IS 1786 Grade Fe 550'
+  ],
+  'Rubber Pad': [
+    'EVA Rubber Pad (IS 14892)',
+    'EPDM Rubber Pad',
+    'Natural Rubber Grade A',
+    'Synthetic Rubber Grade B'
+  ]
+};
 
 // Heat Number to TC Mapping (from Inventory Management)
 export const HEAT_TC_MAPPING = [
@@ -919,8 +1007,18 @@ export const ERC_CONVERSION_FACTORS = {
 // PO Serial Numbers with remaining quantities
 export const PO_SERIAL_DETAILS = [
   {
+    poNo: 'AA195118100302',
+    serialNo: '001',
+    itemName: 'PNEUMATIC DRILL MACHINE',
+    poQty: 5,
+    qtyAlreadyInspected: { rm: 0, process: 0, final: 0 },
+    unit: 'Nos',
+    amendmentNo: null,
+    amendmentDate: null
+  },
+  {
     poNo: 'PO-2025-1001',
-    serialNo: 'PO-2025-1001/01',
+    serialNo: '001',
     itemName: 'ERC MK-III Clips - Type A',
     poQty: 5000,
     qtyAlreadyInspected: { rm: 2000, process: 1500, final: 0 },
@@ -930,7 +1028,7 @@ export const PO_SERIAL_DETAILS = [
   },
   {
     poNo: 'PO-2025-1001',
-    serialNo: 'PO-2025-1001/02',
+    serialNo: '002',
     itemName: 'ERC MK-III Clips - Type B',
     poQty: 3000,
     qtyAlreadyInspected: { rm: 1000, process: 500, final: 0 },
@@ -940,7 +1038,7 @@ export const PO_SERIAL_DETAILS = [
   },
   {
     poNo: 'PO-2025-1002',
-    serialNo: 'PO-2025-1002/01',
+    serialNo: '001',
     itemName: 'ERC MK-V Standard',
     poQty: 5000,
     qtyAlreadyInspected: { rm: 3200, process: 2000, final: 1000 },

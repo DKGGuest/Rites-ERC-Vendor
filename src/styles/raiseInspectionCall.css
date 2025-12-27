@@ -186,6 +186,74 @@
   border-radius: 6px;
 }
 
+/* Heat-TC Mapping Sections */
+.ric-heat-section {
+  background-color: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.ric-heat-section:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ric-heat-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.ric-heat-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.ric-btn-remove-heat {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ric-btn-remove-heat:hover {
+  background-color: #fecaca;
+  border-color: #fca5a5;
+}
+
+.ric-btn-add-heat {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border: 2px dashed #93c5fd;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 300px;
+}
+
+.ric-btn-add-heat:hover {
+  background-color: #bfdbfe;
+  border-color: #60a5fa;
+  transform: translateY(-1px);
+}
+
 .ric-form-textarea {
   resize: vertical;
   min-height: 80px;

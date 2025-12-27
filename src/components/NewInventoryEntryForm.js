@@ -1,9 +1,14 @@
 // src/components/NewInventoryEntryForm.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import '../styles/forms.css';
+import { COMPANY_UNIT_MASTER, RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
 
 const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false }) => {
   const initialFormState = {
+    companyId: '',
+    companyName: '',
+    unitId: '',
+    unitName: '',
     rawMaterial: '',
     supplierName: '',
     supplierAddress: '',
@@ -19,11 +24,27 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
     rateOfMaterial: '',
     rateOfGst: '',
     declaredQuantity: '',
+    baseValuePO: '',
+    totalPO: '',
+    lengthOfBars: '',
     unitOfMeasurement: ''
   };
 
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
+
+  // Get available units based on selected company
+  const availableUnits = useMemo(() => {
+    if (!formData.companyId) return [];
+    const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(formData.companyId));
+    return company?.units || [];
+  }, [formData.companyId]);
+
+  // Get available grades based on selected raw material
+  const availableGrades = useMemo(() => {
+    if (!formData.rawMaterial) return [];
+    return RAW_MATERIAL_GRADE_MAPPING[formData.rawMaterial] || [];
+  }, [formData.rawMaterial]);
 
   // Dynamic field label for Heat Number based on material
   const getHeatNumberLabel = () => {
@@ -36,7 +57,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
 
   // Default master data options
   const defaultMasterData = {
-    rawMaterials: ['Steel Round', 'Cement', 'Rubber Pad', 'Chemical Compound', 'Aggregate', 'Sleeper Component'],
+    rawMaterials: ['Spring Steel Round Bars', 'Cement', 'HTS Wire', 'Dowel', 'Aggregate', 'SGCI Insert'],
     suppliers: ['ABC Suppliers Pvt Ltd', 'XYZ Materials Co.', 'Steel India Ltd', 'National Cement Corp'],
     grades: ['Grade A', 'Grade B', 'Grade C', 'IS 2062', 'IS 1786', 'OPC 53', 'PPC'],
     units: ['Kg', 'MT', 'Nos', 'Ltrs', 'Bags', 'Cubic Meter']
@@ -60,17 +81,70 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
     }
   }, [formData.supplierName]);
 
+  // Handle company selection - cascading effect
+  const handleCompanyChange = (e) => {
+    const companyId = e.target.value;
+    const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(companyId));
+
+    setFormData(prev => ({
+      ...prev,
+      companyId: companyId,
+      companyName: company?.companyName || '',
+      // Reset unit fields when company changes
+      unitId: '',
+      unitName: ''
+    }));
+
+    // Clear company and unit errors
+    if (errors.companyId) {
+      setErrors(prev => ({ ...prev, companyId: '', unitId: '' }));
+    }
+  };
+
+  // Handle unit selection
+  const handleUnitChange = (e) => {
+    const unitId = e.target.value;
+    const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(formData.companyId));
+    const unit = company?.units.find(u => u.id === parseInt(unitId));
+
+    setFormData(prev => ({
+      ...prev,
+      unitId: unitId,
+      unitName: unit?.unitName || ''
+    }));
+
+    // Clear unit error
+    if (errors.unitId) {
+      setErrors(prev => ({ ...prev, unitId: '' }));
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+
+    // If raw material changes, reset grade specification
+    if (name === 'rawMaterial') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        gradeSpecification: '' // Reset grade when raw material changes
+      }));
+      // Clear both errors
+      if (errors[name] || errors.gradeSpecification) {
+        setErrors(prev => ({ ...prev, [name]: '', gradeSpecification: '' }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+      if (errors[name]) {
+        setErrors(prev => ({ ...prev, [name]: '' }));
+      }
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
     const requiredFields = [
+      'companyId', 'unitId',
       'rawMaterial', 'supplierName', 'gradeSpecification', 'heatNumber',
       'tcNumber', 'tcDate', 'invoiceNumber', 'invoiceDate',
       'subPoNumber', 'subPoDate', 'subPoQty', 'rateOfMaterial',
@@ -109,6 +183,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
   return (
     <div className="inventory-entry-form">
       <form onSubmit={handleSubmit}>
+
         {/* Material & Supplier Information Section */}
         <div className="form-section">
           <div className="form-section-header">
@@ -160,13 +235,21 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
                 value={formData.gradeSpecification}
                 onChange={handleChange}
                 className={`form-input ${errors.gradeSpecification ? 'error' : ''}`}
+                disabled={!formData.rawMaterial || availableGrades.length === 0}
               >
-                <option value="">-- Select Grade --</option>
-                {data.grades.map(item => (
-                  <option key={item} value={item}>{item}</option>
+                <option value="">
+                  {!formData.rawMaterial ? '-- Select Raw Material First --' : '-- Select Grade --'}
+                </option>
+                {availableGrades.map(grade => (
+                  <option key={grade} value={grade}>{grade}</option>
                 ))}
               </select>
               {errors.gradeSpecification && <span className="error-text">{errors.gradeSpecification}</span>}
+              {!formData.rawMaterial && (
+                <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
+                  Please select a raw material first to see available grades
+                </div>
+              )}
             </div>
 
             <div className="form-group full-width">
@@ -180,16 +263,97 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
                 placeholder="Will be auto-filled based on supplier selection"
               />
             </div>
+
+            <div className="form-group">
+              <label className="form-label">
+               Length of Bars <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="lengthOfBars"
+                value={formData.lengthOfBars}
+                onChange={handleChange}
+                className={`form-input ${errors.lengthOfBars ? 'error' : ''}`}
+                placeholder="Length of Bars"
+              />
+              {errors.subPoQty && <span className="error-text">{errors.lengthOfBars}</span>}
+            </div>
+
+
+            
           </div>
         </div>
 
 
-        {/* Test Certificate & Batch Information Section */}
+
+        {/* Company & Unit Information Section */}
         <div className="form-section">
           <div className="form-section-header">
-            <h4 className="form-section-title">📋 Test Certificate & Batch Information</h4>
+            <h4 className="form-section-title">🏢 Company & Unit Information</h4>
           </div>
           <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">
+                Company Name <span className="required">*</span>
+              </label>
+              <select
+                name="companyId"
+                value={formData.companyId}
+                onChange={handleCompanyChange}
+                className={`form-input ${errors.companyId ? 'error' : ''}`}
+              >
+                <option value="">-- Select Company --</option>
+                {COMPANY_UNIT_MASTER.map(company => (
+                  <option key={company.id} value={company.id}>
+                    {company.companyName}
+                  </option>
+                ))}
+              </select>
+              {errors.companyId && <span className="error-text">{errors.companyId}</span>}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Unit Name <span className="required">*</span>
+              </label>
+              <select
+                name="unitId"
+                value={formData.unitId}
+                onChange={handleUnitChange}
+                className={`form-input ${errors.unitId ? 'error' : ''}`}
+                disabled={!formData.companyId || availableUnits.length === 0}
+              >
+                <option value="">
+                  {!formData.companyId ? '-- Select Company First --' : '-- Select Unit --'}
+                </option>
+                {availableUnits.map(unit => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.unitName}
+                  </option>
+                ))}
+              </select>
+              {errors.unitId && <span className="error-text">{errors.unitId}</span>}
+              {!formData.companyId && (
+                <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
+                  Please select a company first to see available units
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+
+
+        {/* Conditional Sections - Only show after Raw Material is selected */}
+        {formData.rawMaterial && (
+          <>
+            {/* Test Certificate & Batch Information Section */}
+            <div className="form-section">
+              <div className="form-section-header">
+                <h4 className="form-section-title">📋 Test Certificate & Batch Information</h4>
+              </div>
+              <div className="form-grid">
             <div className="form-group">
               <label className="form-label">
                 {getHeatNumberLabel()} <span className="required">*</span>
@@ -233,6 +397,25 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               />
               {errors.tcDate && <span className="error-text">{errors.tcDate}</span>}
             </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                TC Quantity <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="declaredQuantity"
+                value={formData.declaredQuantity}
+                onChange={handleChange}
+                className={`form-input ${errors.declaredQuantity ? 'error' : ''}`}
+                placeholder="Enter TC Qty"
+              />
+              {errors.declaredQuantity && <span className="error-text">{errors.declaredQuantity}</span>}
+            </div>
+
+
+
           </div>
         </div>
 
@@ -243,34 +426,6 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
             <h4 className="form-section-title">🧾 Invoice & Purchase Order Details</h4>
           </div>
           <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label">
-                Invoice Number <span className="required">*</span>
-              </label>
-              <input
-                type="text"
-                name="invoiceNumber"
-                value={formData.invoiceNumber}
-                onChange={handleChange}
-                className={`form-input ${errors.invoiceNumber ? 'error' : ''}`}
-                placeholder="Enter Invoice Number"
-              />
-              {errors.invoiceNumber && <span className="error-text">{errors.invoiceNumber}</span>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                Invoice Date <span className="required">*</span>
-              </label>
-              <input
-                type="date"
-                name="invoiceDate"
-                value={formData.invoiceDate}
-                onChange={handleChange}
-                className={`form-input ${errors.invoiceDate ? 'error' : ''}`}
-              />
-              {errors.invoiceDate && <span className="error-text">{errors.invoiceDate}</span>}
-            </div>
 
             <div className="form-group">
               <label className="form-label">
@@ -316,6 +471,39 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               />
               {errors.subPoQty && <span className="error-text">{errors.subPoQty}</span>}
             </div>
+
+
+
+            <div className="form-group">
+              <label className="form-label">
+                Invoice Number <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                name="invoiceNumber"
+                value={formData.invoiceNumber}
+                onChange={handleChange}
+                className={`form-input ${errors.invoiceNumber ? 'error' : ''}`}
+                placeholder="Enter Invoice Number"
+              />
+              {errors.invoiceNumber && <span className="error-text">{errors.invoiceNumber}</span>}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Invoice Date <span className="required">*</span>
+              </label>
+              <input
+                type="date"
+                name="invoiceDate"
+                value={formData.invoiceDate}
+                onChange={handleChange}
+                className={`form-input ${errors.invoiceDate ? 'error' : ''}`}
+              />
+              {errors.invoiceDate && <span className="error-text">{errors.invoiceDate}</span>}
+            </div>
+
+            
           </div>
         </div>
 
@@ -325,7 +513,29 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
           <div className="form-section-header">
             <h4 className="form-section-title">💰 Pricing & Quantity Details</h4>
           </div>
+
+
           <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">
+                Unit of Measurement <span className="required">*</span>
+              </label>
+              <select
+                name="unitOfMeasurement"
+                value={formData.unitOfMeasurement}
+                onChange={handleChange}
+                className={`form-input ${errors.unitOfMeasurement ? 'error' : ''}`}
+              >
+                <option value="">-- Select Unit --</option>
+                {data.units.map(item => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              {errors.unitOfMeasurement && <span className="error-text">{errors.unitOfMeasurement}</span>}
+            </div>
+
+
+
             <div className="form-group">
               <label className="form-label">
                 Rate of Material (Rs/UOM) <span className="required">*</span>
@@ -358,9 +568,9 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               {errors.rateOfGst && <span className="error-text">{errors.rateOfGst}</span>}
             </div>
 
-            <div className="form-group">
+            {/* <div className="form-group">
               <label className="form-label">
-                Declared Quantity <span className="required">*</span>
+                TC Quantity <span className="required">*</span>
               </label>
               <input
                 type="number"
@@ -369,30 +579,50 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
                 value={formData.declaredQuantity}
                 onChange={handleChange}
                 className={`form-input ${errors.declaredQuantity ? 'error' : ''}`}
-                placeholder="Enter Declared Qty"
+                placeholder="Enter TC Qty"
               />
               {errors.declaredQuantity && <span className="error-text">{errors.declaredQuantity}</span>}
+            </div> */}
+
+            <div className="form-group">
+              <label className="form-label">
+               Base Value of PO <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="baseValuePO"
+                value={formData.baseValuePO}
+                onChange={handleChange}
+                className={`form-input ${errors.baseValuePO ? 'error' : ''}`}
+                placeholder="Enter Base Value of PO"
+              />
+              {errors.rateOfGst && <span className="error-text">{errors.baseValuePO}</span>}
             </div>
 
             <div className="form-group">
               <label className="form-label">
-                Unit of Measurement <span className="required">*</span>
+                Total PO <span className="required">*</span>
               </label>
-              <select
-                name="unitOfMeasurement"
-                value={formData.unitOfMeasurement}
+              <input
+                type="number"
+                step="0.01"
+                name="totalPO"
+                value={formData.totalPO}
                 onChange={handleChange}
-                className={`form-input ${errors.unitOfMeasurement ? 'error' : ''}`}
-              >
-                <option value="">-- Select Unit --</option>
-                {data.units.map(item => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
-              {errors.unitOfMeasurement && <span className="error-text">{errors.unitOfMeasurement}</span>}
+                className={`form-input ${errors.totalPO ? 'error' : ''}`}
+                placeholder="Enter Total PO"
+              />
+              {errors.rateOfGst && <span className="error-text">{errors.totalPO}</span>}
             </div>
+
+
+
+
           </div>
         </div>
+          </>
+        )}
 
         {/* Form Actions */}
         <div className="form-actions">

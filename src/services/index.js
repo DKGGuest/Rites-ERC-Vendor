@@ -2,10 +2,11 @@
 
 export { default as httpClient, ApiError } from './httpClient';
 export { default as vendorWorkflowService, WORKFLOW_ACTIONS } from './vendorWorkflowService';
-export { 
-  getBaseUrl, 
-  API_ENDPOINTS, 
-  REQUEST_TIMEOUT, 
-  getDefaultHeaders 
+export { default as inspectionCallService } from './inspectionCallService';
+export {
+  getBaseUrl,
+  API_ENDPOINTS,
+  REQUEST_TIMEOUT,
+  getDefaultHeaders
 } from './apiConfig';
 

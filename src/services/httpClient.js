@@ -55,7 +55,7 @@ const parseResponse = async (response) => {
 const request = async (endpoint, options = {}) => {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint}`;
-  
+
   const config = {
     ...options,
     headers: {
@@ -63,14 +63,14 @@ const request = async (endpoint, options = {}) => {
       ...options.headers
     }
   };
-  
+
   // Remove token from config if passed (already added to headers)
   delete config.token;
-  
+
   try {
     const response = await fetchWithTimeout(url, config);
     const data = await parseResponse(response);
-    
+
     if (!response.ok) {
       throw new ApiError(
         data?.message || `HTTP Error ${response.status}`,
@@ -78,7 +78,35 @@ const request = async (endpoint, options = {}) => {
         data
       );
     }
-    
+
+    // Check if response follows backend APIResponse structure
+    // Backend returns: { responseStatus: {...}, responseData: [...] }
+    if (data && typeof data === 'object' && 'responseStatus' in data && 'responseData' in data) {
+      const { responseStatus, responseData } = data;
+
+      // Check if the API call was successful (statusCode 0 means success)
+      if (responseStatus.statusCode === 0) {
+        return {
+          success: true,
+          data: responseData, // Return the actual data, not the wrapper
+          status: response.status
+        };
+      } else {
+        // Backend returned an error
+        console.error('❌ Backend API Error:', {
+          statusCode: responseStatus.statusCode,
+          message: responseStatus.message,
+          fullResponse: data
+        });
+        throw new ApiError(
+          responseStatus.message || 'API Error',
+          responseStatus.statusCode,
+          data // Include full response for debugging
+        );
+      }
+    }
+
+    // Fallback for responses that don't follow APIResponse structure
     return {
       success: true,
       data,
@@ -88,7 +116,7 @@ const request = async (endpoint, options = {}) => {
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     // Network or other errors
     throw new ApiError(
       error.message || 'Network error occurred',

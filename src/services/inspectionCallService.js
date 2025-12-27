@@ -1,0 +1,426 @@
+// ============================================================
+// INSPECTION CALL SERVICE
+// ============================================================
+// Description: API service for managing inspection calls (RM, Process, Final)
+// Handles CRUD operations and filtering based on approval status
+// ============================================================
+
+import httpClient from './httpClient';
+import { API_ENDPOINTS } from './apiConfig';
+
+/**
+ * Inspection Call Service
+ * Provides methods for creating and fetching inspection calls
+ */
+const inspectionCallService = {
+  
+  // ============================================================
+  // RAW MATERIAL INSPECTION CALLS
+  // ============================================================
+  
+  /**
+   * Create a new Raw Material Inspection Call
+   * @param {Object} rmInspectionData - RM inspection call data
+   * @returns {Promise<Object>} - API response with created IC details including auto-generated IC number
+   */
+  createRMInspectionCall: async (rmInspectionData) => {
+    try {
+      console.log('📥 Raw inspection data received:', rmInspectionData);
+
+      // Generate IC Number (temporary - should be done by backend)
+      const timestamp = Date.now();
+      const icNumber = `RM-IC-${timestamp}`;
+
+      // Transform frontend data structure to match backend DTO
+      const transformedData = {
+        inspectionCall: {
+          icNumber: icNumber, // Auto-generated IC number
+          poNo: rmInspectionData.po_no,
+          poSerialNo: rmInspectionData.po_serial_no,
+          typeOfCall: rmInspectionData.type_of_call,
+          status: 'PENDING',
+          desiredInspectionDate: rmInspectionData.desired_inspection_date,
+          companyId: parseInt(rmInspectionData.company_id),
+          companyName: rmInspectionData.company_name,
+          unitId: parseInt(rmInspectionData.unit_id),
+          unitName: rmInspectionData.unit_name,
+          unitAddress: rmInspectionData.unit_address,
+          remarks: rmInspectionData.remarks || '',
+          createdBy: 'VENDOR' // Default value, can be updated based on user context
+        },
+        rmInspectionDetails: {
+          // Required fields - use defaults if not provided (for testing without inventory)
+          itemDescription: rmInspectionData.po_description || 'Test Item Description',
+          itemQuantity: parseInt(rmInspectionData.po_qty) || 1,
+          consigneeZonalRailway: rmInspectionData.rm_heat_tc_mapping?.[0]?.consigneeZonalRailway || 'N/A',
+          heatNumbers: rmInspectionData.rm_heat_tc_mapping?.map(h => h.heatNumber).join(',') || 'TEST-HEAT-001',
+          tcNumber: rmInspectionData.rm_heat_tc_mapping?.[0]?.tcNumber || 'TEST-TC-001',
+          tcDate: rmInspectionData.rm_heat_tc_mapping?.[0]?.tcDate || rmInspectionData.desired_inspection_date,
+          tcQuantity: parseFloat(rmInspectionData.rm_total_offered_qty_mt) || 1.0, // Must be Double
+          manufacturer: rmInspectionData.rm_heat_tc_mapping?.[0]?.manufacturer || 'Test Manufacturer',
+          supplierName: rmInspectionData.rm_heat_tc_mapping?.[0]?.manufacturer || 'Test Supplier',
+          supplierAddress: rmInspectionData.rm_heat_tc_mapping?.[0]?.supplierAddress || '',
+          invoiceNumber: rmInspectionData.rm_heat_tc_mapping?.[0]?.invoiceNo || '',
+          invoiceDate: rmInspectionData.rm_heat_tc_mapping?.[0]?.invoiceDate || null,
+          subPoNumber: rmInspectionData.rm_heat_tc_mapping?.[0]?.subPoNumber || '',
+          subPoDate: rmInspectionData.rm_heat_tc_mapping?.[0]?.subPoDate || null,
+          subPoQty: parseInt(rmInspectionData.rm_heat_tc_mapping?.[0]?.subPoQty) || null,
+          totalOfferedQtyMt: parseFloat(rmInspectionData.rm_total_offered_qty_mt) || 1.0, // Must be Double
+          offeredQtyErc: parseInt(rmInspectionData.rm_offered_qty_erc) || 1,
+          unitOfMeasurement: rmInspectionData.po_unit || 'MT',
+
+          // Heat Quantities - match backend DTO exactly
+          heatQuantities: rmInspectionData.rm_heat_tc_mapping?.map(heat => ({
+            heatNumber: heat.heatNumber,
+            manufacturer: heat.manufacturer || 'Test Manufacturer',
+            offeredQty: parseFloat(heat.offeredQty) || 0.0, // Backend expects 'offeredQty' not 'quantityMt'
+            tcNumber: heat.tcNumber || '',
+            tcDate: heat.tcDate || null,
+            tcQuantity: parseFloat(heat.tcQuantity) || null,
+            qtyLeft: null,
+            qtyAccepted: null,
+            qtyRejected: null,
+            rejectionReason: null
+          })) || [],
+
+          // Chemical Analysis - match backend DTO exactly
+          chemicalAnalysis: rmInspectionData.rm_chemical_carbon ? [{
+            heatNumber: rmInspectionData.rm_heat_tc_mapping?.[0]?.heatNumber || 'TEST-HEAT-001',
+            carbon: parseFloat(rmInspectionData.rm_chemical_carbon) || null,
+            manganese: parseFloat(rmInspectionData.rm_chemical_manganese) || null,
+            silicon: parseFloat(rmInspectionData.rm_chemical_silicon) || null,
+            sulphur: parseFloat(rmInspectionData.rm_chemical_sulphur) || null,
+            phosphorus: parseFloat(rmInspectionData.rm_chemical_phosphorus) || null,
+            chromium: parseFloat(rmInspectionData.rm_chemical_chromium) || null
+          }] : []
+        }
+      };
+
+      console.log('📤 Transformed data for backend:', JSON.stringify(transformedData, null, 2));
+
+      const response = await httpClient.post(
+        '/raw-material/inspectionCall',
+        transformedData
+      );
+
+      console.log('✅ Backend response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error creating RM inspection call:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error data:', error.data);
+      console.error('❌ Error response status:', error.data?.responseStatus);
+      console.error('❌ Full error object:', JSON.stringify(error.data, null, 2));
+      throw error;
+    }
+  },
+  
+  /**
+   * Get all Raw Material Inspection Calls
+   * @param {Object} filters - Optional filters (status, po_no, etc.)
+   * @returns {Promise<Object>} - API response with list of RM ICs
+   */
+  getRMInspectionCalls: async (filters = {}) => {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const endpoint = queryParams 
+        ? `/inspection-calls/raw-material?${queryParams}`
+        : '/inspection-calls/raw-material';
+      
+      const response = await httpClient.get(endpoint);
+      return response;
+    } catch (error) {
+      console.error('Error fetching RM inspection calls:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Get approved Raw Material Inspection Calls for a specific PO
+   * Used in Process Inspection dropdown
+   * @param {string} poNo - Purchase Order Number
+   * @param {string} poSerialNo - PO Serial Number
+   * @returns {Promise<Object>} - API response with approved RM ICs
+   */
+  getApprovedRMInspectionCalls: async (poNo, poSerialNo) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/raw-material/approved?po_no=${encodeURIComponent(poNo)}&po_serial_no=${encodeURIComponent(poSerialNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching approved RM inspection calls:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Get RM Inspection Call by IC Number
+   * @param {string} icNumber - IC Number
+   * @returns {Promise<Object>} - API response with RM IC details
+   */
+  getRMInspectionCallByICNumber: async (icNumber) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/raw-material/${encodeURIComponent(icNumber)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching RM inspection call:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Get approved RM ICs with heat details for a specific PO
+   * Used in Vendor Dashboard to display approved RM ICs
+   * @param {string} poNo - Purchase Order Number
+   * @returns {Promise<Object>} - API response with approved RM ICs and heat details
+   */
+  getApprovedRMICsWithHeatDetails: async (poNo) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/raw-material/approved-with-heats?po_no=${encodeURIComponent(poNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching approved RM ICs with heat details:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get heat numbers from a specific RM IC
+   * @param {string} rmIcNumber - RM IC Number
+   * @returns {Promise<Object>} - API response with heat numbers and details
+   */
+  getHeatNumbersFromRMIC: async (rmIcNumber) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/raw-material/${encodeURIComponent(rmIcNumber)}/heat-numbers`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching heat numbers from RM IC:', error);
+      throw error;
+    }
+  },
+  
+  // ============================================================
+  // PROCESS INSPECTION CALLS
+  // ============================================================
+  
+  /**
+   * Create a new Process Inspection Call
+   * @param {Object} processInspectionData - Process inspection call data
+   * @returns {Promise<Object>} - API response with created IC details including auto-generated IC number
+   */
+  createProcessInspectionCall: async (processInspectionData) => {
+    try {
+      const response = await httpClient.post(
+        '/inspection-calls/process',
+        processInspectionData
+      );
+      return response;
+    } catch (error) {
+      console.error('Error creating Process inspection call:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Get all Process Inspection Calls
+   * @param {Object} filters - Optional filters (status, rm_ic_number, etc.)
+   * @returns {Promise<Object>} - API response with list of Process ICs
+   */
+  getProcessInspectionCalls: async (filters = {}) => {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const endpoint = queryParams 
+        ? `/inspection-calls/process?${queryParams}`
+        : '/inspection-calls/process';
+      
+      const response = await httpClient.get(endpoint);
+      return response;
+    } catch (error) {
+      console.error('Error fetching Process inspection calls:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Get approved Process Inspection Calls for a specific RM IC
+   * Used in Final Inspection dropdown
+   * @param {string} rmIcNumber - RM IC Number
+   * @returns {Promise<Object>} - API response with approved Process ICs
+   */
+  getApprovedProcessInspectionCalls: async (rmIcNumber) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/process/approved?rm_ic_number=${encodeURIComponent(rmIcNumber)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching approved Process inspection calls:', error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Get lot numbers from a specific Process IC
+   * @param {string} processIcNumber - Process IC Number
+   * @returns {Promise<Object>} - API response with lot numbers and details
+   */
+  getLotNumbersFromProcessIC: async (processIcNumber) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/process/${encodeURIComponent(processIcNumber)}/lot-numbers`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching lot numbers from Process IC:', error);
+      throw error;
+    }
+  },
+
+  // ============================================================
+  // FINAL INSPECTION CALLS
+  // ============================================================
+
+  /**
+   * Create a new Final Inspection Call
+   * @param {Object} finalInspectionData - Final inspection call data with multiple lots
+   * @returns {Promise<Object>} - API response with created IC details including auto-generated IC number
+   */
+  createFinalInspectionCall: async (finalInspectionData) => {
+    try {
+      const response = await httpClient.post(
+        '/inspection-calls/final',
+        finalInspectionData
+      );
+      return response;
+    } catch (error) {
+      console.error('Error creating Final inspection call:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all Final Inspection Calls
+   * @param {Object} filters - Optional filters (status, rm_ic_number, process_ic_number, etc.)
+   * @returns {Promise<Object>} - API response with list of Final ICs
+   */
+  getFinalInspectionCalls: async (filters = {}) => {
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const endpoint = queryParams
+        ? `/inspection-calls/final?${queryParams}`
+        : '/inspection-calls/final';
+
+      const response = await httpClient.get(endpoint);
+      return response;
+    } catch (error) {
+      console.error('Error fetching Final inspection calls:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Final Inspection Call by IC Number
+   * @param {string} icNumber - IC Number
+   * @returns {Promise<Object>} - API response with Final IC details including all lots
+   */
+  getFinalInspectionCallByICNumber: async (icNumber) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/final/${encodeURIComponent(icNumber)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching Final inspection call:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get available lot numbers for Final Inspection
+   * Based on selected RM IC and Process IC
+   * @param {string} rmIcNumber - RM IC Number
+   * @param {string} processIcNumber - Process IC Number
+   * @returns {Promise<Object>} - API response with available lot numbers
+   */
+  getAvailableLotNumbersForFinal: async (rmIcNumber, processIcNumber) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/final/available-lots?rm_ic_number=${encodeURIComponent(rmIcNumber)}&process_ic_number=${encodeURIComponent(processIcNumber)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching available lot numbers for Final IC:', error);
+      throw error;
+    }
+  },
+
+  // ============================================================
+  // COMMON METHODS
+  // ============================================================
+
+  /**
+   * Get inspection call by ID (any type)
+   * @param {number} icId - Inspection Call ID
+   * @returns {Promise<Object>} - API response with IC details
+   */
+  getInspectionCallById: async (icId) => {
+    try {
+      const response = await httpClient.get(
+        `/inspection-calls/${icId}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching inspection call by ID:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update inspection call status
+   * @param {string} icNumber - IC Number
+   * @param {string} status - New status
+   * @param {string} remarks - Optional remarks
+   * @returns {Promise<Object>} - API response
+   */
+  updateInspectionCallStatus: async (icNumber, status, remarks = null) => {
+    try {
+      const response = await httpClient.patch(
+        `/inspection-calls/${encodeURIComponent(icNumber)}/status`,
+        { status, remarks }
+      );
+      return response;
+    } catch (error) {
+      console.error('Error updating inspection call status:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all inspection calls for a vendor
+   * @param {string} vendorId - Vendor ID
+   * @param {Object} filters - Optional filters
+   * @returns {Promise<Object>} - API response with all ICs
+   */
+  getVendorInspectionCalls: async (vendorId, filters = {}) => {
+    try {
+      const queryParams = new URLSearchParams({ ...filters, vendor_id: vendorId }).toString();
+      const response = await httpClient.get(
+        `/inspection-calls/vendor?${queryParams}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching vendor inspection calls:', error);
+      throw error;
+    }
+  }
+};
+
+export default inspectionCallService;
+
