@@ -878,10 +878,10 @@ export const RaiseInspectionCallForm = ({
     const { name, value } = e.target;
 
     // Special handling for heat numbers
-    if (name === 'rm_heat_numbers') {
-      handleHeatNumbersChange(value);
-      return;
-    }
+    // if (name === 'rm_heat_numbers') {
+    //   handleHeatNumbersChange(value);
+    //   return;
+    // }
 
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
