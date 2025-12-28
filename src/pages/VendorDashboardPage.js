@@ -131,7 +131,7 @@ const VendorDashboardPage = ({ onBack }) => {
       try {
         // TODO: Replace ':13101' with actual vendor code from auth context
         // For testing, using vendor code ':13101' from database
-        const response = await poAssignedService.getPoAssigned('13101');
+        const response = await poAssignedService.getPoAssigned(':13104');
 
         if (response.success && response.data) {
           // Transform API data to match frontend structure
