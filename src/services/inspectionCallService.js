@@ -47,7 +47,7 @@ const inspectionCallService = {
           unitName: rmInspectionData.unit_name,
           unitAddress: rmInspectionData.unit_address,
           remarks: rmInspectionData.remarks || '',
-          createdBy: vendorId // Default numeric user ID (backend expects Integer, not String)
+          createdBy: 13104 // Default numeric user ID (backend expects Integer, not String)
         },
         rmInspectionDetails: {
           // Required fields - use defaults if not provided (for testing without inventory)
