@@ -903,7 +903,7 @@ export const RaiseInspectionCallForm = ({
 
     const newErrors = {};
     const today = getTodayDate();
-    const maxDate = getMaxDate();
+    // const maxDate = getMaxDate();
 
     // Common validations
     if (!formData.po_serial_no) newErrors.po_serial_no = 'PO Serial Number is required';
