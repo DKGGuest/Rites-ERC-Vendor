@@ -33,12 +33,28 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
 
-  // Get available units based on selected company
+  // Get available units based on selected supplier
   const availableUnits = useMemo(() => {
-    if (!formData.companyId) return [];
-    const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(formData.companyId));
+    if (!formData.supplierName) return [];
+
+    // Map supplier names to company names
+    const supplierToCompanyMap = {
+      'Jayaswal Neco': 'ABC Industries Pvt Ltd',
+      'Tata Steel': 'XYZ Steel Mills Ltd',
+      'JSPL': 'JSPL',
+      'RINL': 'ABC Industries Pvt Ltd',
+      'ABC Suppliers Pvt Ltd': 'ABC Industries Pvt Ltd',
+      'XYZ Materials Co.': 'XYZ Steel Mills Ltd',
+      'Steel India Ltd': 'XYZ Steel Mills Ltd',
+      'National Cement Corp': 'ABC Industries Pvt Ltd'
+    };
+
+    const companyName = supplierToCompanyMap[formData.supplierName];
+    if (!companyName) return [];
+
+    const company = COMPANY_UNIT_MASTER.find(c => c.companyName === companyName);
     return company?.units || [];
-  }, [formData.companyId]);
+  }, [formData.supplierName]);
 
   // Get available grades based on selected raw material
   const availableGrades = useMemo(() => {
@@ -58,57 +74,89 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
   // Default master data options
   const defaultMasterData = {
     rawMaterials: ['Spring Steel Round Bars', 'Cement', 'HTS Wire', 'Dowel', 'Aggregate', 'SGCI Insert'],
-    suppliers: ['ABC Suppliers Pvt Ltd', 'XYZ Materials Co.', 'Steel India Ltd', 'National Cement Corp'],
+    suppliers: [
+      'Jayaswal Neco',
+      'Tata Steel',
+      'JSPL',
+      'RINL',
+      'ABC Suppliers Pvt Ltd',
+      'XYZ Materials Co.',
+      'Steel India Ltd',
+      'National Cement Corp'
+    ],
     grades: ['Grade A', 'Grade B', 'Grade C', 'IS 2062', 'IS 1786', 'OPC 53', 'PPC'],
     units: ['Kg', 'MT', 'Nos', 'Ltrs', 'Bags', 'Cubic Meter']
   };
 
   const data = { ...defaultMasterData, ...masterData };
 
-  // Auto-fetch supplier address when supplier is selected
+  // Auto-fetch supplier address when supplier is selected and reset unit fields
   useEffect(() => {
     if (formData.supplierName) {
       const supplierAddresses = {
         'ABC Suppliers Pvt Ltd': 'Plot No. 45, Industrial Area, Phase II, New Delhi - 110020',
         'XYZ Materials Co.': '123, MIDC Industrial Estate, Pune - 411018',
         'Steel India Ltd': 'Sector 18, Gurugram, Haryana - 122015',
-        'National Cement Corp': 'NH-8, Bhiwadi, Rajasthan - 301019'
+        'National Cement Corp': 'NH-8, Bhiwadi, Rajasthan - 301019',
+        'Jayaswal Neco': 'Industrial Area, Raipur, Chhattisgarh - 492001',
+        'Tata Steel': 'Jamshedpur, Jharkhand - 831001',
+        'JSPL': 'Jindal Steel Complex, Angul, Odisha - 759122',
+        'RINL': 'Visakhapatnam Steel Plant, Andhra Pradesh - 530031'
       };
       setFormData(prev => ({
         ...prev,
-        supplierAddress: supplierAddresses[formData.supplierName] || ''
+        supplierAddress: supplierAddresses[formData.supplierName] || '',
+        // Reset unit fields when supplier changes
+        unitId: '',
+        unitName: ''
       }));
     }
   }, [formData.supplierName]);
 
-  // Handle company selection - cascading effect
-  const handleCompanyChange = (e) => {
-    const companyId = e.target.value;
-    const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(companyId));
+  // Handle company selection - cascading effect (COMMENTED OUT - No longer needed)
+  // const handleCompanyChange = (e) => {
+  //   const companyId = e.target.value;
+  //   const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(companyId));
 
-    setFormData(prev => ({
-      ...prev,
-      companyId: companyId,
-      companyName: company?.companyName || '',
-      // Reset unit fields when company changes
-      unitId: '',
-      unitName: ''
-    }));
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     companyId: companyId,
+  //     companyName: company?.companyName || '',
+  //     // Reset unit fields when company changes
+  //     unitId: '',
+  //     unitName: ''
+  //   }));
 
-    // Clear company and unit errors
-    if (errors.companyId) {
-      setErrors(prev => ({ ...prev, companyId: '', unitId: '' }));
-    }
-  };
+  //   // Clear company and unit errors
+  //   if (errors.companyId) {
+  //     setErrors(prev => ({ ...prev, companyId: '', unitId: '' }));
+  //   }
+  // };
 
   // Handle unit selection
   const handleUnitChange = (e) => {
     const unitId = e.target.value;
-    const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(formData.companyId));
+
+    // Map supplier names to company names
+    const supplierToCompanyMap = {
+      'Jayaswal Neco': 'ABC Industries Pvt Ltd',
+      'Tata Steel': 'XYZ Steel Mills Ltd',
+      'JSPL': 'JSPL',
+      'RINL': 'ABC Industries Pvt Ltd',
+      'ABC Suppliers Pvt Ltd': 'ABC Industries Pvt Ltd',
+      'XYZ Materials Co.': 'XYZ Steel Mills Ltd',
+      'Steel India Ltd': 'XYZ Steel Mills Ltd',
+      'National Cement Corp': 'ABC Industries Pvt Ltd'
+    };
+
+    const companyName = supplierToCompanyMap[formData.supplierName];
+    const company = COMPANY_UNIT_MASTER.find(c => c.companyName === companyName);
     const unit = company?.units.find(u => u.id === parseInt(unitId));
 
     setFormData(prev => ({
       ...prev,
+      companyId: company?.id || '',
+      companyName: company?.companyName || '',
       unitId: unitId,
       unitName: unit?.unitName || ''
     }));
@@ -133,7 +181,15 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
       if (errors[name] || errors.gradeSpecification) {
         setErrors(prev => ({ ...prev, [name]: '', gradeSpecification: '' }));
       }
-    } else {
+    }
+    // If supplier name changes, reset unit fields (handled by useEffect)
+    else if (name === 'supplierName') {
+      setFormData(prev => ({ ...prev, [name]: value }));
+      if (errors[name] || errors.unitId) {
+        setErrors(prev => ({ ...prev, [name]: '', unitId: '' }));
+      }
+    }
+    else {
       setFormData(prev => ({ ...prev, [name]: value }));
       if (errors[name]) {
         setErrors(prev => ({ ...prev, [name]: '' }));
@@ -144,7 +200,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
   const validateForm = () => {
     const newErrors = {};
     const requiredFields = [
-      'companyId', 'unitId',
+      'unitId', // Removed 'companyId' as it's now derived from supplier
       'rawMaterial', 'supplierName', 'gradeSpecification', 'heatNumber',
       'tcNumber', 'tcDate', 'invoiceNumber', 'invoiceDate',
       'subPoNumber', 'subPoDate', 'subPoQty', 'rateOfMaterial',
@@ -171,7 +227,11 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      onSubmit?.(formData);
+      const result = onSubmit?.(formData);
+      // Reset form if submission was successful (parent returns true)
+      if (result) {
+        handleReset();
+      }
     }
   };
 
@@ -208,23 +268,8 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               {errors.rawMaterial && <span className="error-text">{errors.rawMaterial}</span>}
             </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                Supplier Name <span className="required">*</span>
-              </label>
-              <select
-                name="supplierName"
-                value={formData.supplierName}
-                onChange={handleChange}
-                className={`form-input ${errors.supplierName ? 'error' : ''}`}
-              >
-                <option value="">-- Select Supplier --</option>
-                {data.suppliers.map(item => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
-              {errors.supplierName && <span className="error-text">{errors.supplierName}</span>}
-            </div>
+
+
 
             <div className="form-group">
               <label className="form-label">
@@ -252,17 +297,8 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               )}
             </div>
 
-            <div className="form-group full-width">
-              <label className="form-label">Supplier Address (Auto-fetched)</label>
-              <input
-                type="text"
-                name="supplierAddress"
-                value={formData.supplierAddress}
-                className="form-input disabled"
-                disabled
-                placeholder="Will be auto-filled based on supplier selection"
-              />
-            </div>
+
+
 
             <div className="form-group">
               <label className="form-label">
@@ -280,6 +316,106 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               {errors.subPoQty && <span className="error-text">{errors.lengthOfBars}</span>}
             </div>
 
+            <div className="form-group">
+              <label className="form-label">
+                Supplier Name <span className="required">*</span>
+              </label>
+              <select
+                name="supplierName"
+                value={formData.supplierName}
+                onChange={handleChange}
+                className={`form-input ${errors.supplierName ? 'error' : ''}`}
+              >
+                <option value="">-- Select Supplier --</option>
+                {data.suppliers.map(item => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              {errors.supplierName && <span className="error-text">{errors.supplierName}</span>}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Unit Name <span className="required">*</span>
+              </label>
+              <select
+                name="unitId"
+                value={formData.unitId}
+                onChange={handleUnitChange}
+                className={`form-input ${errors.unitId ? 'error' : ''}`}
+                disabled={!formData.supplierName || availableUnits.length === 0}
+              >
+                <option value="">
+                  {!formData.supplierName ? '-- Select Supplier First --' : '-- Select Unit --'}
+                </option>
+                {availableUnits.map(unit => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.unitName}
+                  </option>
+                ))}
+              </select>
+              {errors.unitId && <span className="error-text">{errors.unitId}</span>}
+              {!formData.supplierName && (
+                <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
+                  Please select a supplier first to see available units
+                </div>
+              )}
+            </div>
+
+            {/* <div className="form-group">
+              <label className="form-label">
+                Grade / Specification <span className="required">*</span>
+              </label>
+              <select
+                name="gradeSpecification"
+                value={formData.gradeSpecification}
+                onChange={handleChange}
+                className={`form-input ${errors.gradeSpecification ? 'error' : ''}`}
+                disabled={!formData.rawMaterial || availableGrades.length === 0}
+              >
+                <option value="">
+                  {!formData.rawMaterial ? '-- Select Raw Material First --' : '-- Select Grade --'}
+                </option>
+                {availableGrades.map(grade => (
+                  <option key={grade} value={grade}>{grade}</option>
+                ))}
+              </select>
+              {errors.gradeSpecification && <span className="error-text">{errors.gradeSpecification}</span>}
+              {!formData.rawMaterial && (
+                <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
+                  Please select a raw material first to see available grades
+                </div>
+              )}
+            </div> */}
+
+            <div className="form-group full-width">
+              <label className="form-label">Supplier Address (Auto-fetched)</label>
+              <input
+                type="text"
+                name="supplierAddress"
+                value={formData.supplierAddress}
+                className="form-input disabled"
+                disabled
+                placeholder="Will be auto-filled based on supplier selection"
+              />
+            </div>
+
+            {/* <div className="form-group">
+              <label className="form-label">
+               Length of Bars <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="lengthOfBars"
+                value={formData.lengthOfBars}
+                onChange={handleChange}
+                className={`form-input ${errors.lengthOfBars ? 'error' : ''}`}
+                placeholder="Length of Bars"
+              />
+              {errors.subPoQty && <span className="error-text">{errors.lengthOfBars}</span>}
+            </div> */}
+
 
             
           </div>
@@ -287,8 +423,8 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
 
 
 
-        {/* Company & Unit Information Section */}
-        <div className="form-section">
+        {/* Company & Unit Information Section - COMMENTED OUT */}
+        {/* <div className="form-section">
           <div className="form-section-header">
             <h4 className="form-section-title">🏢 Company & Unit Information</h4>
           </div>
@@ -341,7 +477,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               )}
             </div>
           </div>
-        </div>
+        </div> */}
 
 
 

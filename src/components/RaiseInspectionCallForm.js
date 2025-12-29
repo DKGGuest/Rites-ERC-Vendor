@@ -912,9 +912,10 @@ export const RaiseInspectionCallForm = ({
       newErrors.desired_inspection_date = 'Desired Inspection Date is required';
     } else if (formData.desired_inspection_date < today) {
       newErrors.desired_inspection_date = 'Date cannot be in the past';
-    } else if (formData.desired_inspection_date > maxDate) {
-      newErrors.desired_inspection_date = 'Date must be within 7 days from today';
-    }
+    } 
+    // else if (formData.desired_inspection_date > maxDate) {
+    //   newErrors.desired_inspection_date = 'Date must be within 7 days from today';
+    // }
     if (!formData.company_id) newErrors.company_id = 'Company is required';
     if (!formData.unit_id) newErrors.unit_id = 'Unit is required';
 

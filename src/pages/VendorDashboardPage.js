@@ -89,6 +89,7 @@ const VendorDashboardPage = ({ onBack }) => {
   const [gaugeItems, setGaugeItems] = useState(VENDOR_GAUGE_ITEMS);
   const [paymentItems, setPaymentItems] = useState(VENDOR_PAYMENT_ITEMS);
   const [subPOList, setSubPOList] = useState(VENDOR_SUB_PO_LIST);
+  const [inventoryEntries, setInventoryEntries] = useState(VENDOR_INVENTORY_ENTRIES);
 
   // PO Assigned data state - using real API
   const [poAssignedList, setPoAssignedList] = useState([]);
@@ -672,6 +673,57 @@ const VendorDashboardPage = ({ onBack }) => {
   const handleCloseAddSubPOModal = () => {
     setIsAddSubPOModalOpen(false);
     setSelectedSubPOItem(null);
+  };
+
+  // ============ INVENTORY ENTRY HANDLERS ============
+  const handleInventorySubmit = (data) => {
+    console.log('Inventory entry submitted:', data);
+
+    // Generate new ID
+    const newId = inventoryEntries.length > 0
+      ? Math.max(...inventoryEntries.map(entry => entry.id)) + 1
+      : 1;
+
+    // Create new inventory entry with all required fields
+    const newEntry = {
+      id: newId,
+      rawMaterial: data.rawMaterial,
+      supplierName: data.supplierName,
+      supplierAddress: data.supplierAddress,
+      gradeSpecification: data.gradeSpecification,
+      heatNumber: data.heatNumber,
+      tcNumber: data.tcNumber,
+      tcDate: data.tcDate,
+      invoiceNumber: data.invoiceNumber,
+      invoiceDate: data.invoiceDate,
+      subPoNumber: data.subPoNumber,
+      subPoDate: data.subPoDate,
+      subPoQty: parseFloat(data.subPoQty) || 0,
+      rateOfMaterial: parseFloat(data.rateOfMaterial) || 0,
+      rateOfGst: parseFloat(data.rateOfGst) || 0,
+      declaredQuantity: parseFloat(data.declaredQuantity) || 0,
+      qtyOfferedForInspection: 0, // Initially 0, will be updated when inspection is raised
+      qtyLeftForInspection: parseFloat(data.declaredQuantity) || 0, // Initially same as declared quantity
+      unitOfMeasurement: data.unitOfMeasurement,
+      baseValuePO: parseFloat(data.baseValuePO) || 0,
+      totalPO: parseFloat(data.totalPO) || 0,
+      lengthOfBars: data.lengthOfBars || '',
+      status: 'Fresh', // Initial status
+      companyId: data.companyId,
+      companyName: data.companyName,
+      unitId: data.unitId,
+      unitName: data.unitName,
+      createdAt: new Date().toISOString()
+    };
+
+    // Add to inventory entries state
+    setInventoryEntries(prev => [newEntry, ...prev]);
+
+    // Show success message
+    alert(`✅ Inventory entry saved successfully!\n\nMaterial: ${data.rawMaterial}\nSupplier: ${data.supplierName}\nQuantity: ${data.declaredQuantity} ${data.unitOfMeasurement}\n\nThe entry has been added to the inventory list.`);
+
+    // Return true to signal form to reset
+    return true;
   };
 
   const handleSubmitSubPO = async (subPOData) => {
@@ -2070,7 +2122,7 @@ const VendorDashboardPage = ({ onBack }) => {
 
               <DataTable
                 columns={inventoryColumns}
-                data={VENDOR_INVENTORY_ENTRIES}
+                data={inventoryEntries}
                 onRowClick={handleRowClick}
                 selectable={false}
                 selectedRows={[]}
@@ -2085,10 +2137,7 @@ const VendorDashboardPage = ({ onBack }) => {
                 </div>
 
                 <NewInventoryEntryForm
-                  onSubmit={(data) => {
-                    console.log('Inventory entry submitted:', data);
-                    alert(`Inventory entry saved successfully!\nMaterial: ${data.rawMaterial}\nSupplier: ${data.supplierName}`);
-                  }}
+                  onSubmit={handleInventorySubmit}
                   isLoading={isLoading}
                 />
               </div>
