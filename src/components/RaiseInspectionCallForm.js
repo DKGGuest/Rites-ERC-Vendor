@@ -237,7 +237,7 @@ const getInitialFormState = (selectedPO = null) => {
     rm_chemical_silicon: '',
     rm_chemical_sulphur: '',
     rm_chemical_phosphorus: '',
-    rm_chemical_chromium: '',
+    // rm_chemical_chromium: '',
     rm_total_offered_qty_mt: 0, // Auto-calculated (sum of all heat quantities)
     rm_offered_qty_erc: 0, // Auto-calculated from total
 
@@ -856,7 +856,7 @@ export const RaiseInspectionCallForm = ({
         rm_chemical_silicon: prev.rm_chemical_silicon || analysis?.silicon || '',
         rm_chemical_sulphur: prev.rm_chemical_sulphur || analysis?.sulphur || '',
         rm_chemical_phosphorus: prev.rm_chemical_phosphorus || analysis?.phosphorus || '',
-        rm_chemical_chromium: prev.rm_chemical_chromium || analysis?.chromium || ''
+        // rm_chemical_chromium: prev.rm_chemical_chromium || analysis?.chromium || ''
       }));
     } else {
       // No data found - clear loading state
@@ -956,7 +956,7 @@ export const RaiseInspectionCallForm = ({
         if (!formData.rm_chemical_silicon) newErrors.rm_chemical_silicon = 'Silicon % is required';
         if (!formData.rm_chemical_sulphur) newErrors.rm_chemical_sulphur = 'Sulphur % is required';
         if (!formData.rm_chemical_phosphorus) newErrors.rm_chemical_phosphorus = 'Phosphorus % is required';
-        if (!formData.rm_chemical_chromium) newErrors.rm_chemical_chromium = 'Chromium % is required';
+        // if (!formData.rm_chemical_chromium) newErrors.rm_chemical_chromium = 'Chromium % is required';
       }
     }
 
@@ -1000,7 +1000,7 @@ export const RaiseInspectionCallForm = ({
         rm_chemical_silicon: formData.rm_chemical_silicon,
         rm_chemical_sulphur: formData.rm_chemical_sulphur,
         rm_chemical_phosphorus: formData.rm_chemical_phosphorus,
-        rm_chemical_chromium: formData.rm_chemical_chromium,
+        // rm_chemical_chromium: formData.rm_chemical_chromium,
         rm_total_offered_qty_mt: formData.rm_total_offered_qty_mt,
         rm_offered_qty_erc: formData.rm_offered_qty_erc,
         rm_remarks: formData.remarks
@@ -1528,7 +1528,7 @@ export const RaiseInspectionCallForm = ({
                   />
                 </FormField>
 
-                <FormField label="Chromium (Cr) %" name="rm_chemical_chromium" required errors={errors}>
+                {/* <FormField label="Chromium (Cr) %" name="rm_chemical_chromium" required errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_chromium"
@@ -1540,7 +1540,7 @@ export const RaiseInspectionCallForm = ({
                     max="100"
                     placeholder="e.g., 0.15"
                   />
-                </FormField>
+                </FormField> */}
               </div>
 
               {/* Total Offered Quantity - Auto-calculated from all heats */}

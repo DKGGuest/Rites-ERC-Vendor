@@ -92,7 +92,7 @@ const inspectionCallService = {
             silicon: parseFloat(rmInspectionData.rm_chemical_silicon) || null,
             sulphur: parseFloat(rmInspectionData.rm_chemical_sulphur) || null,
             phosphorus: parseFloat(rmInspectionData.rm_chemical_phosphorus) || null,
-            chromium: parseFloat(rmInspectionData.rm_chemical_chromium) || null
+            // chromium: parseFloat(rmInspectionData.rm_chemical_chromium) || null
           }] : []
         }
       };
