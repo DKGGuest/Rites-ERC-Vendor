@@ -142,11 +142,11 @@ const MOCK_HEAT_NUMBERS = {
 
 // Helper functions
 const getTodayDate = () => new Date().toISOString().split('T')[0];
-const getMaxDate = () => {
-  const date = new Date();
-  date.setDate(date.getDate() + 7);
-  return date.toISOString().split('T')[0];
-};
+// const getMaxDate = () => {
+//   const date = new Date();
+//   date.setDate(date.getDate() + 7);
+//   return date.toISOString().split('T')[0];
+// };
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
