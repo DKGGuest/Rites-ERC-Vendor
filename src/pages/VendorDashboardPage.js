@@ -30,6 +30,7 @@ import { formatDate } from '../utils/helpers';
 import useVendorWorkflow from '../hooks/useVendorWorkflow';
 import inspectionCallService from '../services/inspectionCallService';
 import poAssignedService from '../services/poAssignedService';
+import inventoryService from '../services/inventoryService';
 import '../styles/vendorDashboard.css';
 
 const VendorDashboardPage = ({ onBack }) => {
@@ -180,6 +181,61 @@ const VendorDashboardPage = ({ onBack }) => {
 
     fetchPOAssignedData();
   }, []);
+
+  // ============ FETCH INVENTORY ENTRIES DATA ============
+  useEffect(() => {
+    const fetchInventoryEntries = async () => {
+      try {
+        // TODO: Replace '13104' with actual vendor code from auth context
+        const response = await inventoryService.getInventoryEntries('13104');
+
+        if (response.success && response.data) {
+          // Transform backend data to match frontend structure
+          const transformedEntries = response.data.map(entry => ({
+            id: entry.id,
+            rawMaterial: entry.rawMaterial,
+            supplierName: entry.supplierName,
+            supplierAddress: entry.supplierAddress,
+            gradeSpecification: entry.gradeSpecification,
+            heatNumber: entry.heatNumber,
+            tcNumber: entry.tcNumber,
+            tcDate: entry.tcDate,
+            invoiceNumber: entry.invoiceNumber,
+            invoiceDate: entry.invoiceDate,
+            subPoNumber: entry.subPoNumber,
+            subPoDate: entry.subPoDate,
+            subPoQty: entry.subPoQty,
+            rateOfMaterial: entry.rateOfMaterial,
+            rateOfGst: entry.rateOfGst,
+            declaredQuantity: entry.tcQuantity,
+            qtyOfferedForInspection: 0, // TODO: Calculate from inspection calls
+            qtyLeftForInspection: entry.tcQuantity, // TODO: Calculate remaining quantity
+            unitOfMeasurement: entry.unitOfMeasurement,
+            baseValuePO: entry.baseValuePo,
+            totalPO: entry.totalPo,
+            lengthOfBars: entry.lengthOfBars,
+            status: entry.status === 'FRESH_PO' ? 'Fresh' : entry.status,
+            companyId: entry.companyId,
+            companyName: entry.companyName,
+            unitName: entry.unitName,
+            createdAt: entry.createdAt
+          }));
+
+          setInventoryEntries(transformedEntries);
+          console.log('✅ Loaded inventory entries from database:', transformedEntries.length);
+        } else {
+          console.warn('⚠️ Failed to fetch inventory entries, using empty list');
+          setInventoryEntries([]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching inventory entries:', error);
+        // Keep existing entries or use empty array
+        setInventoryEntries([]);
+      }
+    };
+
+    fetchInventoryEntries();
+  }, []); // Fetch on component mount
 
   // Filtered payment items based on status and date
   const filteredPaymentItems = useMemo(() => {
@@ -676,54 +732,75 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   // ============ INVENTORY ENTRY HANDLERS ============
-  const handleInventorySubmit = (data) => {
+  const handleInventorySubmit = async (data) => {
     console.log('Inventory entry submitted:', data);
+    setIsLoading(true);
 
-    // Generate new ID
-    const newId = inventoryEntries.length > 0
-      ? Math.max(...inventoryEntries.map(entry => entry.id)) + 1
-      : 1;
+    try {
+      // Add vendor code to the data (currently hardcoded as 13104)
+      const inventoryData = {
+        ...data,
+        vendorCode: '13104', // TODO: Get from auth context
+        vendorName: 'Vendor Name' // TODO: Get from auth context
+      };
 
-    // Create new inventory entry with all required fields
-    const newEntry = {
-      id: newId,
-      rawMaterial: data.rawMaterial,
-      supplierName: data.supplierName,
-      supplierAddress: data.supplierAddress,
-      gradeSpecification: data.gradeSpecification,
-      heatNumber: data.heatNumber,
-      tcNumber: data.tcNumber,
-      tcDate: data.tcDate,
-      invoiceNumber: data.invoiceNumber,
-      invoiceDate: data.invoiceDate,
-      subPoNumber: data.subPoNumber,
-      subPoDate: data.subPoDate,
-      subPoQty: parseFloat(data.subPoQty) || 0,
-      rateOfMaterial: parseFloat(data.rateOfMaterial) || 0,
-      rateOfGst: parseFloat(data.rateOfGst) || 0,
-      declaredQuantity: parseFloat(data.declaredQuantity) || 0,
-      qtyOfferedForInspection: 0, // Initially 0, will be updated when inspection is raised
-      qtyLeftForInspection: parseFloat(data.declaredQuantity) || 0, // Initially same as declared quantity
-      unitOfMeasurement: data.unitOfMeasurement,
-      baseValuePO: parseFloat(data.baseValuePO) || 0,
-      totalPO: parseFloat(data.totalPO) || 0,
-      lengthOfBars: data.lengthOfBars || '',
-      status: 'Fresh', // Initial status
-      companyId: data.companyId,
-      companyName: data.companyName,
-      unitId: data.unitId,
-      unitName: data.unitName,
-      createdAt: new Date().toISOString()
-    };
+      // Call backend API to save inventory entry
+      const response = await inventoryService.createInventoryEntry(inventoryData);
 
-    // Add to inventory entries state
-    setInventoryEntries(prev => [newEntry, ...prev]);
+      if (response.success) {
+        console.log('✅ Inventory entry saved to database:', response.data);
 
-    // Show success message
-    alert(`✅ Inventory entry saved successfully!\n\nMaterial: ${data.rawMaterial}\nSupplier: ${data.supplierName}\nQuantity: ${data.declaredQuantity} ${data.unitOfMeasurement}\n\nThe entry has been added to the inventory list.`);
+        // Transform backend response to match frontend structure
+        const newEntry = {
+          id: response.data.id,
+          rawMaterial: response.data.rawMaterial,
+          supplierName: response.data.supplierName,
+          supplierAddress: response.data.supplierAddress,
+          gradeSpecification: response.data.gradeSpecification,
+          heatNumber: response.data.heatNumber,
+          tcNumber: response.data.tcNumber,
+          tcDate: response.data.tcDate,
+          invoiceNumber: response.data.invoiceNumber,
+          invoiceDate: response.data.invoiceDate,
+          subPoNumber: response.data.subPoNumber,
+          subPoDate: response.data.subPoDate,
+          subPoQty: response.data.subPoQty,
+          rateOfMaterial: response.data.rateOfMaterial,
+          rateOfGst: response.data.rateOfGst,
+          declaredQuantity: response.data.tcQuantity,
+          qtyOfferedForInspection: 0, // Initially 0, will be updated when inspection is raised
+          qtyLeftForInspection: response.data.tcQuantity, // Initially same as declared quantity
+          unitOfMeasurement: response.data.unitOfMeasurement,
+          baseValuePO: response.data.baseValuePo,
+          totalPO: response.data.totalPo,
+          lengthOfBars: response.data.lengthOfBars,
+          status: response.data.status === 'FRESH_PO' ? 'Fresh' : response.data.status,
+          companyId: response.data.companyId,
+          companyName: response.data.companyName,
+          unitId: data.unitId,
+          unitName: response.data.unitName,
+          createdAt: response.data.createdAt
+        };
 
-    // Return true to signal form to reset
-    return true;
+        // Add to inventory entries state
+        setInventoryEntries(prev => [newEntry, ...prev]);
+
+        // Show success message
+        alert(`✅ Inventory entry saved successfully!\n\nMaterial: ${data.rawMaterial}\nSupplier: ${data.supplierName}\nQuantity: ${data.declaredQuantity} ${data.unitOfMeasurement}\n\nThe entry has been saved to the database.`);
+
+        // Return true to signal form to reset
+        return true;
+      } else {
+        throw new Error(response.error || 'Failed to save inventory entry');
+      }
+
+    } catch (error) {
+      console.error('❌ Error saving inventory entry:', error);
+      alert(`❌ Failed to save inventory entry.\n\nError: ${error.message}\n\nPlease check:\n1. API server is running (http://localhost:8080)\n2. Database connection is working\n3. All required fields are filled`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmitSubPO = async (subPOData) => {

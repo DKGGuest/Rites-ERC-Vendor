@@ -28,13 +28,13 @@ export const getBaseUrl = () => {
 // API Endpoints configuration
 export const API_ENDPOINTS = {
   // Vendor Workflow APIs
-  VENDOR_WORKFLOW: {
-    INITIATE_WORKFLOW: '/initiateWorkflow',
-    PERFORM_TRANSITION_ACTION: '/performTransitionAction',
-    WORKFLOW_TRANSITION_HISTORY: '/workflowTransitionHistory',
-    WORKFLOW_TRANSITIONS_PAYMENT_BLOCKED: '/workflowTransitionsPaymentBlocked',
-    ALL_PENDING_WORKFLOW_TRANSITION: '/allPendingWorkflowtrasition'
-  },
+  // VENDOR_WORKFLOW: {
+  //   INITIATE_WORKFLOW: '/initiateWorkflow',
+  //   PERFORM_TRANSITION_ACTION: '/performTransitionAction',
+  //   WORKFLOW_TRANSITION_HISTORY: '/workflowTransitionHistory',
+  //   WORKFLOW_TRANSITIONS_PAYMENT_BLOCKED: '/workflowTransitionsPaymentBlocked',
+  //   ALL_PENDING_WORKFLOW_TRANSITION: '/allPendingWorkflowtrasition'
+  // },
   
   // Inspection Call APIs
   INSPECTION_CALLS: {
