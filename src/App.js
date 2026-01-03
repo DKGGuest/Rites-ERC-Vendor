@@ -15,7 +15,7 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState('vendor-dashboard');
   const [selectedCall, setSelectedCall] = useState(null);
   const [selectedCalls, setSelectedCalls] = useState([]);
-  const [userEmail] = useState('inspector@sarthi.com');
+  // const [userEmail] = useState('inspector@sarthi.com');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 

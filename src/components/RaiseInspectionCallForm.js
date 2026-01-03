@@ -1766,9 +1766,9 @@ export const RaiseInspectionCallForm = ({
                             // Hardcoded heat data for testing // "T844929" "25-8899" "T844929" "khigtu1234"
                             const hardcodedHeats = {
                               'khigtu1234': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
-                              'T844929': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
-                              'T844929': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 },
-                              'T844929': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 }
+                              'T844911': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
+                              'T844988': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 },
+                              'T844922': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 }
                             };
                             const selectedHeat = hardcodedHeats[heatValue];
                             if (selectedHeat) {
@@ -1784,9 +1784,9 @@ export const RaiseInspectionCallForm = ({
                         >
                           <option value="">Select Heat Number</option>
                           <option value="khigtu1234">ABC Steel Industries - HT-2025-001 (Accepted: 67500 ERCs)</option>
-                          <option value="T844929">JSPL - HT-2025-002 (Accepted: 67500 ERCs)</option>
-                          <option value="T844929">TATA STEEL - HT-2025-003 (Accepted: 90000 ERCs)</option>
-                          <option value="T844929">XYZ Steel Corp - HT-2025-004 (Accepted: 90000 ERCs)</option>
+                          <option value="T844926">JSPL - HT-2025-002 (Accepted: 67500 ERCs)</option>
+                          <option value="T844925">TATA STEEL - HT-2025-003 (Accepted: 90000 ERCs)</option>
+                          <option value="T844924">XYZ Steel Corp - HT-2025-004 (Accepted: 90000 ERCs)</option>
                         </select>
                       </FormField>
 

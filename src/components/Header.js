@@ -80,10 +80,7 @@ export default Header;
 // };
 
 // export default Header;
-
-
-
-{/* <header className="app-header">
+/* <header className="app-header">
         <div className="header-left">
           <div className="app-logo">SARTHI</div>
           <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
@@ -117,4 +114,4 @@ export default Header;
 
           <button className="btn btn-sm btn-outline">Logout</button>
         </div>
-      </header> */}
+      </header> */
