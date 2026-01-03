@@ -9,6 +9,7 @@ import CalibrationDocumentsPage from './pages/CalibrationDocumentsPage';
 import VisualMaterialTestingPage from './pages/VisualMaterialTestingPage';
 import SummaryReportsPage from './pages/SummaryReportsPage';
 import VendorDashboardPage from './pages/VendorDashboardPage';
+import Header from './components/Header';
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState('vendor-dashboard');
@@ -67,7 +68,9 @@ const App = () => {
 
   return (
     <div>
-      <header className="app-header">
+      <Header />
+  
+      {/* <header className="app-header">
         <div className="header-left">
           <div className="app-logo">SARTHI</div>
           <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
@@ -93,7 +96,7 @@ const App = () => {
             <div className="user-avatar">IE</div>
             <div>
               <div style={{ fontWeight: 'var(--font-weight-medium)', color: 'var(--color-text)' }}>
-                Inspector Engineer
+                Vendor Dashboard
               </div>
               <div>{userEmail}</div>
             </div>
@@ -101,7 +104,7 @@ const App = () => {
 
           <button className="btn btn-sm btn-outline">Logout</button>
         </div>
-      </header>
+      </header> */}
 
       <div className={`app-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
 

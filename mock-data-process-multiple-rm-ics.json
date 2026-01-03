@@ -22,7 +22,10 @@
     "qty_already_inspected_process": 6500,
     "qty_already_inspected_final": 0,
 
-    "process_rm_ic_numbers": ["RM-IC-2025-001", "RM-IC-2025-002", "RM-IC-2025-004"],
+    "process_rm_ic_numbers": ["RM-IC-2025-001", "RM-IC-2025-002", "RM-IC-2025-004" ,"RM-IC-1767191285774",
+      "RM-IC-1767192239075",
+      "RM-IC-1767352141920",
+      "RM-IC-1767425631624"],
 
     "process_rm_ic_mapping": [
       {

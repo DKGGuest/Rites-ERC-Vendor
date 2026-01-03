@@ -218,13 +218,19 @@ const inspectionCallService = {
    */
   createProcessInspectionCall: async (processInspectionData) => {
     try {
+      console.log('📤 Sending Process IC data to backend:', JSON.stringify(processInspectionData, null, 2));
+
       const response = await httpClient.post(
-        '/inspection-calls/process',
+        '/process-material/inspectionCall',
         processInspectionData
       );
+
+      console.log('✅ Backend response:', response);
       return response;
     } catch (error) {
-      console.error('Error creating Process inspection call:', error);
+      console.error('❌ Error creating Process inspection call:', error);
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error data:', error.data);
       throw error;
     }
   },

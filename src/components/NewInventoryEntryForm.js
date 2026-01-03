@@ -73,7 +73,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
 
   // Default master data options
   const defaultMasterData = {
-    rawMaterials: ['Spring Steel Round Bars', 'Cement', 'HTS Wire', 'Dowel', 'Aggregate', 'SGCI Insert'],
+    rawMaterials: ['Spring Steel Round Bars'],
     suppliers: [
       'Jayaswal Neco',
       'Tata Steel',
@@ -85,7 +85,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
       'National Cement Corp'
     ],
     grades: ['Grade A', 'Grade B', 'Grade C', 'IS 2062', 'IS 1786', 'OPC 53', 'PPC'],
-    units: ['Kg', 'MT', 'Nos', 'Ltrs', 'Bags', 'Cubic Meter']
+    units: [ 'MT']
   };
 
   const data = { ...defaultMasterData, ...masterData };
@@ -112,6 +112,31 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
       }));
     }
   }, [formData.supplierName]);
+
+
+
+  useEffect(() => {
+  const qty = Number(formData.subPoQty);
+  const rate = Number(formData.rateOfMaterial);
+  const gst = Number(formData.rateOfGst);
+
+  if (qty > 0 && rate > 0 && !isNaN(qty) && !isNaN(rate)) {
+    const baseValue = qty * rate;
+    const totalValue = baseValue + (baseValue * gst) / 100;
+
+    setFormData(prev => ({
+      ...prev,
+      baseValuePO: baseValue.toFixed(2),
+      totalPO: totalValue.toFixed(2)
+    }));
+  } else {
+    setFormData(prev => ({
+      ...prev,
+      baseValuePO: '',
+      totalPO: ''
+    }));
+  }
+}, [formData.subPoQty, formData.rateOfMaterial, formData.rateOfGst]);
 
   // Handle company selection - cascading effect (COMMENTED OUT - No longer needed)
   // const handleCompanyChange = (e) => {
@@ -197,32 +222,131 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
     }
   };
 
+  // const validateForm = () => {
+  //   const newErrors = {};
+  //   const requiredFields = [
+  //     'unitId', // Removed 'companyId' as it's now derived from supplier
+  //     'rawMaterial', 'supplierName', 'gradeSpecification', 'heatNumber',
+  //     'tcNumber', 'tcDate', 'invoiceNumber', 'invoiceDate',
+  //     'subPoNumber', 'subPoDate', 'subPoQty', 'rateOfMaterial',
+  //     'rateOfGst', 'declaredQuantity', 'unitOfMeasurement'
+  //   ];
+
+  //   requiredFields.forEach(field => {
+  //     if (!formData[field]) {
+  //       newErrors[field] = 'This field is required';
+  //     }
+  //   });
+
+  //   // Validate numeric fields
+  //   ['subPoQty', 'rateOfMaterial', 'rateOfGst', 'declaredQuantity'].forEach(field => {
+  //     if (formData[field] && isNaN(parseFloat(formData[field]))) {
+  //       newErrors[field] = 'Must be a valid number';
+  //     }
+  //   });
+
+  //   setErrors(newErrors);
+  //   return Object.keys(newErrors).length === 0;
+  // };
   const validateForm = () => {
-    const newErrors = {};
-    const requiredFields = [
-      'unitId', // Removed 'companyId' as it's now derived from supplier
-      'rawMaterial', 'supplierName', 'gradeSpecification', 'heatNumber',
-      'tcNumber', 'tcDate', 'invoiceNumber', 'invoiceDate',
-      'subPoNumber', 'subPoDate', 'subPoQty', 'rateOfMaterial',
-      'rateOfGst', 'declaredQuantity', 'unitOfMeasurement'
-    ];
+  const newErrors = {};
 
-    requiredFields.forEach(field => {
-      if (!formData[field]) {
-        newErrors[field] = 'This field is required';
-      }
-    });
+  /* ---------- REQUIRED FIELD VALIDATION ---------- */
+  const requiredFields = [
+    'unitId', // companyId is derived
+    'rawMaterial',
+    'supplierName',
+    'gradeSpecification',
+    'heatNumber',
+    'tcNumber',
+    'tcDate',
+    'invoiceNumber',
+    'invoiceDate',
+    'subPoNumber',
+    'subPoDate',
+    'subPoQty',
+    'rateOfMaterial',
+    'rateOfGst',
+    'declaredQuantity',
+    'unitOfMeasurement',
+    'lengthOfBars'
+  ];
 
-    // Validate numeric fields
-    ['subPoQty', 'rateOfMaterial', 'rateOfGst', 'declaredQuantity'].forEach(field => {
-      if (formData[field] && isNaN(parseFloat(formData[field]))) {
-        newErrors[field] = 'Must be a valid number';
-      }
-    });
+  requiredFields.forEach(field => {
+    if (
+      formData[field] === '' ||
+      formData[field] === null ||
+      formData[field] === undefined
+    ) {
+      newErrors[field] = 'This field is required';
+    }
+  });
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  /* ---------- NUMERIC FIELD VALIDATION ---------- */
+  const numericFields = [
+    'subPoQty',
+    'rateOfMaterial',
+    'rateOfGst',
+    'declaredQuantity'
+  ];
+
+  numericFields.forEach(field => {
+    if (
+      formData[field] !== '' &&
+      (isNaN(Number(formData[field])) || Number(formData[field]) < 0)
+    ) {
+      newErrors[field] = 'Must be a valid non-negative number';
+    }
+  });
+
+  /* ---------- BUSINESS RULE VALIDATION ---------- */
+
+  const tcQty = Number(formData.declaredQuantity);
+  const subPoQty = Number(formData.subPoQty);
+
+  const tcDate = formData.tcDate ? new Date(formData.tcDate) : null;
+  const subPoDate = formData.subPoDate ? new Date(formData.subPoDate) : null;
+  const invoiceDate = formData.invoiceDate ? new Date(formData.invoiceDate) : null;
+
+  /* Rule 1: Sub PO Qty >= TC Qty */
+  if (
+    !newErrors.subPoQty &&
+    !newErrors.declaredQuantity &&
+    tcQty > 0 &&
+    subPoQty > 0 &&
+    subPoQty < tcQty
+  ) {
+    newErrors.subPoQty =
+      'Sub PO Quantity should not be less than TC Quantity';
+  }
+
+  /* Rule 2: Sub PO Date <= TC Date */
+  if (
+    !newErrors.subPoDate &&
+    tcDate &&
+    subPoDate &&
+    subPoDate > tcDate
+  ) {
+    newErrors.subPoDate =
+      'Sub PO Date should not be later than TC Date';
+  }
+
+  /* Rule 3: Sub PO Date <= Invoice Date */
+  if (
+    !newErrors.subPoDate &&
+    invoiceDate &&
+    subPoDate &&
+    subPoDate > invoiceDate
+  ) {
+    newErrors.subPoDate =
+      'Sub PO Date should not be later than Invoice Date';
+  }
+
+  /* ---------- FINALIZE ---------- */
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -299,8 +423,28 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
 
 
 
-
             <div className="form-group">
+  <label className="form-label">
+    Length of Bars <span className="required">*</span>
+  </label>
+
+  <select
+    name="lengthOfBars"
+    value={formData.lengthOfBars}
+    onChange={handleChange}
+    className={`form-input ${errors.lengthOfBars ? 'error' : ''}`}
+  >
+    <option value="">Select Length</option>
+    <option value="6">6 m</option>
+    <option value="12">12 m</option>
+  </select>
+
+  {errors.lengthOfBars && (
+    <span className="error-text">{errors.lengthOfBars}</span>
+  )}
+</div>
+
+            {/* <div className="form-group">
               <label className="form-label">
                Length of Bars <span className="required">*</span>
               </label>
@@ -314,7 +458,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
                 placeholder="Length of Bars"
               />
               {errors.subPoQty && <span className="error-text">{errors.lengthOfBars}</span>}
-            </div>
+            </div> */}
 
             <div className="form-group">
               <label className="form-label">
@@ -578,7 +722,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               {errors.subPoNumber && <span className="error-text">{errors.subPoNumber}</span>}
             </div>
 
-            <div className="form-group">
+            {/* <div className="form-group">
               <label className="form-label">
                 Sub PO Date <span className="required">*</span>
               </label>
@@ -590,7 +734,32 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
                 className={`form-input ${errors.subPoDate ? 'error' : ''}`}
               />
               {errors.subPoDate && <span className="error-text">{errors.subPoDate}</span>}
-            </div>
+            </div> */}
+            <div className="form-group">
+  <label className="form-label">
+    Sub PO Date <span className="required">*</span>
+  </label>
+
+  <input
+    type="date"
+    name="subPoDate"
+    value={formData.subPoDate}
+    onChange={handleChange}
+    max={
+      formData.tcDate && formData.invoiceDate
+        ? (formData.tcDate < formData.invoiceDate
+            ? formData.tcDate
+            : formData.invoiceDate)
+        : formData.tcDate || formData.invoiceDate || undefined
+    }
+    className={`form-input ${errors.subPoDate ? 'error' : ''}`}
+  />
+
+  {errors.subPoDate && (
+    <span className="error-text">{errors.subPoDate}</span>
+  )}
+</div>
+
 
             <div className="form-group">
               <label className="form-label">
@@ -720,7 +889,7 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
               {errors.declaredQuantity && <span className="error-text">{errors.declaredQuantity}</span>}
             </div> */}
 
-            <div className="form-group">
+            {/* <div className="form-group">
               <label className="form-label">
                Base Value of PO <span className="required">*</span>
               </label>
@@ -734,9 +903,28 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
                 placeholder="Enter Base Value of PO"
               />
               {errors.rateOfGst && <span className="error-text">{errors.baseValuePO}</span>}
-            </div>
-
+            </div> */}
             <div className="form-group">
+  <label className="form-label">
+    Base Value of PO <span className="required">*</span>
+  </label>
+
+  <input
+    type="number"
+    name="baseValuePO"
+    value={formData.baseValuePO}
+    disabled
+    className="form-input disabled"
+    placeholder="Auto calculated"
+  />
+
+  <div style={{ fontSize: '12px', color: '#6b7280' }}>
+    Auto calculated as: Sub PO Qty × Rate of Material
+  </div>
+</div>
+
+
+            {/* <div className="form-group">
               <label className="form-label">
                 Total PO <span className="required">*</span>
               </label>
@@ -750,7 +938,26 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
                 placeholder="Enter Total PO"
               />
               {errors.rateOfGst && <span className="error-text">{errors.totalPO}</span>}
-            </div>
+            </div> */}
+            <div className="form-group">
+  <label className="form-label">
+    Total PO <span className="required">*</span>
+  </label>
+
+  <input
+    type="number"
+    name="totalPO"
+    value={formData.totalPO}
+    disabled
+    className="form-input disabled"
+    placeholder="Auto calculated"
+  />
+
+  <div style={{ fontSize: '12px', color: '#6b7280' }}>
+    Auto calculated as: Base Value + GST
+  </div>
+</div>
+
 
 
 

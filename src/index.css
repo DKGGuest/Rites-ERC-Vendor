@@ -886,7 +886,124 @@ body {
 }
 
 /* Header Styles */
+/* ===== HEADER ROOT ===== */
 .app-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 14px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* ===== LEFT BRAND ===== */
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-logo {
+  height: 52px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0f172a;
+}
+
+.brand-subtitle {
+  font-size: 12.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* ===== RIGHT SECTION ===== */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+/* ===== ICON BUTTON ===== */
+.icon-btn {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.icon-btn:hover {
+  background: #f8fafc;
+}
+
+/* ===== DATE TIME ===== */
+.header-datetime {
+  font-size: 13px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* ===== USER INFO ===== */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-role {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.user-email {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* ===== LOGOUT ===== */
+.logout-btn {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+/* .app-header {
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   padding: var(--space-16) var(--space-24);
@@ -933,7 +1050,7 @@ body {
   justify-content: center;
   font-weight: var(--font-weight-bold);
   font-size: var(--font-size-sm);
-}
+} */
 
 /* Main Layout */
 .app-container {

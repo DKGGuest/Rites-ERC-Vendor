@@ -844,12 +844,8 @@ export const MANUFACTURER_MASTER = [
 // Raw Material to Grade/Specification Mapping
 export const RAW_MATERIAL_GRADE_MAPPING = {
   'Spring Steel Round Bars': [
-    '55Si7 SPRING STEEL ROUND 20.64MM',
-    '55Si7 SPRING STEEL ROUND 23MM',
-    '60Si7 SPRING STEEL ROUND 20.64MM',
-    '60Si7 SPRING STEEL ROUND 23MM',
-    'IS 4454 Grade 55Si7',
-    'IS 4454 Grade 60Si7'
+    '55Si7 20.64MM',
+    '55Si7 23MM'
   ],
   'Cement': [
     'OPC 53 Grade (IS 12269)',

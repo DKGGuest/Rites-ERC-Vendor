@@ -19,7 +19,7 @@ import {
   VENDOR_PAYMENT_ITEMS,
   VENDOR_MASTER_ITEMS,
   VENDOR_RAISE_CALL_PO,
-  VENDOR_INVENTORY_ENTRIES,
+  // VENDOR_INVENTORY_ENTRIES,
   CALIBRATION_MASTER_DATA,
   PAYMENT_MASTER_DATA,
   CALIBRATION_REQUIREMENTS,
@@ -90,7 +90,9 @@ const VendorDashboardPage = ({ onBack }) => {
   const [gaugeItems, setGaugeItems] = useState(VENDOR_GAUGE_ITEMS);
   const [paymentItems, setPaymentItems] = useState(VENDOR_PAYMENT_ITEMS);
   const [subPOList, setSubPOList] = useState(VENDOR_SUB_PO_LIST);
-  const [inventoryEntries, setInventoryEntries] = useState(VENDOR_INVENTORY_ENTRIES);
+  // const [inventoryEntries, setInventoryEntries] = useState(VENDOR_INVENTORY_ENTRIES);
+  const [inventoryEntries, setInventoryEntries] = useState([]);
+
 
   // PO Assigned data state - using real API
   const [poAssignedList, setPoAssignedList] = useState([]);
@@ -645,22 +647,41 @@ const VendorDashboardPage = ({ onBack }) => {
       if (data.type_of_call === 'Raw Material') {
         response = await inspectionCallService.createRMInspectionCall(data);
       } else if (data.type_of_call === 'Process') {
-        // Transform Process IC data to match new backend API
+        // Transform Process IC data to match new backend API structure
         const processData = {
-          rm_ic_number: data.process_rm_ic_numbers && data.process_rm_ic_numbers.length > 0
-            ? data.process_rm_ic_numbers[0]
-            : null,
-          heat_number: data.process_lot_heat_mapping && data.process_lot_heat_mapping.length > 0
-            ? data.process_lot_heat_mapping[0].heatNumber
-            : null,
-          lot_number: data.process_lot_heat_mapping && data.process_lot_heat_mapping.length > 0
-            ? data.process_lot_heat_mapping[0].lotNumber
-            : null,
-          offered_qty: data.process_lot_heat_mapping && data.process_lot_heat_mapping.length > 0
-            ? parseInt(data.process_lot_heat_mapping[0].offeredQty) || 0
-            : 0,
-          desired_inspection_date: data.desired_inspection_date,
-          remarks: data.remarks
+          inspectionCall: {
+            icNumber: `PROC-IC-${Date.now()}`, // Temporary - backend will generate proper IC number
+            poNo: data.po_no,
+            poSerialNo: data.po_serial_no,
+            typeOfCall: 'Process',
+            status: 'Pending',
+            desiredInspectionDate: data.desired_inspection_date,
+            actualInspectionDate: null,
+            companyId: data.company_id,
+            companyName: data.company_name,
+            unitId: data.unit_id,
+            unitName: data.unit_name,
+            unitAddress: data.unit_address,
+            remarks: data.remarks,
+            createdBy: currentUser.id.toString(),
+            updatedBy: currentUser.id.toString()
+          },
+          processInspectionDetails: data.process_lot_heat_mapping.map(lotHeat => ({
+            rmIcNumber: data.process_rm_ic_numbers && data.process_rm_ic_numbers.length > 0
+              ? data.process_rm_ic_numbers[0]
+              : null,
+            lotNumber: lotHeat.lotNumber,
+            heatNumber: lotHeat.heatNumber,
+            manufacturer: lotHeat.manufacturer,
+            manufacturerHeat: lotHeat.manufacturerHeat,
+            offeredQty: parseInt(lotHeat.offeredQty) || 0,
+            totalAcceptedQtyRm: data.process_total_accepted_qty_rm || 0,
+            companyId: data.company_id,
+            companyName: data.company_name,
+            unitId: data.unit_id,
+            unitName: data.unit_name,
+            unitAddress: data.unit_address
+          }))
         };
 
         console.log('📦 Transformed Process IC data:', processData);
@@ -1260,7 +1281,7 @@ const VendorDashboardPage = ({ onBack }) => {
     { key: 'subPoNumber', label: 'Sub PO No.' },
     {
       key: 'declaredQuantity',
-      label: 'Declared Qty',
+      label: 'TC Qty',
       render: (value, row) => `${value} ${row.unitOfMeasurement}`
     },
     {
@@ -2044,6 +2065,7 @@ const VendorDashboardPage = ({ onBack }) => {
 
               <RaiseInspectionCallForm
                 selectedPO={VENDOR_RAISE_CALL_PO}
+                  inventoryEntries={inventoryEntries}
                 onSubmit={(data) => {
                   // TODO: Replace with API call
                   console.log('Inspection call submitted:', data);
@@ -2336,6 +2358,7 @@ const VendorDashboardPage = ({ onBack }) => {
                 selectedPO={selectedPOItem?.po}
                 selectedItem={selectedPOItem?.item}
                 selectedSubPO={selectedPOItem?.subPO}
+                  inventoryEntries={inventoryEntries}
                 onSubmit={handleSubmitInspectionRequest}
                 isLoading={isLoading}
               />

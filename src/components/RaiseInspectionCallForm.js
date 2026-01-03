@@ -13,7 +13,7 @@ import {
   // LOT_NUMBERS, // Removed unused import
   ERC_CONVERSION_FACTORS,
   PO_SERIAL_DETAILS,
-  VENDOR_INVENTORY_ENTRIES, // Import inventory data
+  // VENDOR_INVENTORY_ENTRIES, // Import inventory data
   // VENDOR_PO_LIST
 } from '../data/vendorMockData';
 // import inspectionCallService from '../services/inspectionCallService';
@@ -140,6 +140,35 @@ const MOCK_HEAT_NUMBERS = {
   ]
 };
 
+// Mock RM IC data
+// const MOCK_RM_INSPECTION_CALLS = [
+//   {
+//     icNumber: 'RMIC-001',
+//     poSerialNo: 'PO-SR-001',
+//     heatNumber: 'H-101',
+//     qtyAccepted: 12.5
+//   },
+//   {
+//     icNumber: 'RMIC-002',
+//     poSerialNo: 'PO-SR-001',
+//     heatNumber: 'H-102',
+//     qtyAccepted: 10.0
+//   },
+//   {
+//     icNumber: 'RMIC-003',
+//     poSerialNo: 'PO-SR-002',
+//     heatNumber: 'H-201',
+//     qtyAccepted: 8.75
+//   },
+//   {
+//     icNumber: 'RMIC-004',
+//     poSerialNo: 'PO-SR-001',
+//     heatNumber: 'H-103',
+//     qtyAccepted: 15.0
+//   }
+// ];
+
+
 // Helper functions
 const getTodayDate = () => new Date().toISOString().split('T')[0];
 // const getMaxDate = () => {
@@ -260,6 +289,7 @@ const getInitialFormState = (selectedPO = null) => {
 
     // === FINAL STAGE FIELDS ===
     final_lot_numbers: [], // Multi-select dropdown - Lots from Process ICs
+    final_selected_lot: '', // Currently selected lot in dropdown (before adding)
     final_manufacturer_heat: '', // Auto-fetched based on selected lots
     final_erc_qty: '', // Free text, integer - Quantity (No. of ERC)
     final_total_qty: '', // Auto-calculated: final_erc_qty * final_hdpe_bags
@@ -288,6 +318,7 @@ const getInitialFormState = (selectedPO = null) => {
 };
 
 export const RaiseInspectionCallForm = ({
+  inventoryEntries = [],
   selectedPO = null,
   selectedItem = null,
   selectedSubPO = null,
@@ -518,7 +549,7 @@ export const RaiseInspectionCallForm = ({
 
   // Get available heat numbers from inventory (only Fresh or Inspection Requested status)
   const availableHeatNumbers = useMemo(() => {
-    return VENDOR_INVENTORY_ENTRIES
+    return inventoryEntries
       .filter(entry =>
         entry.status === 'Fresh' ||
         entry.status === 'Inspection Requested' ||
@@ -532,7 +563,7 @@ export const RaiseInspectionCallForm = ({
         qtyLeft: entry.qtyLeftForInspection,
         unit: entry.unitOfMeasurement
       }));
-  }, []);
+  }, [inventoryEntries]);
 
   // Get available TC numbers for a specific heat number
   const getAvailableTcNumbers = useCallback((heatNumber) => {
@@ -540,9 +571,9 @@ export const RaiseInspectionCallForm = ({
 
     const tcList = [];
     // Find all inventory entries matching this heat number
-    const inventoryEntries = VENDOR_INVENTORY_ENTRIES.filter(entry => entry.heatNumber === heatNumber);
+    const matchingEntries = inventoryEntries.filter(entry => entry.heatNumber === heatNumber);
 
-    inventoryEntries.forEach(entry => {
+    matchingEntries.forEach(entry => {
       if (!tcList.find(tc => tc.tcNumber === entry.tcNumber)) {
         tcList.push({
           tcNumber: entry.tcNumber,
@@ -567,7 +598,7 @@ export const RaiseInspectionCallForm = ({
     }
 
     return tcList;
-  }, []);
+  }, [inventoryEntries]);
 
   // OLD CODE - Commented out as we now handle per heat-TC combination
   // const availableTcNumbers = useMemo(() => { ... }, [formData.rm_heat_numbers]);
@@ -809,7 +840,7 @@ export const RaiseInspectionCallForm = ({
     }));
 
     // Find inventory entry matching heat number and TC number
-    const inventoryEntry = VENDOR_INVENTORY_ENTRIES.find(
+    const inventoryEntry = inventoryEntries.find(
       entry => entry.heatNumber === heatMapping.heatNumber && entry.tcNumber === tcNumber
     );
 
@@ -1276,7 +1307,7 @@ export const RaiseInspectionCallForm = ({
                   </div>
 
                   <div className="ric-form-grid">
-                    {/* Heat Number - Dropdown from Inventory */}
+                    {/* Heat Number - Dropdown from Inventory {heat.rawMaterial} - Qty Left: {heat.qtyLeft} {heat.unit}*/}
                     <FormField
                       label="Heat Number"
                       name={`heat_${index}_heatNumber`}
@@ -1291,7 +1322,7 @@ export const RaiseInspectionCallForm = ({
                         <option value="">-- Select Heat Number --</option>
                         {availableHeatNumbers.map(heat => (
                           <option key={heat.heatNumber} value={heat.heatNumber}>
-                            {heat.heatNumber} - {heat.rawMaterial} ({heat.supplierName}) - Qty Left: {heat.qtyLeft} {heat.unit}
+                            {heat.heatNumber} -  ({heat.supplierName}) 
                           </option>
                         ))}
                       </select>
@@ -1599,8 +1630,10 @@ export const RaiseInspectionCallForm = ({
                 >
                   <MultiSelectDropdown
                     options={[
-                      { value: 'RM-IC-2025-0001', label: 'RM-IC-2025-0001 (Heats: HT-2025-001, HT-2025-002, Accepted: 135000 ERCs)' },
-                      { value: 'RM-IC-2025-0002', label: 'RM-IC-2025-0002 (Heats: HT-2025-003, HT-2025-004, Accepted: 180000 ERCs)' }
+                      { value: 'RM-IC-1767191285774', label: 'RM-IC-1767191285774 ' },
+                      { value: 'RM-IC-1767192239075', label: 'RM-IC-1767192239075' },
+                      { value: 'RM-IC-1767352141920', label: 'RM-IC-1767352141920' },  
+                      { value: 'RM-IC-1767425631624', label: 'RM-IC-1767425631624' }
                     ]}
                     selectedValues={formData.process_rm_ic_numbers}
                     onChange={(selectedValues) => handleRmIcSelection(selectedValues)}
@@ -1730,12 +1763,12 @@ export const RaiseInspectionCallForm = ({
                           value={lotHeat.heatNumber}
                           onChange={(e) => {
                             const heatValue = e.target.value;
-                            // Hardcoded heat data for testing
+                            // Hardcoded heat data for testing // "T844929" "25-8899" "T844929" "khigtu1234"
                             const hardcodedHeats = {
-                              'HT-2025-001': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
-                              'HT-2025-002': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
-                              'HT-2025-003': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 },
-                              'HT-2025-004': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 }
+                              'khigtu1234': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
+                              'T844929': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
+                              'T844929': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 },
+                              'T844929': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 }
                             };
                             const selectedHeat = hardcodedHeats[heatValue];
                             if (selectedHeat) {
@@ -1750,10 +1783,10 @@ export const RaiseInspectionCallForm = ({
                           }}
                         >
                           <option value="">Select Heat Number</option>
-                          <option value="HT-2025-001">ABC Steel Industries - HT-2025-001 (Accepted: 67500 ERCs)</option>
-                          <option value="HT-2025-002">ABC Steel Industries - HT-2025-002 (Accepted: 67500 ERCs)</option>
-                          <option value="HT-2025-003">XYZ Steel Corp - HT-2025-003 (Accepted: 90000 ERCs)</option>
-                          <option value="HT-2025-004">XYZ Steel Corp - HT-2025-004 (Accepted: 90000 ERCs)</option>
+                          <option value="khigtu1234">ABC Steel Industries - HT-2025-001 (Accepted: 67500 ERCs)</option>
+                          <option value="T844929">JSPL - HT-2025-002 (Accepted: 67500 ERCs)</option>
+                          <option value="T844929">TATA STEEL - HT-2025-003 (Accepted: 90000 ERCs)</option>
+                          <option value="T844929">XYZ Steel Corp - HT-2025-004 (Accepted: 90000 ERCs)</option>
                         </select>
                       </FormField>
 
@@ -1818,16 +1851,14 @@ export const RaiseInspectionCallForm = ({
                         label="RM IC Numbers"
                         name="final_rm_ic_numbers"
                         required
-                        // hint="Dropdown - List of all RM IC made against this Serial Number. Multiple IC can be added"
+                        hint="Mock data - showing all completed RM ICs for testing"
                         fullWidth
                       >
                         <MultiSelectDropdown
-                          options={availableRmIcs
-                            .filter(ic => ic.poSerialNo === formData.po_serial_no)
-                            .map(ic => ({
-                              value: ic.icNumber,
-                              label: `${ic.icNumber} (Heat: ${ic.heatNumber}, Accepted: ${ic.qtyAccepted})`
-                            }))}
+                          options={availableRmIcs.map(ic => ({
+                            value: ic.icNumber,
+                            label: `${ic.icNumber} (Heat: ${ic.heatNumber}, Accepted: ${ic.qtyAccepted})`
+                          }))}
                           selectedValues={formData.final_rm_ic_numbers}
                           onChange={(selectedValues) => setFormData(prev => ({ ...prev, final_rm_ic_numbers: selectedValues }))}
                           placeholder="Select RM IC Numbers"
@@ -1838,18 +1869,18 @@ export const RaiseInspectionCallForm = ({
                           </div>
                         )}
                       </FormField>
-      
+
                       {/* Process IC Numbers - Dropdown with Multiple Selection */}
                       <FormField
                         label="Process IC Numbers"
                         name="final_process_ic_numbers"
                         required
-                        // hint="Dropdown - List of all Process IC made against this Serial Number. Multiple IC can be added"
+                        hint="Mock data - showing all completed Process ICs for testing"
                         fullWidth
                       >
                         <MultiSelectDropdown
                           options={PROCESS_INSPECTION_CALLS
-                            .filter(ic => ic.poSerialNo === formData.po_serial_no && ic.status === 'Completed')
+                            .filter(ic => ic.status === 'Completed')
                             .map(ic => ({
                               value: ic.icNumber,
                               label: `${ic.icNumber} (Lot: ${ic.lotNumber}, Accepted: ${ic.qtyAccepted})`
@@ -1864,27 +1895,91 @@ export const RaiseInspectionCallForm = ({
                           </div>
                         )}
                       </FormField>
+                {/* Lot No. - Dropdown with Add Button */}
                 <FormField
                   label="Lot No."
                   name="final_lot_numbers"
                   required
-                  // hint="Dropdown options - Lots captured during process inspection against the same PO serial number and for which IC have been made. Multiple lot no. can be added"
+                  hint="Select lot numbers and click Add to include multiple lots"
                   fullWidth
                 >
-                  <MultiSelectDropdown
-                    options={PROCESS_INSPECTION_CALLS
-                      .filter(ic => ic.poSerialNo === formData.po_serial_no && ic.status === 'Completed')
-                      .map(ic => ({
-                        value: ic.lotNumber,
-                        label: `${ic.lotNumber} (IC: ${ic.icNumber}, Accepted: ${ic.qtyAccepted})`
-                      }))}
-                    selectedValues={formData.final_lot_numbers}
-                    onChange={(selectedValues) => handleFinalLotSelection(selectedValues)}
-                    placeholder="Select Lot Numbers"
-                  />
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <select
+                        className="ric-form-select"
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value && !formData.final_lot_numbers.includes(e.target.value)) {
+                            const newLots = [...formData.final_lot_numbers, e.target.value];
+                            handleFinalLotSelection(newLots);
+                          }
+                        }}
+                      >
+                        <option value="">Select Lot Number</option>
+                        {PROCESS_INSPECTION_CALLS
+                          .filter(ic => ic.status === 'Completed')
+                          .map(ic => (
+                            <option key={ic.lotNumber} value={ic.lotNumber}>
+                              {ic.lotNumber} (IC: {ic.icNumber}, Accepted: {ic.qtyAccepted})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Display added lots */}
                   {formData.final_lot_numbers.length > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                      Selected: {formData.final_lot_numbers.join(', ')}
+                    <div style={{ marginTop: '12px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
+                        Added Lots ({formData.final_lot_numbers.length}):
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {formData.final_lot_numbers.map((lotNumber, index) => {
+                          const lotInfo = PROCESS_INSPECTION_CALLS.find(ic => ic.lotNumber === lotNumber);
+                          return (
+                            <div
+                              key={index}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '10px 12px',
+                                backgroundColor: '#f3f4f6',
+                                borderRadius: '6px',
+                                border: '1px solid #e5e7eb'
+                              }}
+                            >
+                              <div style={{ fontSize: '14px', color: '#374151' }}>
+                                <strong>{lotNumber}</strong>
+                                {lotInfo && (
+                                  <span style={{ color: '#6b7280', marginLeft: '8px' }}>
+                                    (IC: {lotInfo.icNumber}, Accepted: {lotInfo.qtyAccepted})
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newLots = formData.final_lot_numbers.filter((_, i) => i !== index);
+                                  handleFinalLotSelection(newLots);
+                                }}
+                                style={{
+                                  padding: '4px 12px',
+                                  backgroundColor: '#ef4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '13px',
+                                  fontWeight: '500'
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </FormField>
