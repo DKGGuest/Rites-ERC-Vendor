@@ -39,6 +39,7 @@ const inspectionCallService = {
           poNo: rmInspectionData.po_no,
           poSerialNo: rmInspectionData.po_serial_no,
           typeOfCall: rmInspectionData.type_of_call,
+          ercType: rmInspectionData.type_of_erc || '',
           status: 'PENDING',
           desiredInspectionDate: rmInspectionData.desired_inspection_date,
           companyId: parseInt(rmInspectionData.company_id),

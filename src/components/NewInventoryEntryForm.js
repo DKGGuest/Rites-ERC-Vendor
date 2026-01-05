@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import '../styles/forms.css';
 import { COMPANY_UNIT_MASTER, RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
 
-const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false }) => {
+const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmit, isLoading = false }) => {
   const initialFormState = {
     companyId: '',
     companyName: '',
@@ -340,6 +340,24 @@ const NewInventoryEntryForm = ({ masterData = {}, onSubmit, isLoading = false })
   ) {
     newErrors.subPoDate =
       'Sub PO Date should not be later than Invoice Date';
+  }
+
+  /* Rule 4: TC Number must be unique for this vendor */
+  if (
+    formData.tcNumber &&
+    formData.supplierName &&
+    !newErrors.tcNumber
+  ) {
+    const duplicateEntry = inventoryEntries.find(
+      entry =>
+        entry.tcNumber === formData.tcNumber &&
+        entry.supplierName === formData.supplierName
+    );
+
+    if (duplicateEntry) {
+      newErrors.tcNumber =
+        'Entry with TC Number already present in the inventory database of this particular vendor is not allowed';
+    }
   }
 
   /* ---------- FINALIZE ---------- */

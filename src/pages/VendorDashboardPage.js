@@ -2236,6 +2236,7 @@ const VendorDashboardPage = ({ onBack }) => {
                 </div>
 
                 <NewInventoryEntryForm
+                  inventoryEntries={inventoryEntries}
                   onSubmit={handleInventorySubmit}
                   isLoading={isLoading}
                 />

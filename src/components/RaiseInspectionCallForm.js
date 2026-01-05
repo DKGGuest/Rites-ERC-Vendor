@@ -1067,6 +1067,7 @@ export const RaiseInspectionCallForm = ({
       po_qty: formData.po_qty,
       po_unit: formData.po_unit,
       type_of_call: formData.type_of_call,
+      type_of_erc: formData.type_of_erc,
       desired_inspection_date: formData.desired_inspection_date,
       company_id: formData.company_id,
       company_name: formData.company_name,
@@ -1688,7 +1689,10 @@ export const RaiseInspectionCallForm = ({
               />
 
               <div className="ric-form-grid">
-                {/* RM IC Numbers - Dropdown with Multiple Selection - HARDCODED FOR TESTING */}
+                {/* RM IC Numbers - Dropdown with Multiple Selection - HARDCODED FOR TESTING { value: 'RM-IC-1767597604003', label: 'RM-IC-1767597604003 ' },
+                      { value: 'RM-IC-1767603751862', label: 'RM-IC-1767603751862' },
+                      { value: 'RM-IC-1767604183531', label: 'RM-IC-1767604183531' },  
+                      { value: 'RM-IC-1767604882477', label: 'RM-IC-1767604882477' }*/}
                 <FormField
                   label="RM IC Numbers"
                   name="process_rm_ic_numbers"
@@ -1702,6 +1706,10 @@ export const RaiseInspectionCallForm = ({
                       { value: 'RM-IC-1767603751862', label: 'RM-IC-1767603751862' },
                       { value: 'RM-IC-1767604183531', label: 'RM-IC-1767604183531' },  
                       { value: 'RM-IC-1767604882477', label: 'RM-IC-1767604882477' }
+                      // { value: 'RM-IC-1767191285774', label: 'RM-IC-1767191285774 ' },
+                      // { value: 'RM-IC-1767192239075', label: 'RM-IC-1767192239075' },
+                      // { value: 'RM-IC-1767352141920', label: 'RM-IC-1767352141920' },  
+                      // { value: 'RM-IC-1767425631624', label: 'RM-IC-1767425631624' }
                     ]}
                     selectedValues={formData.process_rm_ic_numbers}
                     onChange={(selectedValues) => handleRmIcSelection(selectedValues)}
