@@ -190,6 +190,14 @@ const INSPECTION_STAGES = [
   { value: 'Final', label: ' Final' }
 ];
 
+// ERC type options
+const ERC_TYPES = [
+  { value: '', label: 'Select Type of ERC' },
+  { value: 'MK-III', label: 'MK-III' },
+  { value: 'MK-V', label: 'MK-V' },
+  { value: 'J-Type', label: 'J-Type' }
+];
+
 // Form field component - MOVED OUTSIDE to prevent re-creation on every render
 const FormField = ({ label, name, required, hint, children, fullWidth = false, errors = {} }) => (
   <div className={`ric-form-group ${fullWidth ? 'ric-form-group--full-width' : ''}`}>
@@ -230,6 +238,7 @@ const getInitialFormState = (selectedPO = null) => {
 
     // === CALL TYPE ===
     type_of_call: '',
+    type_of_erc: '',
     desired_inspection_date: '',
 
     // === QUANTITY TRACKING (Auto Calculated) ===
@@ -972,6 +981,13 @@ export const RaiseInspectionCallForm = ({
             }
             if (!heat.offeredQty || parseFloat(heat.offeredQty) <= 0) {
               newErrors[`heat_${index}_offeredQty`] = 'Offered Quantity must be greater than 0';
+            } else {
+              // Check if offered quantity exceeds TC qty remaining
+              const offeredQty = parseFloat(heat.offeredQty);
+              const tcQtyRemaining = parseFloat(heat.tcQtyRemaining);
+              if (tcQtyRemaining && offeredQty > tcQtyRemaining) {
+                newErrors[`heat_${index}_offeredQty`] = 'Offered Qty cannot be more than TC Qty Remaining with Vendor';
+              }
             }
           }
         });
@@ -982,11 +998,50 @@ export const RaiseInspectionCallForm = ({
         }
 
         // Chemical analysis validations only if heat data is provided
-        if (!formData.rm_chemical_carbon) newErrors.rm_chemical_carbon = 'Carbon % is required';
-        if (!formData.rm_chemical_manganese) newErrors.rm_chemical_manganese = 'Manganese % is required';
-        if (!formData.rm_chemical_silicon) newErrors.rm_chemical_silicon = 'Silicon % is required';
-        if (!formData.rm_chemical_sulphur) newErrors.rm_chemical_sulphur = 'Sulphur % is required';
-        if (!formData.rm_chemical_phosphorus) newErrors.rm_chemical_phosphorus = 'Phosphorus % is required';
+        if (!formData.rm_chemical_carbon) {
+          newErrors.rm_chemical_carbon = 'Carbon % is required';
+        } else {
+          const carbon = parseFloat(formData.rm_chemical_carbon);
+          if (carbon < 0.5 || carbon > 0.6) {
+            newErrors.rm_chemical_carbon = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+          }
+        }
+
+        if (!formData.rm_chemical_manganese) {
+          newErrors.rm_chemical_manganese = 'Manganese % is required';
+        } else {
+          const manganese = parseFloat(formData.rm_chemical_manganese);
+          if (manganese < 0.8 || manganese > 1.0) {
+            newErrors.rm_chemical_manganese = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+          }
+        }
+
+        if (!formData.rm_chemical_silicon) {
+          newErrors.rm_chemical_silicon = 'Silicon % is required';
+        } else {
+          const silicon = parseFloat(formData.rm_chemical_silicon);
+          if (silicon < 1.5 || silicon > 2.0) {
+            newErrors.rm_chemical_silicon = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+          }
+        }
+
+        if (!formData.rm_chemical_sulphur) {
+          newErrors.rm_chemical_sulphur = 'Sulphur % is required';
+        } else {
+          const sulphur = parseFloat(formData.rm_chemical_sulphur);
+          if (sulphur > 0.03) {
+            newErrors.rm_chemical_sulphur = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+          }
+        }
+
+        if (!formData.rm_chemical_phosphorus) {
+          newErrors.rm_chemical_phosphorus = 'Phosphorus % is required';
+        } else {
+          const phosphorus = parseFloat(formData.rm_chemical_phosphorus);
+          if (phosphorus > 0.03) {
+            newErrors.rm_chemical_phosphorus = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+          }
+        }
         // if (!formData.rm_chemical_chromium) newErrors.rm_chemical_chromium = 'Chromium % is required';
       }
     }
@@ -1126,6 +1181,19 @@ export const RaiseInspectionCallForm = ({
             </FormField>
           </>
         )}
+
+        <FormField label="Type of ERC" name="type_of_erc" required hint="Select ERC type" errors={errors}>
+          <select
+            name="type_of_erc"
+            className="ric-form-select"
+            value={formData.type_of_erc}
+            onChange={handleChange}
+          >
+            {ERC_TYPES.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </FormField>
 
         <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="" errors={errors}>
               <input
@@ -1453,7 +1521,7 @@ export const RaiseInspectionCallForm = ({
                       label="Offered Qty (MT)"
                       name={`heat_${index}_offeredQty`}
                       required
-                      hint={heatMapping.maxQty ? `Max: ${heatMapping.maxQty} ${heatMapping.unit}` : ''}
+                      hint={heatMapping.tcQtyRemaining ? `Max: ${heatMapping.tcQtyRemaining} MT (TC Qty Remaining)` : heatMapping.maxQty ? `Max: ${heatMapping.maxQty} ${heatMapping.unit}` : ''}
                       errors={errors}
                     >
                       <input
@@ -1463,7 +1531,7 @@ export const RaiseInspectionCallForm = ({
                         onChange={(e) => handleHeatOfferedQtyChange(heatMapping.id, e.target.value)}
                         step="0.001"
                         min="0"
-                        max={heatMapping.maxQty || undefined}
+                        max={heatMapping.tcQtyRemaining || heatMapping.maxQty || undefined}
                         placeholder="Enter quantity in MT"
                         disabled={!heatMapping.tcNumber}
                       />
@@ -1489,7 +1557,7 @@ export const RaiseInspectionCallForm = ({
                 subtitle="Enter chemical composition percentages (auto-filled if previously entered)"
               />
               <div className="ric-form-grid">
-                <FormField label="Carbon (C) %" name="rm_chemical_carbon" required errors={errors}>
+                <FormField label="Carbon (C) %" name="rm_chemical_carbon" required hint="Range: 0.5 - 0.6" errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_carbon"
@@ -1499,11 +1567,11 @@ export const RaiseInspectionCallForm = ({
                     step="0.01"
                     min="0"
                     max="100"
-                    placeholder="e.g., 0.45"
+                    placeholder="e.g., 0.55"
                   />
                 </FormField>
 
-                <FormField label="Manganese (Mn) %" name="rm_chemical_manganese" required errors={errors}>
+                <FormField label="Manganese (Mn) %" name="rm_chemical_manganese" required hint="Range: 0.8 - 1.0" errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_manganese"
@@ -1513,11 +1581,11 @@ export const RaiseInspectionCallForm = ({
                     step="0.01"
                     min="0"
                     max="100"
-                    placeholder="e.g., 0.75"
+                    placeholder="e.g., 0.9"
                   />
                 </FormField>
 
-                <FormField label="Silicon (Si) %" name="rm_chemical_silicon" required errors={errors}>
+                <FormField label="Silicon (Si) %" name="rm_chemical_silicon" required hint="Range: 1.5 - 2.0" errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_silicon"
@@ -1527,35 +1595,35 @@ export const RaiseInspectionCallForm = ({
                     step="0.01"
                     min="0"
                     max="100"
-                    placeholder="e.g., 0.25"
+                    placeholder="e.g., 1.75"
                   />
                 </FormField>
 
-                <FormField label="Sulphur (S) %" name="rm_chemical_sulphur" required errors={errors}>
+                <FormField label="Sulphur (S) %" name="rm_chemical_sulphur" required hint="Max: 0.03" errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_sulphur"
                     className="ric-form-input"
                     value={formData.rm_chemical_sulphur}
                     onChange={handleChange}
-                    step="0.01"
+                    step="0.001"
                     min="0"
                     max="100"
-                    placeholder="e.g., 0.03"
+                    placeholder="e.g., 0.02"
                   />
                 </FormField>
 
-                <FormField label="Phosphorus (P) %" name="rm_chemical_phosphorus" required errors={errors}>
+                <FormField label="Phosphorus (P) %" name="rm_chemical_phosphorus" required hint="Max: 0.03" errors={errors}>
                   <input
                     type="number"
                     name="rm_chemical_phosphorus"
                     className="ric-form-input"
                     value={formData.rm_chemical_phosphorus}
                     onChange={handleChange}
-                    step="0.01"
+                    step="0.001"
                     min="0"
                     max="100"
-                    placeholder="e.g., 0.04"
+                    placeholder="e.g., 0.02"
                   />
                 </FormField>
 
@@ -1630,7 +1698,7 @@ export const RaiseInspectionCallForm = ({
                 >
                   <MultiSelectDropdown
                     options={[
-                      { value: 'RM-IC-1767191285774', label: 'RM-IC-1767191285774 ' },
+                      { value: 'RM-IC-1767597604003', label: 'RM-IC-1767597604003 ' },
                       { value: 'RM-IC-1767192239075', label: 'RM-IC-1767192239075' },
                       { value: 'RM-IC-1767352141920', label: 'RM-IC-1767352141920' },  
                       { value: 'RM-IC-1767425631624', label: 'RM-IC-1767425631624' }
