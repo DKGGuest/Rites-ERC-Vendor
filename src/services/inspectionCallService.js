@@ -44,7 +44,7 @@ const inspectionCallService = {
           companyId: parseInt(rmInspectionData.company_id),
           companyName: rmInspectionData.company_name,
           placeOfInspection:"POI1",
-          vendorId:"13104",
+          vendorId:":13104",
           unitId: parseInt(rmInspectionData.unit_id),
           unitName: rmInspectionData.unit_name,
           unitAddress: rmInspectionData.unit_address,
