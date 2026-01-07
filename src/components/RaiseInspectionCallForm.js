@@ -755,17 +755,42 @@ export const RaiseInspectionCallForm = ({
 
   // Handle Process IC selection for Final stage - calculate total accepted qty
   const handleFinalProcessIcSelection = (selectedIcNumbers) => {
+    console.log('🔄 handleFinalProcessIcSelection called with:', selectedIcNumbers);
+
     // Calculate total accepted quantity from selected Process ICs
     const totalAccepted = selectedIcNumbers.reduce((sum, icNumber) => {
       const ic = PROCESS_INSPECTION_CALLS.find(ic => ic.icNumber === icNumber);
       return sum + (ic?.qtyAccepted || 0);
     }, 0);
 
+    // Get unit details from first selected Process IC
+    const firstProcessIc = selectedIcNumbers.length > 0
+      ? PROCESS_INSPECTION_CALLS.find(ic => ic.icNumber === selectedIcNumbers[0])
+      : null;
+
+    console.log('📍 First Process IC found:', firstProcessIc);
+    console.log('📍 Unit details from Process IC:', {
+      unitId: firstProcessIc?.unitId,
+      unitName: firstProcessIc?.unitName,
+      unitAddress: firstProcessIc?.unitAddress,
+      companyId: firstProcessIc?.companyId,
+      companyName: firstProcessIc?.companyName
+    });
+
     setFormData(prev => ({
       ...prev,
       final_process_ic_numbers: selectedIcNumbers,
-      final_total_accepted_qty_process: totalAccepted
+      final_total_accepted_qty_process: totalAccepted,
+      // Auto-fill unit details from first Process IC
+      final_unit_id: firstProcessIc?.unitId || prev.final_unit_id || '',
+      final_unit_name: firstProcessIc?.unitName || prev.final_unit_name || '',
+      final_unit_address: firstProcessIc?.unitAddress || prev.final_unit_address || '',
+      // Also populate company details if available
+      company_id: firstProcessIc?.companyId || prev.company_id || '',
+      company_name: firstProcessIc?.companyName || prev.company_name || ''
     }));
+
+    console.log('✅ Form data updated with unit details');
   };
 
   // Auto-calculate Total Qty for Final stage
@@ -957,7 +982,20 @@ export const RaiseInspectionCallForm = ({
     //   newErrors.desired_inspection_date = 'Date must be within 7 days from today';
     // }
     if (!formData.company_id) newErrors.company_id = 'Company is required';
-    if (!formData.unit_id) newErrors.unit_id = 'Unit is required';
+
+    // For Final inspection, check final_unit_id; for others, check unit_id
+    if (formData.type_of_call === 'Final') {
+      console.log('🔍 Final inspection - checking final_unit_id:', formData.final_unit_id);
+      console.log('🔍 Final inspection - final_unit_name:', formData.final_unit_name);
+      console.log('🔍 Final inspection - final_unit_address:', formData.final_unit_address);
+      if (!formData.final_unit_id) {
+        console.log('❌ final_unit_id is missing!');
+        newErrors.unit_id = 'Unit is required';
+      }
+    } else {
+      console.log('🔍 Non-Final inspection - checking unit_id:', formData.unit_id);
+      if (!formData.unit_id) newErrors.unit_id = 'Unit is required';
+    }
 
     // Raw Material stage validations
     if (formData.type_of_call === 'Raw Material') {
@@ -1046,6 +1084,28 @@ export const RaiseInspectionCallForm = ({
       }
     }
 
+    // Final stage validations
+    if (formData.type_of_call === 'Final') {
+      if (!formData.final_rm_ic_numbers || formData.final_rm_ic_numbers.length === 0) {
+        newErrors.final_rm_ic_numbers = 'At least one RM IC Number is required';
+      }
+      if (!formData.final_process_ic_numbers || formData.final_process_ic_numbers.length === 0) {
+        newErrors.final_process_ic_numbers = 'At least one Process IC Number is required';
+      }
+      if (!formData.final_lot_numbers || formData.final_lot_numbers.length === 0) {
+        newErrors.final_lot_numbers = 'At least one Lot Number is required';
+      }
+      if (!formData.final_erc_qty) {
+        newErrors.final_erc_qty = 'ERC Quantity is required';
+      }
+      if (!formData.final_hdpe_bags) {
+        newErrors.final_hdpe_bags = 'HDPE Bags quantity is required';
+      }
+      if (!formData.final_total_qty) {
+        newErrors.final_total_qty = 'Total Quantity is required';
+      }
+    }
+
     console.log('🔍 Validation errors:', newErrors);
 
     if (Object.keys(newErrors).length > 0) {
@@ -1113,7 +1173,11 @@ export const RaiseInspectionCallForm = ({
         final_total_accepted_qty_process: formData.final_total_accepted_qty_process,
         final_unit_id: formData.final_unit_id,
         final_unit_name: formData.final_unit_name,
-        final_unit_address: formData.final_unit_address
+        final_unit_address: formData.final_unit_address,
+        // Copy Final unit details to general unit fields for validation
+        unit_id: formData.final_unit_id,
+        unit_name: formData.final_unit_name,
+        unit_address: formData.final_unit_address
       };
     }
 

@@ -687,7 +687,55 @@ const VendorDashboardPage = ({ onBack }) => {
         console.log('📦 Transformed Process IC data:', processData);
         response = await inspectionCallService.createProcessInspectionCall(processData);
       } else if (data.type_of_call === 'Final') {
-        response = await inspectionCallService.createFinalInspectionCall(data);
+        // Transform Final IC data to match new backend API structure
+        const finalData = {
+          inspectionCall: {
+            icNumber: `FINAL-IC-${Date.now()}`, // Temporary - backend will generate proper IC number
+            poNo: data.po_no,
+            poSerialNo: data.po_serial_no,
+            typeOfCall: 'Final',
+            ercType: data.type_of_erc || '',
+            status: 'Pending',
+            desiredInspectionDate: data.desired_inspection_date,
+            actualInspectionDate: null,
+            companyId: data.company_id,
+            companyName: data.company_name,
+            unitId: data.unit_id,
+            unitName: data.unit_name,
+            unitAddress: data.unit_address,
+            remarks: data.remarks,
+            createdBy: currentUser.id.toString(),
+            updatedBy: currentUser.id.toString()
+          },
+          finalInspectionDetails: {
+            rmIcNumber: data.final_rm_ic_numbers && data.final_rm_ic_numbers.length > 0
+              ? data.final_rm_ic_numbers[0]
+              : null,
+            processIcNumber: data.final_process_ic_numbers && data.final_process_ic_numbers.length > 0
+              ? data.final_process_ic_numbers[0]
+              : null,
+            companyId: data.company_id,
+            companyName: data.company_name,
+            unitId: data.unit_id,
+            unitName: data.unit_name,
+            unitAddress: data.unit_address,
+            totalLots: data.final_lot_numbers ? data.final_lot_numbers.length : 0,
+            totalOfferedQty: parseInt(data.final_total_qty) || 0
+          },
+          finalLotDetails: data.final_lot_numbers ? data.final_lot_numbers.map(lotNumber => ({
+            lotNumber: lotNumber,
+            heatNumber: data.final_manufacturer_heat ? data.final_manufacturer_heat.split(' - ')[1] : '',
+            manufacturer: data.final_manufacturer_heat ? data.final_manufacturer_heat.split(' - ')[0] : '',
+            manufacturerHeat: data.final_manufacturer_heat || '',
+            offeredQty: Math.floor(parseInt(data.final_total_qty) / data.final_lot_numbers.length) || 0,
+            processIcNumber: data.final_process_ic_numbers && data.final_process_ic_numbers.length > 0
+              ? data.final_process_ic_numbers[0]
+              : null
+          })) : []
+        };
+
+        console.log('📦 Transformed Final IC data:', finalData);
+        response = await inspectionCallService.createFinalInspectionCall(finalData);
       } else {
         throw new Error('Invalid inspection call type');
       }
@@ -1058,11 +1106,11 @@ const VendorDashboardPage = ({ onBack }) => {
       label: 'Calibration & Approval',
       description: 'Instruments, Approvals & Gauges management'
     },
-    {
-      id: 'raise-call',
-      label: 'Raising Inspection Call',
-      description: 'Auto-fetched PO Data & call details'
-    },
+    // {
+    //   id: 'raise-call',
+    //   label: 'Raising Inspection Call',
+    //   description: 'Auto-fetched PO Data & call details'
+    // },
     {
       id: 'payment-module',
       label: 'Payment Details',

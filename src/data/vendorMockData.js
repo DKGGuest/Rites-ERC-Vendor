@@ -974,21 +974,103 @@ export const CHEMICAL_ANALYSIS_HISTORY = [
 
 // Raw Material Inspection Calls (Completed) - for Process stage selection
 export const RM_INSPECTION_CALLS = [
-  { icNumber: 'RM-IC-2025-001', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-001', bookSetNo: 'BS-001', qtyAccepted: 1800, qtyRejected: 200, icDate: '2025-11-18', status: 'Completed' },
-  { icNumber: 'RM-IC-2025-002', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-002', bookSetNo: 'BS-002', qtyAccepted: 3800, qtyRejected: 200, icDate: '2025-11-20', status: 'Completed' },
-  { icNumber: 'RM-IC-2025-003', poSerialNo: 'PO-2025-1002/01', heatNumber: 'HT-2025-003', bookSetNo: 'BS-003', qtyAccepted: 3200, qtyRejected: 300, icDate: '2025-11-22', status: 'Completed' },
-  { icNumber: 'RM-IC-2025-004', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-004', bookSetNo: 'BS-004', qtyAccepted: 4500, qtyRejected: 500, icDate: '2025-11-24', status: 'Completed' }
+  // { icNumber: 'RM-IC-1767597604003', poSerialNo: 'PO-2025-1001/01', heatNumber: 'T844929', bookSetNo: 'BS-001', qtyAccepted: 1800, qtyRejected: 200, icDate: '2025-11-18', status: 'Completed' },
+  // { icNumber: 'RM-IC-1767192239075', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-002', bookSetNo: 'BS-002', qtyAccepted: 3800, qtyRejected: 200, icDate: '2025-11-20', status: 'Completed' },
+  // { icNumber: 'RM-IC-2025-003', poSerialNo: 'PO-2025-1002/01', heatNumber: 'HT-2025-003', bookSetNo: 'BS-003', qtyAccepted: 3200, qtyRejected: 300, icDate: '2025-11-22', status: 'Completed' },
+  // { icNumber: 'RM-IC-2025-004', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-004', bookSetNo: 'BS-004', qtyAccepted: 4500, qtyRejected: 500, icDate: '2025-11-24', status: 'Completed' }  
+  { icNumber: 'RM-IC-1767597604003', poSerialNo: 'PO-2025-1001/01', heatNumber: 'T844929', bookSetNo: 'BS-001', qtyAccepted: 1800, qtyRejected: 200, icDate: '2025-11-18', status: 'Completed' },
+  { icNumber: 'RM-IC-1767604183531', poSerialNo: 'PO-2025-1001/01', heatNumber: '442974', bookSetNo: 'BS-002', qtyAccepted: 3800, qtyRejected: 200, icDate: '2025-11-20', status: 'Completed' },
+  // { icNumber: 'RM-IC-2025-003', poSerialNo: 'PO-2025-1002/01', heatNumber: 'HT-2025-003', bookSetNo: 'BS-003', qtyAccepted: 3200, qtyRejected: 300, icDate: '2025-11-22', status: 'Completed' },
+  // { icNumber: 'RM-IC-2025-004', poSerialNo: 'PO-2025-1001/01', heatNumber: 'HT-2025-004', bookSetNo: 'BS-004', qtyAccepted: 4500, qtyRejected: 500, icDate: '2025-11-24', status: 'Completed' }
 ];
 
 // Process Inspection Calls (Completed) - for Final stage selection
 export const PROCESS_INSPECTION_CALLS = [
-  { icNumber: 'PR-IC-2025-001', poSerialNo: 'PO-2025-1001/01', lotNumber: 'LOT-2025-001', bookSetNo: 'BS-001', qtyAccepted: 1500, qtyRejected: 100, icDate: '2025-11-25', status: 'Completed' },
-  { icNumber: 'PR-IC-2025-002', poSerialNo: 'PO-2025-1001/01', lotNumber: 'LOT-2025-002', bookSetNo: 'BS-002', qtyAccepted: 2000, qtyRejected: 50, icDate: '2025-11-26', status: 'Completed' }
+  {
+    icNumber: 'PROC-IC-2026-0004',
+    poSerialNo: 'PO-2025-1001/01',
+    lotNumber: 'lot 1',
+    bookSetNo: 'BS-001',
+    qtyAccepted: 1500,
+    qtyRejected: 100,
+    icDate: '2025-11-25',
+    status: 'Completed',
+    manufacturerHeat: 'ABC Steel - T844929',
+    unitId: 1,
+    unitName: 'Manufacturing Unit 1',
+    unitAddress: '123 Industrial Area, Mumbai, Maharashtra - 400001',
+    companyId: 1,
+    companyName: 'ABC Manufacturing Pvt Ltd'
+  },
+  {
+    icNumber: 'PROC-IC-2026-0005',
+    poSerialNo: 'PO-2025-1001/01',
+    lotNumber: 'lot2',
+    bookSetNo: 'BS-002',
+    qtyAccepted: 2000,
+    qtyRejected: 50,
+    icDate: '2025-11-26',
+    status: 'Completed',
+    manufacturerHeat: 'ABC Steel - T844929',
+    unitId: 1,
+    unitName: 'Manufacturing Unit 1',
+    unitAddress: '123 Industrial Area, Mumbai, Maharashtra - 400001',
+    companyId: 1,
+    companyName: 'ABC Manufacturing Pvt Ltd'
+  },
+  {
+    icNumber: 'PROC-IC-2026-0006',
+    poSerialNo: 'PO-2025-1001/01',
+    lotNumber: 'lot3',
+    bookSetNo: 'BS-002',
+    qtyAccepted: 2000,
+    qtyRejected: 50,
+    icDate: '2025-11-26',
+    status: 'Completed',
+    manufacturerHeat: 'ABC Steel - 442974',
+    unitId: 1,
+    unitName: 'Manufacturing Unit 1',
+    unitAddress: '123 Industrial Area, Mumbai, Maharashtra - 400001',
+    companyId: 1,
+    companyName: 'ABC Manufacturing Pvt Ltd'
+  }
+  // {
+  //   icNumber: 'PROC-IC-2026-0004',
+  //   poSerialNo: 'PO-2025-1001/01',
+  //   lotNumber: 'lot 1',
+  //   bookSetNo: 'BS-001',
+  //   qtyAccepted: 1500,
+  //   qtyRejected: 100,
+  //   icDate: '2025-11-25',
+  //   status: 'Completed',
+  //   manufacturerHeat: 'ABC Steel - T844929',
+  //   unitId: 1,
+  //   unitName: 'Manufacturing Unit 1',
+  //   unitAddress: '123 Industrial Area, Mumbai, Maharashtra - 400001',
+  //   companyId: 1,
+  //   companyName: 'ABC Manufacturing Pvt Ltd'
+  // },
+  // {
+  //   icNumber: 'PROC-IC-2026-0010',
+  //   poSerialNo: 'PO-2025-1001/01',
+  //   lotNumber: 'lot6',
+  //   bookSetNo: 'BS-002',
+  //   qtyAccepted: 2000,
+  //   qtyRejected: 50,
+  //   icDate: '2025-11-26',
+  //   status: 'Completed',
+  //   manufacturerHeat: 'ABC Steel - 442974',
+  //   unitId: 1,
+  //   unitName: 'Manufacturing Unit 1',
+  //   unitAddress: '123 Industrial Area, Mumbai, Maharashtra - 400001',
+  //   companyId: 1,
+  //   companyName: 'ABC Manufacturing Pvt Ltd'
+  // }
 ];
 
 // Lot Numbers (for Process and Final stages)
 export const LOT_NUMBERS = [
-  { lotNumber: 'LOT-2025-001', rmIcNumber: 'RM-IC-2025-001', qtyAvailable: 1500, status: 'Available' },
+  { lotNumber: 'lot 2', rmIcNumber: 'RM-IC-1767191285774', qtyAvailable: 1500, status: 'Available' },
   { lotNumber: 'LOT-2025-002', rmIcNumber: 'RM-IC-2025-002', qtyAvailable: 2000, status: 'Available' },
   { lotNumber: 'LOT-2025-003', rmIcNumber: 'RM-IC-2025-003', qtyAvailable: 1800, status: 'Partially Used' }
 ];
