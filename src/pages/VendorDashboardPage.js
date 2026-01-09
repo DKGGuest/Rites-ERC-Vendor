@@ -99,6 +99,11 @@ const VendorDashboardPage = ({ onBack }) => {
   const [loadingPOData, setLoadingPOData] = useState(false);
   const [poDataError, setPoDataError] = useState(null);
 
+  // Requested Calls data state - using real API
+  const [requestedCalls, setRequestedCalls] = useState([]);
+  const [loadingRequestedCalls, setLoadingRequestedCalls] = useState(false);
+  const [requestedCallsError, setRequestedCallsError] = useState(null);
+
   // ============ VENDOR WORKFLOW API INTEGRATION ============
   // Initialize the workflow hook for API calls
   const {
@@ -111,7 +116,7 @@ const VendorDashboardPage = ({ onBack }) => {
     // performTransitionAction,
     fetchTransitionHistory,
     // fetchPaymentBlockedTransitions,
-    fetchPendingTransitions,
+    // fetchPendingTransitions, // Commented out - backend endpoint not yet implemented
     clearError,
     // WORKFLOW_ACTIONS
   } = useVendorWorkflow();
@@ -122,7 +127,7 @@ const VendorDashboardPage = ({ onBack }) => {
 
   // Current user context (would be from auth context in production)
   const currentUser = useMemo(() => ({
-    id: 'vendor-user-001',
+    id: ':13104',
     role: 'VENDOR',
     email: 'vendor@example.com'
   }), []);
@@ -237,6 +242,62 @@ const VendorDashboardPage = ({ onBack }) => {
     };
 
     fetchInventoryEntries();
+  }, []); // Fetch on component mount
+
+  // ============ FETCH REQUESTED CALLS DATA ============
+  useEffect(() => {
+    const fetchRequestedCalls = async () => {
+      setLoadingRequestedCalls(true);
+      setRequestedCallsError(null);
+      try {
+        // Use actual vendor ID from currentUser context
+        const vendorId = currentUser?.id?.toString() || '13104';
+        const response = await inspectionCallService.getVendorInspectionCallsWithStatus(vendorId);
+
+        if (response.success && response.data) {
+          // Transform API data to match frontend structure
+          const transformedCalls = response.data.map((call, index) => ({
+            id: index + 1,
+            call_no: call.icNumber || '',
+            po_no: call.poNo || '',
+            item_name: call.itemName || 'N/A',
+            stage: call.typeOfCall || '',
+            call_date: call.desiredInspectionDate || '',
+            quantity_offered: call.quantityOffered || 0,
+            location: call.placeOfInspection || '',
+            status: call.workflowStatus || call.jobStatus || 'Pending',
+            // Additional fields for expanded view
+            inspection_details: {
+              inspector_name: call.currentRoleName || 'N/A',
+              inspection_date: call.desiredInspectionDate || '',
+              remarks: call.nextRoleName ? `Next: ${call.nextRoleName}` : '',
+              documents: []
+            },
+            rectification_details: null,
+            // Workflow information
+            workflowStatus: call.workflowStatus,
+            currentRoleName: call.currentRoleName,
+            nextRoleName: call.nextRoleName,
+            jobStatus: call.jobStatus
+          }));
+
+          setRequestedCalls(transformedCalls);
+          console.log('✅ Loaded requested calls from database:', transformedCalls.length);
+        } else {
+          console.warn('⚠️ Failed to fetch requested calls, using mock data');
+          setRequestedCalls(VENDOR_REQUESTED_CALLS);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching requested calls:', error);
+        setRequestedCallsError(error.message || 'Error fetching requested calls');
+        // Fallback to mock data
+        setRequestedCalls(VENDOR_REQUESTED_CALLS);
+      } finally {
+        setLoadingRequestedCalls(false);
+      }
+    };
+
+    fetchRequestedCalls();
   }, []); // Fetch on component mount
 
   // Filtered payment items based on status and date
@@ -648,13 +709,18 @@ const VendorDashboardPage = ({ onBack }) => {
         response = await inspectionCallService.createRMInspectionCall(data);
       } else if (data.type_of_call === 'Process') {
         // Transform Process IC data to match new backend API structure
+        console.log('🔍 DEBUG: data.type_of_erc =', data.type_of_erc);
+        console.log('🔍 DEBUG: Full data object =', data);
+
         const processData = {
           inspectionCall: {
             icNumber: `PROC-IC-${Date.now()}`, // Temporary - backend will generate proper IC number
             poNo: data.po_no,
             poSerialNo: data.po_serial_no,
             typeOfCall: 'Process',
+            ercType: data.type_of_erc || '',
             status: 'Pending',
+            vendorId: ':13104',
             desiredInspectionDate: data.desired_inspection_date,
             actualInspectionDate: null,
             companyId: data.company_id,
@@ -696,6 +762,7 @@ const VendorDashboardPage = ({ onBack }) => {
             typeOfCall: 'Final',
             ercType: data.type_of_erc || '',
             status: 'Pending',
+            vendorId: ':13104',
             desiredInspectionDate: data.desired_inspection_date,
             actualInspectionDate: null,
             companyId: data.company_id,
@@ -1048,21 +1115,22 @@ const VendorDashboardPage = ({ onBack }) => {
    * Fetch pending transitions for the current user's role
    * Uses allPendingWorkflowtrasition API
    * Note: API returns all for role, then filters by createdBy == userId
+   * COMMENTED OUT: Backend endpoint not yet implemented
    */
-  const handleFetchPendingTransitions = useCallback(async () => {
-    try {
-      await fetchPendingTransitions(currentUser.role, currentUser.id);
-    } catch (error) {
-      console.error('Failed to fetch pending transitions:', error);
-    }
-  }, [fetchPendingTransitions, currentUser]);
+  // const handleFetchPendingTransitions = useCallback(async () => {
+  //   try {
+  //     await fetchPendingTransitions(currentUser.role, currentUser.id);
+  //   } catch (error) {
+  //     console.error('Failed to fetch pending transitions:', error);
+  //   }
+  // }, [fetchPendingTransitions, currentUser]);
 
-  // Fetch pending transitions when requested calls tab is active
-  useEffect(() => {
-    if (activeTab === 'requested-calls') {
-      handleFetchPendingTransitions();
-    }
-  }, [activeTab, handleFetchPendingTransitions]);
+  // // Fetch pending transitions when requested calls tab is active
+  // useEffect(() => {
+  //   if (activeTab === 'requested-calls') {
+  //     handleFetchPendingTransitions();
+  //   }
+  // }, [activeTab, handleFetchPendingTransitions]);
 
   // Summary numbers for tab badges
   const totalPOs = poAssignedList.length;
@@ -1717,6 +1785,16 @@ const VendorDashboardPage = ({ onBack }) => {
                 </div>
               </div>
 
+              {/* Loading and Error States */}
+              {loadingRequestedCalls && (
+                <div className="loading-message">Loading requested calls...</div>
+              )}
+              {requestedCallsError && (
+                <div className="error-message">
+                  Error: {requestedCallsError}. Showing mock data as fallback.
+                </div>
+              )}
+
               {/* Custom Expandable Inspection Calls Table */}
               <div className="data-table-wrapper">
                 <div className="data-table-container">
@@ -1729,7 +1807,7 @@ const VendorDashboardPage = ({ onBack }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {VENDOR_REQUESTED_CALLS.map((call) => (
+                      {requestedCalls.map((call) => (
                         <React.Fragment key={call.id}>
                           {/* Call Row */}
                           <tr

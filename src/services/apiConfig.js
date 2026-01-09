@@ -27,7 +27,7 @@ export const getBaseUrl = () => {
 
 // API Endpoints configuration
 export const API_ENDPOINTS = {
-  // Vendor Workflow APIs
+  // Vendor Workflow APIs - COMMENTED OUT (created by mistake)
   // VENDOR_WORKFLOW: {
   //   INITIATE_WORKFLOW: '/initiateWorkflow',
   //   PERFORM_TRANSITION_ACTION: '/performTransitionAction',
@@ -35,7 +35,7 @@ export const API_ENDPOINTS = {
   //   WORKFLOW_TRANSITIONS_PAYMENT_BLOCKED: '/workflowTransitionsPaymentBlocked',
   //   ALL_PENDING_WORKFLOW_TRANSITION: '/allPendingWorkflowtrasition'
   // },
-  
+
   // Inspection Call APIs
   INSPECTION_CALLS: {
     // Raw Material Inspection

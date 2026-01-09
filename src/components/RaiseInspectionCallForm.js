@@ -973,11 +973,12 @@ export const RaiseInspectionCallForm = ({
     // Common validations
     if (!formData.po_serial_no) newErrors.po_serial_no = 'PO Serial Number is required';
     if (!formData.type_of_call) newErrors.type_of_call = 'Type of Call is required';
+    if (!formData.type_of_erc) newErrors.type_of_erc = 'Type of ERC is required';
     if (!formData.desired_inspection_date) {
       newErrors.desired_inspection_date = 'Desired Inspection Date is required';
     } else if (formData.desired_inspection_date < today) {
       newErrors.desired_inspection_date = 'Date cannot be in the past';
-    } 
+    }
     // else if (formData.desired_inspection_date > maxDate) {
     //   newErrors.desired_inspection_date = 'Date must be within 7 days from today';
     // }
@@ -1116,6 +1117,8 @@ export const RaiseInspectionCallForm = ({
 
     console.log('✅ Validation passed!');
     setErrors({});
+
+    console.log('🔍 DEBUG: formData.type_of_erc =', formData.type_of_erc);
 
     // Filter data based on inspection type - send only relevant fields
     let filteredData = {

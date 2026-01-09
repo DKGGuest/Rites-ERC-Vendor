@@ -433,6 +433,23 @@ const inspectionCallService = {
       console.error('Error fetching vendor inspection calls:', error);
       throw error;
     }
+  },
+
+  /**
+   * Get vendor inspection calls with workflow status
+   * @param {string} vendorId - Vendor ID
+   * @returns {Promise<Object>} - API response with inspection calls and workflow status
+   */
+  getVendorInspectionCallsWithStatus: async (vendorId) => {
+    try {
+      const response = await httpClient.get(
+        `/vendor/inspection-calls/status?vendorId=${vendorId}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching vendor inspection calls with status:', error);
+      throw error;
+    }
   }
 };
 
