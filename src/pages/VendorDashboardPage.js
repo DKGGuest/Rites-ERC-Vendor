@@ -9,6 +9,8 @@ import { RaiseInspectionCallForm } from '../components/RaiseInspectionCallForm';
 import { MasterUpdatingForm } from '../components/MasterUpdatingForm';
 import NewInventoryEntryForm from '../components/NewInventoryEntryForm';
 import AddSubPOForm from '../components/AddSubPOForm';
+import ViewInventoryEntryModal from '../components/ViewInventoryEntryModal';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import {
   // VENDOR_PO_LIST,
   VENDOR_REQUESTED_CALLS,
@@ -92,6 +94,13 @@ const VendorDashboardPage = ({ onBack }) => {
   const [subPOList, setSubPOList] = useState(VENDOR_SUB_PO_LIST);
   // const [inventoryEntries, setInventoryEntries] = useState(VENDOR_INVENTORY_ENTRIES);
   const [inventoryEntries, setInventoryEntries] = useState([]);
+  const [availableHeatNumbers, setAvailableHeatNumbers] = useState([]);
+
+  // Inventory Entry Modal states
+  const [isViewInventoryModalOpen, setIsViewInventoryModalOpen] = useState(false);
+  const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+  const [selectedInventoryEntry, setSelectedInventoryEntry] = useState(null);
+  const [isDeletingEntry, setIsDeletingEntry] = useState(false);
 
 
   // PO Assigned data state - using real API
@@ -237,6 +246,62 @@ const VendorDashboardPage = ({ onBack }) => {
     };
 
     fetchInventoryEntries();
+  }, []); // Fetch on component mount
+
+  // ============ FETCH AVAILABLE HEAT NUMBERS FOR DROPDOWN ============
+  useEffect(() => {
+    const fetchAvailableHeatNumbers = async () => {
+      try {
+        console.log('🔄 Fetching available heat numbers for vendor: 13104');
+
+        // TODO: Replace '13104' with actual vendor code from auth context
+        const response = await inventoryService.getAvailableHeatNumbers('13104');
+
+        console.log('📥 Raw API response:', response);
+
+        if (response.success && response.data) {
+          // Transform backend data to match frontend structure
+          const transformedHeatNumbers = response.data.map(heat => ({
+            heatNumber: heat.heatNumber,
+            tcNumber: heat.tcNumber,
+            rawMaterial: heat.rawMaterial,
+            supplierName: heat.supplierName || 'Unknown Supplier',
+            gradeSpecification: heat.gradeSpecification,
+            qtyLeft: heat.tcQtyRemaining,
+            unit: heat.unitOfMeasurement || 'KG',
+            status: heat.status,
+            isAvailable: heat.isAvailable
+          }));
+
+          setAvailableHeatNumbers(transformedHeatNumbers);
+          console.log('✅ Loaded available heat numbers from database:', transformedHeatNumbers.length);
+          console.log('📊 Available heat numbers:', transformedHeatNumbers);
+
+          // Log each heat number for debugging
+          transformedHeatNumbers.forEach(heat => {
+            console.log(`  - ${heat.heatNumber} (${heat.supplierName}) - Status: ${heat.status}, Available: ${heat.isAvailable}`);
+          });
+
+          // Check if HN12345 is in the list (it shouldn't be)
+          const hasExhausted = transformedHeatNumbers.find(h => h.heatNumber === 'HN12345');
+          if (hasExhausted) {
+            console.error('🚨 ERROR: EXHAUSTED heat number HN12345 found in available list!');
+          } else {
+            console.log('✅ Confirmed: HN12345 (EXHAUSTED) is NOT in the available list');
+          }
+        } else {
+          console.warn('⚠️ Failed to fetch available heat numbers, using empty list');
+          console.warn('⚠️ Response:', response);
+          setAvailableHeatNumbers([]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching available heat numbers:', error);
+        console.error('❌ Error details:', error.message, error.stack);
+        setAvailableHeatNumbers([]);
+      }
+    };
+
+    fetchAvailableHeatNumbers();
   }, []); // Fetch on component mount
 
   // Filtered payment items based on status and date
@@ -872,6 +937,70 @@ const VendorDashboardPage = ({ onBack }) => {
     }
   };
 
+  // ============ INVENTORY ENTRY VIEW/EDIT/DELETE HANDLERS ============
+  const handleViewInventoryEntry = (entry) => {
+    setSelectedInventoryEntry(entry);
+    setIsViewInventoryModalOpen(true);
+  };
+
+  const handleCloseViewInventoryModal = () => {
+    setIsViewInventoryModalOpen(false);
+    setSelectedInventoryEntry(null);
+  };
+
+  const handleEditInventoryEntry = (entry) => {
+    // Close view modal
+    setIsViewInventoryModalOpen(false);
+
+    // TODO: Implement edit functionality
+    // For now, just show an alert
+    alert(`Edit functionality for entry ${entry.heatNumber} will be implemented soon.\n\nThis will open a form pre-filled with the entry data for editing.`);
+    console.log('Edit entry:', entry);
+  };
+
+  const handleDeleteInventoryEntry = (entry) => {
+    // Close view modal and open delete confirmation
+    setIsViewInventoryModalOpen(false);
+    setSelectedInventoryEntry(entry);
+    setIsDeleteConfirmModalOpen(true);
+  };
+
+  const handleCloseDeleteConfirmModal = () => {
+    setIsDeleteConfirmModalOpen(false);
+    setSelectedInventoryEntry(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedInventoryEntry) return;
+
+    setIsDeletingEntry(true);
+
+    try {
+      const response = await inventoryService.deleteInventoryEntry(selectedInventoryEntry.id);
+
+      if (response.success) {
+        // Remove from local state
+        setInventoryEntries(prev => prev.filter(entry => entry.id !== selectedInventoryEntry.id));
+
+        // Close modal
+        setIsDeleteConfirmModalOpen(false);
+        setSelectedInventoryEntry(null);
+
+        // Show success message
+        alert(`✅ Inventory entry deleted successfully!\n\nHeat Number: ${selectedInventoryEntry.heatNumber}\nTC Number: ${selectedInventoryEntry.tcNumber}`);
+
+        console.log('✅ Entry deleted successfully');
+      } else {
+        throw new Error(response.error || 'Failed to delete entry');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting entry:', error);
+      alert(`❌ Failed to delete inventory entry:\n\n${error.message || 'Unknown error occurred'}`);
+    } finally {
+      setIsDeletingEntry(false);
+    }
+  };
+
   const handleSubmitSubPO = async (subPOData) => {
     setIsLoading(true);
     try {
@@ -1320,11 +1449,39 @@ const VendorDashboardPage = ({ onBack }) => {
     { key: 'supplierName', label: 'Supplier' },
     { key: 'gradeSpecification', label: 'Grade/Spec' },
     { key: 'heatNumber', label: 'Heat/Batch/Lot No.' },
-    { key: 'invoiceNumber', label: 'Invoice No.' },
     {
-      key: 'invoiceDate',
-      label: 'Invoice Date',
-      render: (value) => (value ? formatDate(value) : '-')
+      key: 'tcDetails',
+      label: 'TC Details',
+      render: (value, row) => {
+        const tcNumber = row.tcNumber || '';
+        const tcDate = row.tcDate ? formatDate(row.tcDate) : '';
+
+        if (tcNumber && tcDate) {
+          return `${tcNumber} (${tcDate})`;
+        } else if (tcNumber) {
+          return tcNumber;
+        } else if (tcDate) {
+          return tcDate;
+        }
+        return '-';
+      }
+    },
+    {
+      key: 'invoiceDetails',
+      label: 'Invoice Details',
+      render: (value, row) => {
+        const invoiceNumber = row.invoiceNumber || '';
+        const invoiceDate = row.invoiceDate ? formatDate(row.invoiceDate) : '';
+
+        if (invoiceNumber && invoiceDate) {
+          return `${invoiceNumber} (${invoiceDate})`;
+        } else if (invoiceNumber) {
+          return invoiceNumber;
+        } else if (invoiceDate) {
+          return invoiceDate;
+        }
+        return '-';
+      }
     },
     { key: 'subPoNumber', label: 'Sub PO No.' },
     {
@@ -1354,6 +1511,22 @@ const VendorDashboardPage = ({ onBack }) => {
       key: 'status',
       label: 'Status',
       render: (value) => <StatusBadge status={value} />
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (value, row) => (
+        <button
+          className="btn btn-sm btn-primary"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleViewInventoryEntry(row);
+          }}
+          title="View Details"
+        >
+          👁️ View
+        </button>
+      )
     }
   ];
 
@@ -2113,7 +2286,8 @@ const VendorDashboardPage = ({ onBack }) => {
 
               <RaiseInspectionCallForm
                 selectedPO={VENDOR_RAISE_CALL_PO}
-                  inventoryEntries={inventoryEntries}
+                inventoryEntries={inventoryEntries}
+                availableHeatNumbers={availableHeatNumbers}
                 onSubmit={(data) => {
                   // TODO: Replace with API call
                   console.log('Inspection call submitted:', data);
@@ -2407,7 +2581,8 @@ const VendorDashboardPage = ({ onBack }) => {
                 selectedPO={selectedPOItem?.po}
                 selectedItem={selectedPOItem?.item}
                 selectedSubPO={selectedPOItem?.subPO}
-                  inventoryEntries={inventoryEntries}
+                inventoryEntries={inventoryEntries}
+                availableHeatNumbers={availableHeatNumbers}
                 onSubmit={handleSubmitInspectionRequest}
                 isLoading={isLoading}
               />
@@ -2919,6 +3094,28 @@ const VendorDashboardPage = ({ onBack }) => {
           </div>
         </div>
       )}
+
+      {/* View Inventory Entry Modal */}
+      <ViewInventoryEntryModal
+        isOpen={isViewInventoryModalOpen}
+        onClose={handleCloseViewInventoryModal}
+        entryId={selectedInventoryEntry?.id}
+        onEdit={handleEditInventoryEntry}
+        onDelete={handleDeleteInventoryEntry}
+        onRefresh={() => {
+          // Refresh inventory list after successful operations
+          console.log('Refreshing inventory list...');
+        }}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteConfirmModalOpen}
+        onClose={handleCloseDeleteConfirmModal}
+        onConfirm={handleConfirmDelete}
+        entry={selectedInventoryEntry}
+        isDeleting={isDeletingEntry}
+      />
     </div>
   );
 };

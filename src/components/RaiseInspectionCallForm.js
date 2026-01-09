@@ -328,6 +328,7 @@ const getInitialFormState = (selectedPO = null) => {
 
 export const RaiseInspectionCallForm = ({
   inventoryEntries = [],
+  availableHeatNumbers = [],
   selectedPO = null,
   selectedItem = null,
   selectedSubPO = null,
@@ -556,23 +557,61 @@ export const RaiseInspectionCallForm = ({
     }
   }, [formData.rm_heat_tc_mapping, formData.type_of_call, calculateErcFromMt]);
 
-  // Get available heat numbers from inventory (only Fresh or Inspection Requested status)
-  const availableHeatNumbers = useMemo(() => {
-    return inventoryEntries
-      .filter(entry =>
-        entry.status === 'Fresh' ||
-        entry.status === 'Inspection Requested' ||
-        entry.qtyLeftForInspection > 0
-      )
+  // Use availableHeatNumbers from props (fetched from /api/vendor/available-heat-numbers/{vendorCode})
+  // This endpoint returns only heat numbers with:
+  // - Remaining quantity > 0
+  // - Status != EXHAUSTED
+  //
+  // Note: UNDER_INSPECTION, ACCEPTED, and REJECTED entries are still available for selection.
+  // Only EXHAUSTED entries are filtered out at the backend level.
+
+  // If availableHeatNumbers prop is empty, fall back to filtering inventoryEntries (for backward compatibility)
+  const heatNumbersForDropdown = useMemo(() => {
+    if (availableHeatNumbers && availableHeatNumbers.length > 0) {
+      console.log('✅ Using availableHeatNumbers from API:', availableHeatNumbers.length);
+      console.log('📊 Available heat numbers:', availableHeatNumbers);
+      return availableHeatNumbers;
+    }
+
+    // Fallback: filter from inventoryEntries
+    // IMPORTANT: Only exclude EXHAUSTED entries. All other statuses are available.
+    console.log('⚠️ Falling back to filtering inventoryEntries');
+    console.warn('⚠️ API call may have failed - using fallback filtering logic');
+
+    const filtered = inventoryEntries
+      .filter(entry => {
+        // Explicitly exclude EXHAUSTED status only
+        if (entry.status === 'EXHAUSTED' || entry.status === 'Exhausted') {
+          console.log(`🚫 Filtering out EXHAUSTED entry: ${entry.heatNumber}`);
+          return false;
+        }
+
+        // Include all other statuses (FRESH_PO, UNDER_INSPECTION, ACCEPTED, REJECTED)
+        // as long as there's remaining quantity
+        const hasQuantity = entry.qtyLeftForInspection > 0;
+
+        if (hasQuantity) {
+          console.log(`✅ Including entry: ${entry.heatNumber} (Status: ${entry.status}, Qty: ${entry.qtyLeftForInspection})`);
+        } else {
+          console.log(`⚠️ Excluding entry (no quantity): ${entry.heatNumber} (Status: ${entry.status})`);
+        }
+
+        return hasQuantity;
+      })
       .map(entry => ({
         heatNumber: entry.heatNumber,
         tcNumber: entry.tcNumber,
         rawMaterial: entry.rawMaterial,
         supplierName: entry.supplierName,
         qtyLeft: entry.qtyLeftForInspection,
-        unit: entry.unitOfMeasurement
+        unit: entry.unitOfMeasurement,
+        status: entry.status // Include status for debugging
       }));
-  }, [inventoryEntries]);
+
+    console.log(`📊 Fallback filtered ${filtered.length} available heat numbers from ${inventoryEntries.length} total entries`);
+    console.log(`📋 Included statuses: FRESH_PO, UNDER_INSPECTION, ACCEPTED, REJECTED (excluding EXHAUSTED)`);
+    return filtered;
+  }, [availableHeatNumbers, inventoryEntries]);
 
   // Get available TC numbers for a specific heat number
   const getAvailableTcNumbers = useCallback((heatNumber) => {
@@ -907,7 +946,7 @@ export const RaiseInspectionCallForm = ({
                 subPoDate: inventoryEntry.subPoDate || '',
                 subPoQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
                 subPoTotalValue: `₹${totalValue}`,
-                tcQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
+                tcQty: `${inventoryEntry.declaredQuantity} ${inventoryEntry.unitOfMeasurement}`,
                 tcQtyRemaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`,
                 maxQty: inventoryEntry.qtyLeftForInspection,
                 unit: inventoryEntry.unitOfMeasurement,
@@ -1453,9 +1492,9 @@ export const RaiseInspectionCallForm = ({
                         onChange={(e) => handleHeatNumberChange(heatMapping.id, e.target.value)}
                       >
                         <option value="">-- Select Heat Number --</option>
-                        {availableHeatNumbers.map(heat => (
+                        {heatNumbersForDropdown.map(heat => (
                           <option key={heat.heatNumber} value={heat.heatNumber}>
-                            {heat.heatNumber} -  ({heat.supplierName}) 
+                            {heat.heatNumber} -  ({heat.supplierName})
                           </option>
                         ))}
                       </select>
