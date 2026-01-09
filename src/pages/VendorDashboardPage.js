@@ -298,7 +298,7 @@ const VendorDashboardPage = ({ onBack }) => {
     };
 
     fetchRequestedCalls();
-  }, []); // Fetch on component mount
+  }, [currentUser?.id]); // Fetch on component mount or when user ID changes
 
   // Filtered payment items based on status and date
   const filteredPaymentItems = useMemo(() => {
