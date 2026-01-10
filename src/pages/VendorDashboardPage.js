@@ -729,8 +729,8 @@ const VendorDashboardPage = ({ onBack }) => {
             unitName: data.unit_name,
             unitAddress: data.unit_address,
             remarks: data.remarks,
-            createdBy: currentUser.id.toString(),
-            updatedBy: currentUser.id.toString()
+            createdBy: '3', // Fixed value for Process inspection calls
+            updatedBy: '3'  // Fixed value for Process inspection calls
           },
           processInspectionDetails: data.process_lot_heat_mapping.map(lotHeat => ({
             rmIcNumber: data.process_rm_ic_numbers && data.process_rm_ic_numbers.length > 0
@@ -771,8 +771,8 @@ const VendorDashboardPage = ({ onBack }) => {
             unitName: data.unit_name,
             unitAddress: data.unit_address,
             remarks: data.remarks,
-            createdBy: currentUser.id.toString(),
-            updatedBy: currentUser.id.toString()
+            createdBy: '3', // Fixed value for Final inspection calls
+            updatedBy: '3'  // Fixed value for Final inspection calls
           },
           finalInspectionDetails: {
             rmIcNumber: data.final_rm_ic_numbers && data.final_rm_ic_numbers.length > 0
