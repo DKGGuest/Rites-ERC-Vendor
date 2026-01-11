@@ -94,7 +94,7 @@ const VendorDashboardPage = ({ onBack }) => {
   const [subPOList, setSubPOList] = useState(VENDOR_SUB_PO_LIST);
   // const [inventoryEntries, setInventoryEntries] = useState(VENDOR_INVENTORY_ENTRIES);
   const [inventoryEntries, setInventoryEntries] = useState([]);
-  const [availableHeatNumbers, setAvailableHeatNumbers] = useState([]);
+  const [availableHeatNumbers] = useState([]); // Used in RaiseInspectionCallForm props
 
   // Inventory Entry Modal states
   const [isViewInventoryModalOpen, setIsViewInventoryModalOpen] = useState(false);

@@ -22,20 +22,13 @@ const ViewInventoryEntryModal = ({ isOpen, onClose, entryId, onEdit, onDelete, o
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch entry details when modal opens
-  useEffect(() => {
-    if (isOpen && entryId) {
-      fetchEntryDetails();
-    }
-  }, [isOpen, entryId]);
-
   const fetchEntryDetails = async () => {
     setLoading(true);
     setError(null);
 
     try {
       const response = await inventoryService.getInventoryEntryById(entryId);
-      
+
       if (response.success) {
         setEntry(response.data);
       } else {
@@ -48,6 +41,14 @@ const ViewInventoryEntryModal = ({ isOpen, onClose, entryId, onEdit, onDelete, o
       setLoading(false);
     }
   };
+
+  // Fetch entry details when modal opens
+  useEffect(() => {
+    if (isOpen && entryId) {
+      fetchEntryDetails();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, entryId]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
