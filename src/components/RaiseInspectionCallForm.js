@@ -16,7 +16,7 @@ import {
   // VENDOR_INVENTORY_ENTRIES, // Import inventory data
   // VENDOR_PO_LIST
 } from '../data/vendorMockData';
-// import inspectionCallService from '../services/inspectionCallService';
+import inspectionCallService from '../services/inspectionCallService';
 import '../styles/raiseInspectionCall.css';
 
 // Multi-Select Dropdown Component
@@ -86,59 +86,9 @@ const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder })
 };
 
 // ============================================================
-// MOCK DATA FOR TESTING PROCESS IC (TEMPORARY)
+// MOCK DATA FOR TESTING PROCESS IC (REMOVED - NOW USING REAL API)
 // ============================================================
-const MOCK_APPROVED_RM_ICS = [
-  {
-    id: 1,
-    ic_number: 'RM-IC-2025-0001',
-    po_no: 'PO-2025-1001',
-    po_serial_no: '01',
-    heat_numbers: 'HT-2025-001, HT-2025-002',
-    offered_qty_erc: 135000,
-    manufacturer: 'ABC Steel Industries'
-  },
-  {
-    id: 2,
-    ic_number: 'RM-IC-2025-0002',
-    po_no: 'PO-2025-1001',
-    po_serial_no: '01',
-    heat_numbers: 'HT-2025-003, HT-2025-004',
-    offered_qty_erc: 180000,
-    manufacturer: 'XYZ Steel Corp'
-  }
-];
-
-const MOCK_HEAT_NUMBERS = {
-  'RM-IC-2025-0001': [
-    {
-      heat_number: 'HT-2025-001',
-      manufacturer: 'ABC Steel Industries',
-      qty_accepted_mt: 75.00,
-      qty_accepted: 67500
-    },
-    {
-      heat_number: 'HT-2025-002',
-      manufacturer: 'ABC Steel Industries',
-      qty_accepted_mt: 75.00,
-      qty_accepted: 67500
-    }
-  ],
-  'RM-IC-2025-0002': [
-    {
-      heat_number: 'HT-2025-003',
-      manufacturer: 'XYZ Steel Corp',
-      qty_accepted_mt: 100.00,
-      qty_accepted: 90000
-    },
-    {
-      heat_number: 'HT-2025-004',
-      manufacturer: 'XYZ Steel Corp',
-      qty_accepted_mt: 100.00,
-      qty_accepted: 90000
-    }
-  ]
-};
+// Mock data removed as we're now fetching real data from the backend API
 
 // Mock RM IC data
 // const MOCK_RM_INSPECTION_CALLS = [
@@ -328,6 +278,7 @@ const getInitialFormState = (selectedPO = null) => {
 
 export const RaiseInspectionCallForm = ({
   inventoryEntries = [],
+  availableHeatNumbers = [],
   selectedPO = null,
   selectedItem = null,
   selectedSubPO = null,
@@ -404,89 +355,73 @@ export const RaiseInspectionCallForm = ({
   //   return HEAT_TC_MAPPING.filter(h => h.qtyAvailable > 0);
   // }, []);
 
-  // Fetch approved RM ICs when PO number changes and type is Process
+  // Fetch completed RM ICs (ER numbers) when call type is Process
   useEffect(() => {
-    const fetchApprovedRMICs = async () => {
-      if (formData.type_of_call === 'Process' && formData.po_no) {
+    const fetchCompletedRMICs = async () => {
+      if (formData.type_of_call === 'Process') {
         setLoadingRMICs(true);
 
-        // ⚡ USING MOCK DATA FOR TESTING - Remove this block when database is ready
-        setTimeout(() => {
-          console.log('🔍 Using MOCK approved RM ICs for PO:', formData.po_no);
-          const mockData = MOCK_APPROVED_RM_ICS.filter(
-            ic => ic.po_no === formData.po_no && ic.po_serial_no === formData.po_serial_no
-          );
-          console.log('✅ Setting MOCK approved RM ICs:', mockData);
-          setApprovedRMICsForProcess(mockData);
-          setLoadingRMICs(false);
-        }, 500); // Simulate API delay
-
-        /*
-        // 🔄 UNCOMMENT THIS WHEN DATABASE IS READY
         try {
-          console.log('🔍 Fetching approved RM ICs for PO:', formData.po_no, formData.po_serial_no);
-          const response = await inspectionCallService.getApprovedRMInspectionCalls(
-            formData.po_no,
-            formData.po_serial_no
-          );
-          console.log('📦 Approved RM ICs response:', response);
-          if (response.success) {
-            const data = Array.isArray(response.data) ? response.data : [];
-            console.log('✅ Setting approved RM ICs:', data);
-            setApprovedRMICsForProcess(data);
+          console.log('🔍 Fetching completed RM ICs (ER numbers) from inspection_complete_details');
+          const response = await inspectionCallService.getCompletedRmIcNumbers();
+          console.log('📦 Completed ER numbers response:', response);
+
+          if (response && response.data) {
+            // Response.data should be an array of ER numbers (strings)
+            const erNumbers = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting completed ER numbers:', erNumbers);
+
+            // Convert to the format expected by the dropdown
+            const formattedData = erNumbers.map(erNumber => ({
+              ic_number: erNumber,
+              label: erNumber
+            }));
+            setApprovedRMICsForProcess(formattedData);
           } else {
             console.log('⚠️ Response not successful, setting empty array');
             setApprovedRMICsForProcess([]);
           }
         } catch (error) {
-          console.error('❌ Error fetching approved RM ICs:', error);
+          console.error('❌ Error fetching completed ER numbers:', error);
           setApprovedRMICsForProcess([]);
         } finally {
           setLoadingRMICs(false);
         }
-        */
       } else {
         // Reset when not Process type
         setApprovedRMICsForProcess([]);
       }
     };
 
-    fetchApprovedRMICs();
-  }, [formData.type_of_call, formData.po_no, formData.po_serial_no]);
+    fetchCompletedRMICs();
+  }, [formData.type_of_call]);
 
-  // Fetch heat numbers when RM IC is selected
+  // Fetch heat numbers when ER number is selected
   useEffect(() => {
     const fetchHeatNumbers = async () => {
       if (formData.type_of_call === 'Process' && formData.process_rm_ic_numbers && formData.process_rm_ic_numbers.length > 0) {
         setLoadingHeats(true);
 
-        // ⚡ USING MOCK DATA FOR TESTING - Remove this block when database is ready
-        setTimeout(() => {
-          const rmIcNumber = formData.process_rm_ic_numbers[0]; // Get first selected RM IC
-          console.log('🔍 Using MOCK heat numbers for RM IC:', rmIcNumber);
-          const mockHeats = MOCK_HEAT_NUMBERS[rmIcNumber] || [];
-          console.log('✅ Setting MOCK heat numbers:', mockHeats);
-          setProcessHeatNumbers(mockHeats);
-          setLoadingHeats(false);
-        }, 300); // Simulate API delay
-
-        /*
-        // 🔄 UNCOMMENT THIS WHEN DATABASE IS READY
         try {
-          const rmIcNumber = formData.process_rm_ic_numbers[0]; // Get first selected RM IC
-          const response = await inspectionCallService.getHeatNumbersFromRMIC(rmIcNumber);
-          if (response.success) {
-            setProcessHeatNumbers(Array.isArray(response.data) ? response.data : []);
+          const erNumber = formData.process_rm_ic_numbers[0]; // Get first selected ER number
+          console.log('🔍 Fetching heat numbers for ER number:', erNumber);
+          const response = await inspectionCallService.getHeatNumbersByRmIcNumber(erNumber);
+          console.log('📦 Heat numbers response:', response);
+
+          if (response && response.data) {
+            const heatData = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting heat numbers:', heatData);
+            setProcessHeatNumbers(heatData);
           } else {
+            console.log('⚠️ Response not successful, setting empty array');
             setProcessHeatNumbers([]);
           }
         } catch (error) {
-          console.error('Error fetching heat numbers:', error);
+          console.error('❌ Error fetching heat numbers:', error);
           setProcessHeatNumbers([]);
         } finally {
           setLoadingHeats(false);
         }
-        */
       } else {
         setProcessHeatNumbers([]);
       }
@@ -556,23 +491,61 @@ export const RaiseInspectionCallForm = ({
     }
   }, [formData.rm_heat_tc_mapping, formData.type_of_call, calculateErcFromMt]);
 
-  // Get available heat numbers from inventory (only Fresh or Inspection Requested status)
-  const availableHeatNumbers = useMemo(() => {
-    return inventoryEntries
-      .filter(entry =>
-        entry.status === 'Fresh' ||
-        entry.status === 'Inspection Requested' ||
-        entry.qtyLeftForInspection > 0
-      )
+  // Use availableHeatNumbers from props (fetched from /api/vendor/available-heat-numbers/{vendorCode})
+  // This endpoint returns only heat numbers with:
+  // - Remaining quantity > 0
+  // - Status != EXHAUSTED
+  //
+  // Note: UNDER_INSPECTION, ACCEPTED, and REJECTED entries are still available for selection.
+  // Only EXHAUSTED entries are filtered out at the backend level.
+
+  // If availableHeatNumbers prop is empty, fall back to filtering inventoryEntries (for backward compatibility)
+  const heatNumbersForDropdown = useMemo(() => {
+    if (availableHeatNumbers && availableHeatNumbers.length > 0) {
+      console.log('✅ Using availableHeatNumbers from API:', availableHeatNumbers.length);
+      console.log('📊 Available heat numbers:', availableHeatNumbers);
+      return availableHeatNumbers;
+    }
+
+    // Fallback: filter from inventoryEntries
+    // IMPORTANT: Only exclude EXHAUSTED entries. All other statuses are available.
+    console.log('⚠️ Falling back to filtering inventoryEntries');
+    console.warn('⚠️ API call may have failed - using fallback filtering logic');
+
+    const filtered = inventoryEntries
+      .filter(entry => {
+        // Explicitly exclude EXHAUSTED status only
+        if (entry.status === 'EXHAUSTED' || entry.status === 'Exhausted') {
+          console.log(`🚫 Filtering out EXHAUSTED entry: ${entry.heatNumber}`);
+          return false;
+        }
+
+        // Include all other statuses (FRESH_PO, UNDER_INSPECTION, ACCEPTED, REJECTED)
+        // as long as there's remaining quantity
+        const hasQuantity = entry.qtyLeftForInspection > 0;
+
+        if (hasQuantity) {
+          console.log(`✅ Including entry: ${entry.heatNumber} (Status: ${entry.status}, Qty: ${entry.qtyLeftForInspection})`);
+        } else {
+          console.log(`⚠️ Excluding entry (no quantity): ${entry.heatNumber} (Status: ${entry.status})`);
+        }
+
+        return hasQuantity;
+      })
       .map(entry => ({
         heatNumber: entry.heatNumber,
         tcNumber: entry.tcNumber,
         rawMaterial: entry.rawMaterial,
         supplierName: entry.supplierName,
         qtyLeft: entry.qtyLeftForInspection,
-        unit: entry.unitOfMeasurement
+        unit: entry.unitOfMeasurement,
+        status: entry.status // Include status for debugging
       }));
-  }, [inventoryEntries]);
+
+    console.log(`📊 Fallback filtered ${filtered.length} available heat numbers from ${inventoryEntries.length} total entries`);
+    console.log(`📋 Included statuses: FRESH_PO, UNDER_INSPECTION, ACCEPTED, REJECTED (excluding EXHAUSTED)`);
+    return filtered;
+  }, [availableHeatNumbers, inventoryEntries]);
 
   // Get available TC numbers for a specific heat number
   const getAvailableTcNumbers = useCallback((heatNumber) => {
@@ -907,7 +880,7 @@ export const RaiseInspectionCallForm = ({
                 subPoDate: inventoryEntry.subPoDate || '',
                 subPoQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
                 subPoTotalValue: `₹${totalValue}`,
-                tcQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
+                tcQty: `${inventoryEntry.declaredQuantity} ${inventoryEntry.unitOfMeasurement}`,
                 tcQtyRemaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`,
                 maxQty: inventoryEntry.qtyLeftForInspection,
                 unit: inventoryEntry.unitOfMeasurement,
@@ -1456,9 +1429,9 @@ export const RaiseInspectionCallForm = ({
                         onChange={(e) => handleHeatNumberChange(heatMapping.id, e.target.value)}
                       >
                         <option value="">-- Select Heat Number --</option>
-                        {availableHeatNumbers.map(heat => (
+                        {heatNumbersForDropdown.map(heat => (
                           <option key={heat.heatNumber} value={heat.heatNumber}>
-                            {heat.heatNumber} -  ({heat.supplierName}) 
+                            {heat.heatNumber} -  ({heat.supplierName})
                           </option>
                         ))}
                       </select>
@@ -1764,23 +1737,17 @@ export const RaiseInspectionCallForm = ({
                   label="RM IC Numbers"
                   name="process_rm_ic_numbers"
                   required
-                  hint="Select approved RM IC for this PO (Hardcoded for testing)"
+                  hint={loadingRMICs ? "Loading completed RM ICs..." : "Select ER number (Examination Report) for completed RM inspections"}
                   fullWidth
                 >
                   <MultiSelectDropdown
-                    options={[
-                      { value: 'RM-IC-1767597604003', label: 'RM-IC-1767597604003 ' },
-                      { value: 'RM-IC-1767603751862', label: 'RM-IC-1767603751862' },
-                      { value: 'RM-IC-1767604183531', label: 'RM-IC-1767604183531' },  
-                      { value: 'RM-IC-1767604882477', label: 'RM-IC-1767604882477' }
-                      // { value: 'RM-IC-1767191285774', label: 'RM-IC-1767191285774 ' },
-                      // { value: 'RM-IC-1767192239075', label: 'RM-IC-1767192239075' },
-                      // { value: 'RM-IC-1767352141920', label: 'RM-IC-1767352141920' },  
-                      // { value: 'RM-IC-1767425631624', label: 'RM-IC-1767425631624' }
-                    ]}
+                    options={approvedRMICsForProcess.map(ic => ({
+                      value: ic.ic_number,
+                      label: ic.ic_number
+                    }))}
                     selectedValues={formData.process_rm_ic_numbers}
                     onChange={(selectedValues) => handleRmIcSelection(selectedValues)}
-                    placeholder="Select RM IC Numbers"
+                    placeholder={loadingRMICs ? "Loading..." : "Select ER Numbers"}
                   />
                   {formData.process_rm_ic_numbers.length > 0 && (
                     <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
@@ -1899,37 +1866,36 @@ export const RaiseInspectionCallForm = ({
                         label="Heat Number"
                         name={`process_heat_number_${lotHeat.id}`}
                         required
-                        hint="Select heat number from approved RM IC (Hardcoded for testing)"
+                        hint={loadingHeats ? "Loading heat numbers..." : "Select heat number from selected ER (linked to RM IC)"}
                       >
                         <select
                           className="ric-form-select"
                           value={lotHeat.heatNumber}
                           onChange={(e) => {
                             const heatValue = e.target.value;
-                            // Hardcoded heat data for testing // "T844929" "25-8899" "T844929" "khigtu1234"
-                            const hardcodedHeats = {
-                              '442974': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
-                              'T844929': { manufacturer: 'ABC Steel Industries', qty_accepted: 67500 },
-                              'H844927': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 },
-                              'J844927': { manufacturer: 'XYZ Steel Corp', qty_accepted: 90000 }
-                            };
-                            const selectedHeat = hardcodedHeats[heatValue];
+                            // Find the selected heat from the fetched data
+                            const selectedHeat = processHeatNumbers.find(h => h.heatNumber === heatValue);
                             if (selectedHeat) {
                               handleProcessManufacturerHeatChange(
                                 lotHeat.id,
                                 `${selectedHeat.manufacturer} - ${heatValue}`,
                                 heatValue,
                                 selectedHeat.manufacturer,
-                                selectedHeat.qty_accepted
+                                selectedHeat.qtyAccepted || 0
                               );
                             }
                           }}
+                          disabled={loadingHeats || processHeatNumbers.length === 0}
                         >
-                          <option value="">Select Heat Number</option>
-                          <option value="442974">ABC Steel Industries - HT-2025-001 (Accepted: 67500 ERCs)</option>
-                          <option value="T844929">JSPL - HT-2025-002 (Accepted: 67500 ERCs)</option>
-                          <option value="H844927">TATA STEEL - HT-2025-003 (Accepted: 90000 ERCs)</option>
-                          <option value="J844927">XYZ Steel Corp - HT-2025-004 (Accepted: 90000 ERCs)</option>
+                          <option value="">
+                            {loadingHeats ? "Loading..." : processHeatNumbers.length === 0 ? "Select RM IC first" : "Select Heat Number"}
+                          </option>
+                          {processHeatNumbers.map((heat) => (
+                            <option key={heat.id} value={heat.heatNumber}>
+                              {heat.heatNumber}
+                              {/* {heat.manufacturer} - {heat.heatNumber} (Accepted: {heat.qtyAccepted || 'N/A'}) */}
+                            </option>
+                          ))}
                         </select>
                       </FormField>
 
