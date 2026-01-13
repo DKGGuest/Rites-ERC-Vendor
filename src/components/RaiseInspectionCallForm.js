@@ -149,16 +149,31 @@ const ERC_TYPES = [
 ];
 
 // Form field component - MOVED OUTSIDE to prevent re-creation on every render
-const FormField = ({ label, name, required, hint, children, fullWidth = false, errors = {} }) => (
-  <div className={`ric-form-group ${fullWidth ? 'ric-form-group--full-width' : ''}`}>
-    <label className="ric-form-label">
-      {label} {required && <span className="ric-required">*</span>}
-    </label>
-    {children}
-    {hint && <span className="ric-form-hint">{hint}</span>}
-    {errors[name] && <span className="ric-form-error">{errors[name]}</span>}
-  </div>
-);
+const FormField = ({ label, name, required, hint, children, fullWidth = false, errors = {} }) => {
+  const hasError = errors[name];
+
+  // Clone children and add error class if there's an error
+  const childrenWithError = hasError && children?.props?.className
+    ? {
+        ...children,
+        props: {
+          ...children.props,
+          className: `${children.props.className} error`
+        }
+      }
+    : children;
+
+  return (
+    <div className={`ric-form-group ${fullWidth ? 'ric-form-group--full-width' : ''} ${hasError ? 'has-error' : ''}`}>
+      <label className="ric-form-label">
+        {label} {required && <span className="ric-required">*</span>}
+      </label>
+      {childrenWithError}
+      {hint && !hasError && <span className="ric-form-hint">{hint}</span>}
+      {hasError && <span className="ric-form-error">⚠️ {errors[name]}</span>}
+    </div>
+  );
+};
 
 // Section header component - MOVED OUTSIDE to prevent re-creation on every render
 const SectionHeader = ({ title, subtitle }) => (
@@ -455,6 +470,34 @@ export const RaiseInspectionCallForm = ({
   const calculateErcFromMt = useCallback((mtQty, productType = 'ERC MK-III') => {
     const factor = ERC_CONVERSION_FACTORS[productType] || ERC_CONVERSION_FACTORS.default;
     return Math.floor((mtQty / factor) * 1000);
+  }, []);
+
+  // Calculate maximum ERC that can be manufactured from a specific heat-TC mapping
+  const calculateMaxErcForHeat = useCallback((offeredQty, ercType) => {
+    if (!offeredQty || !ercType) return 0;
+
+    const qty = parseFloat(offeredQty);
+    if (isNaN(qty) || qty <= 0) return 0;
+
+    let maxErc = 0;
+    if (ercType === 'MK-III') {
+      // Formula: (offeredQty * 1000) / 0.937
+      maxErc = (qty * 1000) / 0.937;
+    } else if (ercType === 'MK-V') {
+      // Formula: (offeredQty * 1000) / 1.17
+      maxErc = (qty * 1000) / 1.17;
+    } else if (ercType === 'J-Type') {
+      // Use default conversion factor for J-Type
+      maxErc = (qty * 1000) / 1.100;
+    }
+
+    return Math.floor(maxErc);
+  }, []);
+
+  // Format number with thousand separators
+  const formatNumber = useCallback((num) => {
+    if (!num || isNaN(num)) return '0';
+    return num.toLocaleString('en-IN');
   }, []);
 
   // Calculate remaining quantity for each stage
@@ -944,9 +987,18 @@ export const RaiseInspectionCallForm = ({
     // const maxDate = getMaxDate();
 
     // Common validations
-    if (!formData.po_serial_no) newErrors.po_serial_no = 'PO Serial Number is required';
-    if (!formData.type_of_call) newErrors.type_of_call = 'Type of Call is required';
-    if (!formData.type_of_erc) newErrors.type_of_erc = 'Type of ERC is required';
+    if (!formData.po_serial_no) {
+      newErrors.po_serial_no = 'PO Serial Number is required';
+    }
+
+    if (!formData.type_of_call) {
+      newErrors.type_of_call = 'Type of Call is required';
+    }
+
+    if (!formData.type_of_erc) {
+      newErrors.type_of_erc = 'Type of ERC is required';
+    }
+
     if (!formData.desired_inspection_date) {
       newErrors.desired_inspection_date = 'Desired Inspection Date is required';
     } else if (formData.desired_inspection_date < today) {
@@ -955,7 +1007,10 @@ export const RaiseInspectionCallForm = ({
     // else if (formData.desired_inspection_date > maxDate) {
     //   newErrors.desired_inspection_date = 'Date must be within 7 days from today';
     // }
-    if (!formData.company_id) newErrors.company_id = 'Company is required';
+
+    if (!formData.company_id) {
+      newErrors.company_id = 'Company is required';
+    }
 
     // For Final inspection, check final_unit_id; for others, check unit_id
     if (formData.type_of_call === 'Final') {
@@ -968,7 +1023,9 @@ export const RaiseInspectionCallForm = ({
       }
     } else {
       console.log('🔍 Non-Final inspection - checking unit_id:', formData.unit_id);
-      if (!formData.unit_id) newErrors.unit_id = 'Unit is required';
+      if (!formData.unit_id) {
+        newErrors.unit_id = 'Unit is required';
+      }
     }
 
     // Raw Material stage validations
@@ -1058,6 +1115,38 @@ export const RaiseInspectionCallForm = ({
       }
     }
 
+    // Process stage validations
+    if (formData.type_of_call === 'Process') {
+      // Check if RM IC numbers are selected
+      if (!formData.process_rm_ic_numbers || formData.process_rm_ic_numbers.length === 0) {
+        newErrors.process_rm_ic_numbers = 'At least one RM IC Number (ER Number) is required';
+      }
+
+      // Check if lot-heat mappings are provided
+      const hasLotHeatData = formData.process_lot_heat_mapping.some(item =>
+        item.lotNumber || item.manufacturerHeat || item.offeredQty
+      );
+
+      if (hasLotHeatData) {
+        // Validate each lot-heat mapping
+        formData.process_lot_heat_mapping.forEach((item, index) => {
+          if (item.lotNumber || item.manufacturerHeat || item.offeredQty) {
+            if (!item.lotNumber) {
+              newErrors[`process_lot_${index}_lotNumber`] = `Lot Number is required for entry ${index + 1}`;
+            }
+            if (!item.manufacturerHeat) {
+              newErrors[`process_lot_${index}_manufacturerHeat`] = `Manufacturer-Heat is required for entry ${index + 1}`;
+            }
+            if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
+              newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
+            }
+          }
+        });
+      } else {
+        newErrors.process_lot_heat_mapping = 'At least one Lot-Heat mapping is required';
+      }
+    }
+
     // Final stage validations
     if (formData.type_of_call === 'Final') {
       if (!formData.final_rm_ic_numbers || formData.final_rm_ic_numbers.length === 0) {
@@ -1085,6 +1174,31 @@ export const RaiseInspectionCallForm = ({
     if (Object.keys(newErrors).length > 0) {
       console.log('❌ Validation failed!', newErrors);
       setErrors(newErrors);
+
+      // Scroll to the first error field
+      const firstErrorField = Object.keys(newErrors)[0];
+      const errorElement = document.querySelector(`[name="${firstErrorField}"]`) ||
+                          document.querySelector(`.ric-form-error`);
+
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Focus on the field if it's an input
+        if (errorElement.tagName === 'INPUT' || errorElement.tagName === 'SELECT' || errorElement.tagName === 'TEXTAREA') {
+          setTimeout(() => errorElement.focus(), 300);
+        }
+      }
+
+      // Show validation summary alert
+      const errorCount = Object.keys(newErrors).length;
+      const errorMessages = Object.entries(newErrors)
+        .slice(0, 5) // Show first 5 errors
+        .map(([field, message]) => `• ${message}`)
+        .join('\n');
+
+      const additionalErrors = errorCount > 5 ? `\n... and ${errorCount - 5} more errors` : '';
+
+      alert(`❌ Form Validation Failed\n\nPlease fix the following errors:\n\n${errorMessages}${additionalErrors}\n\nThe form has been scrolled to the first error.`);
+
       return;
     }
 
@@ -1169,6 +1283,45 @@ export const RaiseInspectionCallForm = ({
 
   return (
     <div className="ric-form">
+      {/* ============ VALIDATION ERROR SUMMARY ============ */}
+      {Object.keys(errors).length > 0 && (
+        <div className="ric-validation-summary">
+          <div className="ric-validation-summary__header">
+            <span className="ric-validation-summary__icon">⚠️</span>
+            <h4 className="ric-validation-summary__title">
+              Please fix {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? 's' : ''} before submitting
+            </h4>
+          </div>
+          <ul className="ric-validation-summary__list">
+            {Object.entries(errors).slice(0, 10).map(([field, message]) => (
+              <li key={field} className="ric-validation-summary__item">
+                <button
+                  type="button"
+                  className="ric-validation-summary__link"
+                  onClick={() => {
+                    const element = document.querySelector(`[name="${field}"]`) ||
+                                  document.querySelector(`.ric-form-error`);
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      if (element.tagName === 'INPUT' || element.tagName === 'SELECT') {
+                        setTimeout(() => element.focus(), 300);
+                      }
+                    }
+                  }}
+                >
+                  {message}
+                </button>
+              </li>
+            ))}
+            {Object.keys(errors).length > 10 && (
+              <li className="ric-validation-summary__item ric-validation-summary__item--more">
+                ... and {Object.keys(errors).length - 10} more errors
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
       {/* ============ COMMON SECTION ============ */}
       <SectionHeader
         title="PO Data (Auto Fetched from IREPS)"
@@ -1575,6 +1728,26 @@ export const RaiseInspectionCallForm = ({
                         max={heatMapping.tcQtyRemaining || heatMapping.maxQty || undefined}
                         placeholder="Enter quantity in MT"
                         disabled={!heatMapping.tcNumber}
+                      />
+                    </FormField>
+
+                    {/* Max ERC Calculation - Auto-calculated based on Offered Qty and ERC Type */}
+                    <FormField
+                      label="Max ERC can be manufactured from this Manufacturer - Heat No. combination for this PO Sr. No."
+                      name={`heat_${index}_maxErc`}
+                      hint={formData.type_of_erc ? `Based on ${formData.type_of_erc} conversion factor` : 'Select ERC type to calculate'}
+                      fullWidth
+                    >
+                      <input
+                        type="text"
+                        className="ric-form-input ric-form-input--calculated"
+                        value={
+                          heatMapping.offeredQty && formData.type_of_erc
+                            ? `${formatNumber(calculateMaxErcForHeat(heatMapping.offeredQty, formData.type_of_erc))} ERCs`
+                            : '0 ERCs'
+                        }
+                        disabled
+                        readOnly
                       />
                     </FormField>
                   </div>

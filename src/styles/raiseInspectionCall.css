@@ -267,9 +267,113 @@
 
 /* Form Error */
 .ric-form-error {
-  font-size: 11px;
+  font-size: 12px;
   color: #dc2626;
-  margin-top: 2px;
+  margin-top: 4px;
+  display: block;
+  font-weight: 500;
+  animation: errorFadeIn 0.3s ease-in;
+}
+
+@keyframes errorFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Highlight input fields with errors */
+.ric-form-input:invalid,
+.ric-form-select:invalid,
+.ric-form-input.error,
+.ric-form-select.error {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.ric-form-input:invalid:focus,
+.ric-form-select:invalid:focus,
+.ric-form-input.error:focus,
+.ric-form-select.error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+/* Validation Summary Banner */
+.ric-validation-summary {
+  background-color: #fef2f2;
+  border: 2px solid #dc2626;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  animation: errorFadeIn 0.3s ease-in;
+}
+
+.ric-validation-summary__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ric-validation-summary__icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.ric-validation-summary__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.ric-validation-summary__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ric-validation-summary__item {
+  padding: 6px 0;
+  color: #7f1d1d;
+  font-size: 14px;
+}
+
+.ric-validation-summary__link {
+  background: none;
+  border: none;
+  color: #dc2626;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  text-align: left;
+  transition: color 0.2s;
+}
+
+.ric-validation-summary__link:hover {
+  color: #991b1b;
+}
+
+.ric-validation-summary__item--more {
+  font-style: italic;
+  color: #991b1b;
+  margin-top: 4px;
+}
+
+.ric-form-group.has-error {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
 }
 
 /* Quantity Summary */

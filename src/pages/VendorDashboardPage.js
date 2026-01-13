@@ -207,35 +207,42 @@ const VendorDashboardPage = ({ onBack }) => {
 
         if (response.success && response.data) {
           // Transform backend data to match frontend structure
-          const transformedEntries = response.data.map(entry => ({
-            id: entry.id,
-            rawMaterial: entry.rawMaterial,
-            supplierName: entry.supplierName,
-            supplierAddress: entry.supplierAddress,
-            gradeSpecification: entry.gradeSpecification,
-            heatNumber: entry.heatNumber,
-            tcNumber: entry.tcNumber,
-            tcDate: entry.tcDate,
-            invoiceNumber: entry.invoiceNumber,
-            invoiceDate: entry.invoiceDate,
-            subPoNumber: entry.subPoNumber,
-            subPoDate: entry.subPoDate,
-            subPoQty: entry.subPoQty,
-            rateOfMaterial: entry.rateOfMaterial,
-            rateOfGst: entry.rateOfGst,
-            declaredQuantity: entry.tcQuantity,
-            qtyOfferedForInspection: 0, // TODO: Calculate from inspection calls
-            qtyLeftForInspection: entry.tcQuantity, // TODO: Calculate remaining quantity
-            unitOfMeasurement: entry.unitOfMeasurement,
-            baseValuePO: entry.baseValuePo,
-            totalPO: entry.totalPo,
-            lengthOfBars: entry.lengthOfBars,
-            status: entry.status === 'FRESH_PO' ? 'Fresh' : entry.status,
-            companyId: entry.companyId,
-            companyName: entry.companyName,
-            unitName: entry.unitName,
-            createdAt: entry.createdAt
-          }));
+          const transformedEntries = response.data.map(entry => {
+            // Calculate qty offered = tc_quantity - qty_left_for_inspection
+            const tcQty = entry.tcQuantity || 0;
+            const qtyLeft = entry.qtyLeftForInspection || 0;
+            const qtyOffered = tcQty - qtyLeft;
+
+            return {
+              id: entry.id,
+              rawMaterial: entry.rawMaterial,
+              supplierName: entry.supplierName,
+              supplierAddress: entry.supplierAddress,
+              gradeSpecification: entry.gradeSpecification,
+              heatNumber: entry.heatNumber,
+              tcNumber: entry.tcNumber,
+              tcDate: entry.tcDate,
+              invoiceNumber: entry.invoiceNumber,
+              invoiceDate: entry.invoiceDate,
+              subPoNumber: entry.subPoNumber,
+              subPoDate: entry.subPoDate,
+              subPoQty: entry.subPoQty,
+              rateOfMaterial: entry.rateOfMaterial,
+              rateOfGst: entry.rateOfGst,
+              declaredQuantity: tcQty,
+              qtyOfferedForInspection: qtyOffered, // Calculated: tc_quantity - qty_left
+              qtyLeftForInspection: qtyLeft, // From backend: remaining quantity
+              unitOfMeasurement: entry.unitOfMeasurement,
+              baseValuePO: entry.baseValuePo,
+              totalPO: entry.totalPo,
+              lengthOfBars: entry.lengthOfBars,
+              status: entry.status === 'FRESH_PO' ? 'Fresh' : entry.status,
+              companyId: entry.companyId,
+              companyName: entry.companyName,
+              unitName: entry.unitName,
+              createdAt: entry.createdAt
+            };
+          });
 
           setInventoryEntries(transformedEntries);
           console.log('✅ Loaded inventory entries from database:', transformedEntries.length);
@@ -859,7 +866,39 @@ const VendorDashboardPage = ({ onBack }) => {
       handleCloseInspectionModal();
     } catch (error) {
       console.error('❌ Error submitting inspection request:', error);
-      alert(`❌ Failed to save inspection request.\n\nError: ${error.message}\n\nPlease check:\n1. API server is running (http://localhost:8080)\n2. Database connection is working\n3. All required fields are filled`);
+
+      // Extract detailed error message from backend response
+      let errorMessage = error.message || 'Unknown error occurred';
+      let errorDetails = '';
+
+      // Check if error has response data (from backend API)
+      if (error.response?.data) {
+        const backendError = error.response.data;
+        errorMessage = backendError.message || backendError.error || errorMessage;
+
+        // Check for validation errors
+        if (backendError.validationErrors) {
+          errorDetails = '\n\nValidation Errors:\n' +
+            Object.entries(backendError.validationErrors)
+              .map(([field, msg]) => `• ${field}: ${msg}`)
+              .join('\n');
+        }
+
+        // Check for inventory validation errors
+        if (errorMessage.includes('Inventory validation failed') ||
+            errorMessage.includes('exceeds available quantity')) {
+          errorDetails += '\n\n⚠️ Inventory Issue:\nThe offered quantity exceeds the available quantity in inventory.\nPlease check the heat numbers and reduce the offered quantities.';
+        }
+      }
+
+      // Show user-friendly error message
+      alert(`❌ Failed to Submit Inspection Request\n\n${errorMessage}${errorDetails}\n\n` +
+            `Please check:\n` +
+            `1. All required fields are filled correctly\n` +
+            `2. Offered quantities do not exceed available inventory\n` +
+            `3. API server is running (http://localhost:8080)\n` +
+            `4. Database connection is working\n\n` +
+            `Your form data has been preserved. Please fix the errors and try again.`);
     } finally {
       setIsLoading(false);
     }
