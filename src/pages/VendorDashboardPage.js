@@ -207,42 +207,35 @@ const VendorDashboardPage = ({ onBack }) => {
 
         if (response.success && response.data) {
           // Transform backend data to match frontend structure
-          const transformedEntries = response.data.map(entry => {
-            // Calculate qty offered = tc_quantity - qty_left_for_inspection
-            const tcQty = entry.tcQuantity || 0;
-            const qtyLeft = entry.qtyLeftForInspection || 0;
-            const qtyOffered = tcQty - qtyLeft;
-
-            return {
-              id: entry.id,
-              rawMaterial: entry.rawMaterial,
-              supplierName: entry.supplierName,
-              supplierAddress: entry.supplierAddress,
-              gradeSpecification: entry.gradeSpecification,
-              heatNumber: entry.heatNumber,
-              tcNumber: entry.tcNumber,
-              tcDate: entry.tcDate,
-              invoiceNumber: entry.invoiceNumber,
-              invoiceDate: entry.invoiceDate,
-              subPoNumber: entry.subPoNumber,
-              subPoDate: entry.subPoDate,
-              subPoQty: entry.subPoQty,
-              rateOfMaterial: entry.rateOfMaterial,
-              rateOfGst: entry.rateOfGst,
-              declaredQuantity: tcQty,
-              qtyOfferedForInspection: qtyOffered, // Calculated: tc_quantity - qty_left
-              qtyLeftForInspection: qtyLeft, // From backend: remaining quantity
-              unitOfMeasurement: entry.unitOfMeasurement,
-              baseValuePO: entry.baseValuePo,
-              totalPO: entry.totalPo,
-              lengthOfBars: entry.lengthOfBars,
-              status: entry.status === 'FRESH_PO' ? 'Fresh' : entry.status,
-              companyId: entry.companyId,
-              companyName: entry.companyName,
-              unitName: entry.unitName,
-              createdAt: entry.createdAt
-            };
-          });
+          const transformedEntries = response.data.map(entry => ({
+            id: entry.id,
+            rawMaterial: entry.rawMaterial,
+            supplierName: entry.supplierName,
+            supplierAddress: entry.supplierAddress,
+            gradeSpecification: entry.gradeSpecification,
+            heatNumber: entry.heatNumber,
+            tcNumber: entry.tcNumber,
+            tcDate: entry.tcDate,
+            invoiceNumber: entry.invoiceNumber,
+            invoiceDate: entry.invoiceDate,
+            subPoNumber: entry.subPoNumber,
+            subPoDate: entry.subPoDate,
+            subPoQty: entry.subPoQty,
+            rateOfMaterial: entry.rateOfMaterial,
+            rateOfGst: entry.rateOfGst,
+            declaredQuantity: entry.tcQuantity,
+            qtyOfferedForInspection: 0, // TODO: Calculate from inspection calls
+            qtyLeftForInspection: entry.tcQuantity, // TODO: Calculate remaining quantity
+            unitOfMeasurement: entry.unitOfMeasurement,
+            baseValuePO: entry.baseValuePo,
+            totalPO: entry.totalPo,
+            lengthOfBars: entry.lengthOfBars,
+            status: entry.status === 'FRESH_PO' ? 'Fresh' : entry.status,
+            companyId: entry.companyId,
+            companyName: entry.companyName,
+            unitName: entry.unitName,
+            createdAt: entry.createdAt
+          }));
 
           setInventoryEntries(transformedEntries);
           console.log('✅ Loaded inventory entries from database:', transformedEntries.length);
