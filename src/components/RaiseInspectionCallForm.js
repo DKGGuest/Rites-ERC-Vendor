@@ -377,27 +377,37 @@ export const RaiseInspectionCallForm = ({
         setLoadingRMICs(true);
 
         try {
-          console.log('🔍 Fetching completed RM ICs (ER numbers) from inspection_complete_details');
+          console.log('🔍 Fetching completed RM ICs (certificate numbers) from inspection_complete_details');
           const response = await inspectionCallService.getCompletedRmIcNumbers();
-          console.log('📦 Completed ER numbers response:', response);
+          console.log('📦 Completed certificate numbers response:', response);
 
           if (response && response.data) {
-            // Response.data should be an array of ER numbers (strings)
-            const erNumbers = Array.isArray(response.data) ? response.data : [];
-            console.log('✅ Setting completed ER numbers:', erNumbers);
+            // Response.data is an array of certificate numbers (e.g., "N/ER-01080001/RAJK")
+            const certificateNumbers = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting completed certificate numbers:', certificateNumbers);
 
             // Convert to the format expected by the dropdown
-            const formattedData = erNumbers.map(erNumber => ({
-              ic_number: erNumber,
-              label: erNumber
-            }));
+            // Extract call number from certificate number for API calls
+            // Certificate format: "N/ER-01080001/RAJK" → Call number: "ER-01080001"
+            const formattedData = certificateNumbers.map(certNo => {
+              // Extract call number from certificate number
+              // Pattern: N/{CALL_NO}/{SUFFIX} → extract {CALL_NO}
+              const callNoMatch = certNo.match(/N\/([^\/]+)\//);
+              const callNo = callNoMatch ? callNoMatch[1] : certNo;
+
+              return {
+                certificate_no: certNo,  // Display value (e.g., "N/ER-01080001/RAJK")
+                ic_number: callNo,       // API value (e.g., "ER-01080001")
+                label: certNo            // Dropdown label (show certificate number)
+              };
+            });
             setApprovedRMICsForProcess(formattedData);
           } else {
             console.log('⚠️ Response not successful, setting empty array');
             setApprovedRMICsForProcess([]);
           }
         } catch (error) {
-          console.error('❌ Error fetching completed ER numbers:', error);
+          console.error('❌ Error fetching completed certificate numbers:', error);
           setApprovedRMICsForProcess([]);
         } finally {
           setLoadingRMICs(false);
@@ -411,26 +421,68 @@ export const RaiseInspectionCallForm = ({
     fetchCompletedRMICs();
   }, [formData.type_of_call]);
 
-  // Fetch heat numbers when ER number is selected
+  // Fetch heat numbers when certificate numbers are selected
+  // Aggregates heat numbers from ALL selected RM IC numbers
   useEffect(() => {
     const fetchHeatNumbers = async () => {
       if (formData.type_of_call === 'Process' && formData.process_rm_ic_numbers && formData.process_rm_ic_numbers.length > 0) {
         setLoadingHeats(true);
 
         try {
-          const erNumber = formData.process_rm_ic_numbers[0]; // Get first selected ER number
-          console.log('🔍 Fetching heat numbers for ER number:', erNumber);
-          const response = await inspectionCallService.getHeatNumbersByRmIcNumber(erNumber);
-          console.log('📦 Heat numbers response:', response);
+          console.log(`🔍 Fetching heat numbers for ${formData.process_rm_ic_numbers.length} selected RM IC(s)`);
 
-          if (response && response.data) {
-            const heatData = Array.isArray(response.data) ? response.data : [];
-            console.log('✅ Setting heat numbers:', heatData);
-            setProcessHeatNumbers(heatData);
-          } else {
-            console.log('⚠️ Response not successful, setting empty array');
-            setProcessHeatNumbers([]);
-          }
+          // Fetch heat numbers from ALL selected RM ICs
+          const allHeatNumbersPromises = formData.process_rm_ic_numbers.map(async (certificateNo) => {
+            try {
+              console.log(`  📋 Processing certificate: ${certificateNo}`);
+
+              // Extract call number from certificate number for API call
+              // Certificate format: "N/ER-01080001/RAJK" → Call number: "ER-01080001"
+              const callNoMatch = certificateNo.match(/N\/([^\/]+)\//);
+              const callNo = callNoMatch ? callNoMatch[1] : certificateNo;
+              console.log(`  ✂️ Extracted call number: ${callNo}`);
+
+              const response = await inspectionCallService.getHeatNumbersByRmIcNumber(callNo);
+
+              if (response && response.data && Array.isArray(response.data)) {
+                // Add source certificate info to each heat number
+                const heatNumbersWithSource = response.data.map(heat => ({
+                  ...heat,
+                  sourceCertificateNo: certificateNo,
+                  sourceCallNo: callNo
+                }));
+                console.log(`  ✅ Fetched ${heatNumbersWithSource.length} heat numbers from ${certificateNo}`);
+                return heatNumbersWithSource;
+              } else {
+                console.log(`  ⚠️ No heat numbers found for ${certificateNo}`);
+                return [];
+              }
+            } catch (error) {
+              console.error(`  ❌ Error fetching heat numbers for ${certificateNo}:`, error);
+              return [];
+            }
+          });
+
+          // Wait for all API calls to complete
+          const allHeatNumbersArrays = await Promise.all(allHeatNumbersPromises);
+
+          // Flatten the array of arrays into a single array
+          const allHeatNumbers = allHeatNumbersArrays.flat();
+
+          // Remove duplicates based on heat number (keep first occurrence)
+          const uniqueHeatNumbers = allHeatNumbers.reduce((acc, current) => {
+            const existingHeat = acc.find(heat => heat.heatNumber === current.heatNumber);
+            if (!existingHeat) {
+              acc.push(current);
+            } else {
+              // If duplicate found, log it
+              console.log(`  ℹ️ Duplicate heat number found: ${current.heatNumber} (from ${current.sourceCertificateNo})`);
+            }
+            return acc;
+          }, []);
+
+          console.log(`📦 Total unique heat numbers from all RM ICs: ${uniqueHeatNumbers.length}`);
+          setProcessHeatNumbers(uniqueHeatNumbers);
         } catch (error) {
           console.error('❌ Error fetching heat numbers:', error);
           setProcessHeatNumbers([]);
@@ -1137,9 +1189,10 @@ export const RaiseInspectionCallForm = ({
             if (!item.manufacturerHeat) {
               newErrors[`process_lot_${index}_manufacturerHeat`] = `Manufacturer-Heat is required for entry ${index + 1}`;
             }
-            if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
-              newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
-            }
+            // Removed validation: Offered Quantity is now optional for Process stage
+            // if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
+            //   newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
+            // }
           }
         });
       } else {
@@ -1910,17 +1963,17 @@ export const RaiseInspectionCallForm = ({
                   label="RM IC Numbers"
                   name="process_rm_ic_numbers"
                   required
-                  hint={loadingRMICs ? "Loading completed RM ICs..." : "Select ER number (Examination Report) for completed RM inspections"}
+                  hint={loadingRMICs ? "Loading completed RM ICs..." : "Select certificate number for completed RM inspections"}
                   fullWidth
                 >
                   <MultiSelectDropdown
                     options={approvedRMICsForProcess.map(ic => ({
-                      value: ic.ic_number,
-                      label: ic.ic_number
+                      value: ic.certificate_no,  // Store certificate number
+                      label: ic.certificate_no   // Display certificate number
                     }))}
                     selectedValues={formData.process_rm_ic_numbers}
                     onChange={(selectedValues) => handleRmIcSelection(selectedValues)}
-                    placeholder={loadingRMICs ? "Loading..." : "Select ER Numbers"}
+                    placeholder={loadingRMICs ? "Loading..." : "Select Certificate Numbers"}
                   />
                   {formData.process_rm_ic_numbers.length > 0 && (
                     <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
@@ -2063,12 +2116,19 @@ export const RaiseInspectionCallForm = ({
                           <option value="">
                             {loadingHeats ? "Loading..." : processHeatNumbers.length === 0 ? "Select RM IC first" : "Select Heat Number"}
                           </option>
-                          {processHeatNumbers.map((heat) => (
-                            <option key={heat.id} value={heat.heatNumber}>
-                              {heat.heatNumber}
-                              {/* {heat.manufacturer} - {heat.heatNumber} (Accepted: {heat.qtyAccepted || 'N/A'}) */}
-                            </option>
-                          ))}
+                          {processHeatNumbers.map((heat) => {
+                            // Format offered quantity: show up to 2 decimal places or "N/A"
+                            let offeredQtyDisplay = 'N/A';
+                            if (heat.weightOfferedMt != null && heat.weightOfferedMt > 0) {
+                              offeredQtyDisplay = `${parseFloat(heat.weightOfferedMt).toFixed(2)} MT`;
+                            }
+
+                            return (
+                              <option key={heat.id} value={heat.heatNumber}>
+                                {heat.heatNumber} (Offered: {offeredQtyDisplay})
+                              </option>
+                            );
+                          })}
                         </select>
                       </FormField>
 

@@ -264,7 +264,17 @@ const inspectionCallService = {
     } catch (error) {
       console.error('❌ Error creating Process inspection call:', error);
       console.error('❌ Error message:', error.message);
+      console.error('❌ Error status:', error.status);
       console.error('❌ Error data:', error.data);
+      console.error('❌ Full error details:', JSON.stringify(error.data, null, 2));
+
+      // Log the backend error message if available
+      if (error.data && error.data.responseStatus) {
+        console.error('❌ Backend error message:', error.data.responseStatus.message);
+        console.error('❌ Backend error code:', error.data.responseStatus.errorCode);
+        console.error('❌ Backend error type:', error.data.responseStatus.errorType);
+      }
+
       throw error;
     }
   },

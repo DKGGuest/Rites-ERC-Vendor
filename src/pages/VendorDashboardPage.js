@@ -760,6 +760,21 @@ const VendorDashboardPage = ({ onBack }) => {
         };
 
         console.log('📦 Transformed Process IC data:', processData);
+        console.log('📦 Transformed Process IC data (JSON):', JSON.stringify(processData, null, 2));
+
+        // Validate required fields before sending
+        const missingFields = [];
+        if (!processData.inspectionCall.poNo) missingFields.push('po_no');
+        if (!processData.inspectionCall.poSerialNo) missingFields.push('po_serial_no');
+        if (!processData.inspectionCall.desiredInspectionDate) missingFields.push('desired_inspection_date');
+        if (!processData.inspectionCall.companyId) missingFields.push('company_id');
+        if (!processData.inspectionCall.unitId) missingFields.push('unit_id');
+
+        if (missingFields.length > 0) {
+          console.error('❌ Missing required fields:', missingFields);
+          throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+        }
+
         response = await inspectionCallService.createProcessInspectionCall(processData);
       } else if (data.type_of_call === 'Final') {
         // Transform Final IC data to match new backend API structure
