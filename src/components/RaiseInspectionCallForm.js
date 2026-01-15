@@ -1137,9 +1137,9 @@ export const RaiseInspectionCallForm = ({
             if (!item.manufacturerHeat) {
               newErrors[`process_lot_${index}_manufacturerHeat`] = `Manufacturer-Heat is required for entry ${index + 1}`;
             }
-            if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
-              newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
-            }
+            // if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
+            //   newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
+            // }
           }
         });
       } else {
