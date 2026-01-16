@@ -263,7 +263,7 @@ const VendorDashboardPage = ({ onBack }) => {
       setRequestedCallsError(null);
       try {
         // Use actual vendor ID from currentUser context
-        const vendorId = currentUser?.id?.toString() || ':13104';
+        const vendorId = currentUser?.id?.toString() || user.userName;
         const response = await inspectionCallService.getVendorInspectionCallsWithStatus(user.userName);
 
         if (response.success && response.data) {
@@ -935,7 +935,7 @@ const VendorDashboardPage = ({ onBack }) => {
       // Add vendor code to the data (currently hardcoded as 13104)
       const inventoryData = {
         ...data,
-        vendorCode: ':13104', // TODO: Get from auth context
+        vendorCode: '13104', // TODO: Get from auth context
         vendorName: 'Vendor Name' // TODO: Get from auth context
       };
 
