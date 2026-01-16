@@ -8,7 +8,7 @@
 import httpClient from './httpClient';
 // eslint-disable-next-line no-unused-vars
 import { API_ENDPOINTS } from './apiConfig';
-import { getStoredUser, getAuthHeaders } from '../services/authService';
+import { getStoredUser } from '../services/authService';
     
 
 /**

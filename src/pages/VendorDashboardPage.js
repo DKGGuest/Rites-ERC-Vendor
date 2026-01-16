@@ -34,7 +34,7 @@ import inspectionCallService from '../services/inspectionCallService';
 import poAssignedService from '../services/poAssignedService';
 import inventoryService from '../services/inventoryService';
 import '../styles/vendorDashboard.css';
-import { getStoredUser, getAuthHeaders } from '../services/authService';
+import { getStoredUser } from '../services/authService';
 
 const VendorDashboardPage = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState('po-assigned');
@@ -142,7 +142,7 @@ const VendorDashboardPage = ({ onBack }) => {
     id: user.userName,
     role: 'VENDOR',
     email: 'vendor@example.com'
-  }), []);
+  }), [user.userName]);
 
   // ============ FETCH PO ASSIGNED DATA ============
   useEffect(() => {
@@ -199,7 +199,7 @@ const VendorDashboardPage = ({ onBack }) => {
     };
 
     fetchPOAssignedData();
-  }, []);
+  }, [user.userName]);
 
   // ============ FETCH INVENTORY ENTRIES DATA ============
   useEffect(() => {
@@ -254,7 +254,7 @@ const VendorDashboardPage = ({ onBack }) => {
     };
 
     fetchInventoryEntries();
-  }, []); // Fetch on component mount
+  }, [user.userName]); // Fetch on component mount
 
   // ============ FETCH REQUESTED CALLS DATA ============
   useEffect(() => {
@@ -263,7 +263,6 @@ const VendorDashboardPage = ({ onBack }) => {
       setRequestedCallsError(null);
       try {
         // Use actual vendor ID from currentUser context
-        const vendorId = currentUser?.id?.toString() || user.userName;
         const response = await inspectionCallService.getVendorInspectionCallsWithStatus(user.userName);
 
         if (response.success && response.data) {
@@ -310,7 +309,7 @@ const VendorDashboardPage = ({ onBack }) => {
     };
 
     fetchRequestedCalls();
-  }, [currentUser?.id]); // Fetch on component mount or when user ID changes
+  }, [currentUser?.id, user.userName]); // Fetch on component mount or when user ID changes
 
   // Filtered payment items based on status and date
   const filteredPaymentItems = useMemo(() => {

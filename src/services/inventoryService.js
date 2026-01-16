@@ -6,7 +6,7 @@
 // ============================================================
 
 import httpClient from './httpClient';
-import { getStoredUser, getAuthHeaders } from '../services/authService';
+import { getStoredUser } from '../services/authService';
 
 
 /**
