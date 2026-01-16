@@ -1,9 +1,20 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import LoginPage from '../pages/LoginPage';
+
 
 const Header = ({
   setIsSidebarOpen,
   userEmail = 'ie@sarthi.com'
 }) => {
+
+  const navigate = useNavigate();
+const handleLogout = () => {
+  localStorage.clear();
+  window.location.href = '/login';
+};
+
+
   return (
     <header className="app-header">
       {/* LEFT */}
@@ -43,9 +54,16 @@ const Header = ({
         </div>
 
         {/* Logout */}
-        <button className="btn btn-sm btn-outline logout-btn">
+        {/* <button className="btn btn-sm btn-outline logout-btn">
           Logout
-        </button>
+        </button> */}
+        <button
+  className="btn btn-sm btn-outline logout-btn"
+  onClick={handleLogout}
+>
+  Logout
+</button>
+
         <button
           className="icon-btn"
           onClick={() => setIsSidebarOpen(prev => !prev)}

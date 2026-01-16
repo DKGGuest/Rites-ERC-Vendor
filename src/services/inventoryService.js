@@ -6,6 +6,8 @@
 // ============================================================
 
 import httpClient from './httpClient';
+import { getStoredUser, getAuthHeaders } from '../services/authService';
+
 
 /**
  * Inventory Service
@@ -19,12 +21,13 @@ const inventoryService = {
    * @returns {Promise<Object>} - API response with created inventory entry
    */
   createInventoryEntry: async (inventoryData) => {
+    const user = getStoredUser();
     try {
       console.log('📥 Inventory data received:', inventoryData);
 
       // Transform frontend data structure to match backend DTO
       const transformedData = {
-        vendorCode: inventoryData.vendorCode || '13104', // Default vendor code
+        vendorCode: inventoryData.vendorCode || user.userName, // Default vendor code
         vendorName: inventoryData.vendorName || 'Default Vendor',
         companyId: inventoryData.companyId ? parseInt(inventoryData.companyId) : null,
         companyName: inventoryData.companyName || '',
