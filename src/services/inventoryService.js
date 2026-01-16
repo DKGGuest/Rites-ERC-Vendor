@@ -202,12 +202,13 @@ const inventoryService = {
    * @returns {Promise<Object>} - API response with updated inventory entry
    */
   updateInventoryEntry: async (id, inventoryData) => {
+    const user = getStoredUser();
     try {
       console.log('📥 Updating inventory entry ID:', id, 'with data:', inventoryData);
 
       // Transform frontend data structure to match backend DTO
       const transformedData = {
-        vendorCode: inventoryData.vendorCode || '13104',
+        vendorCode: inventoryData.vendorCode || user.userName,
         vendorName: inventoryData.vendorName || 'Default Vendor',
         companyId: inventoryData.companyId ? parseInt(inventoryData.companyId) : null,
         companyName: inventoryData.companyName || '',
