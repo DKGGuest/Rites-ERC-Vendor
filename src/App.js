@@ -10,6 +10,10 @@ import VisualMaterialTestingPage from './pages/VisualMaterialTestingPage';
 import SummaryReportsPage from './pages/SummaryReportsPage';
 import VendorDashboardPage from './pages/VendorDashboardPage';
 import Header from './components/Header';
+import { useNavigate } from 'react-router-dom';
+import { isAuthenticated } from './services/authService';
+import LoginPage from './pages/LoginPage';
+
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState('vendor-dashboard');
@@ -21,6 +25,8 @@ const App = () => {
 
   const [rmHeats, setRmHeats] = useState([{ heatNo: '', weight: '' }]);
   const [rmProductModel, setRmProductModel] = useState('MK-III');
+
+ 
 
   useEffect(() => {
     try {
@@ -67,7 +73,11 @@ const App = () => {
   };
 
   return (
+  !isAuthenticated() ? (
+    <LoginPage />
+  ) : (
     <div>
+      
       <Header />
   
       {/* <header className="app-header">
@@ -252,7 +262,9 @@ const App = () => {
         </main>
       </div>
     </div>
+  )
   );
+
 };
 
 export default App;

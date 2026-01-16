@@ -8,12 +8,15 @@
 import httpClient from './httpClient';
 // eslint-disable-next-line no-unused-vars
 import { API_ENDPOINTS } from './apiConfig';
+import { getStoredUser, getAuthHeaders } from '../services/authService';
+    
 
 /**
  * Inspection Call Service
  * Provides methods for creating and fetching inspection calls
  */
 const inspectionCallService = {
+ 
   
   // ============================================================
   // RAW MATERIAL INSPECTION CALLS
@@ -25,6 +28,8 @@ const inspectionCallService = {
    * @returns {Promise<Object>} - API response with created IC details including auto-generated IC number
    */
   createRMInspectionCall: async (rmInspectionData) => {
+
+    const user = getStoredUser();
     try {
       console.log('📥 Raw inspection data received:', rmInspectionData);
 
@@ -43,7 +48,7 @@ const inspectionCallService = {
           companyId: parseInt(rmInspectionData.company_id),
           companyName: rmInspectionData.company_name,
           placeOfInspection:"POI1",
-          vendorId:":13104",
+          vendorId: user.userName,
           unitId: parseInt(rmInspectionData.unit_id),
           unitName: rmInspectionData.unit_name,
           unitAddress: rmInspectionData.unit_address,

@@ -34,6 +34,7 @@ import inspectionCallService from '../services/inspectionCallService';
 import poAssignedService from '../services/poAssignedService';
 import inventoryService from '../services/inventoryService';
 import '../styles/vendorDashboard.css';
+import { getStoredUser, getAuthHeaders } from '../services/authService';
 
 const VendorDashboardPage = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState('po-assigned');
@@ -113,6 +114,8 @@ const VendorDashboardPage = ({ onBack }) => {
   const [loadingRequestedCalls, setLoadingRequestedCalls] = useState(false);
   const [requestedCallsError, setRequestedCallsError] = useState(null);
 
+    const user = getStoredUser();
+
   // ============ VENDOR WORKFLOW API INTEGRATION ============
   // Initialize the workflow hook for API calls
   const {
@@ -136,7 +139,7 @@ const VendorDashboardPage = ({ onBack }) => {
 
   // Current user context (would be from auth context in production)
   const currentUser = useMemo(() => ({
-    id: ':13104',
+    id: user.userName,
     role: 'VENDOR',
     email: 'vendor@example.com'
   }), []);
@@ -149,7 +152,7 @@ const VendorDashboardPage = ({ onBack }) => {
       try {
         // TODO: Replace ':13101' with actual vendor code from auth context
         // For testing, using vendor code ':13101' from database
-        const response = await poAssignedService.getPoAssigned(':13104');
+        const response = await poAssignedService.getPoAssigned(user.userName);
 
         if (response.success && response.data) {
           // Transform API data to match frontend structure
@@ -203,7 +206,7 @@ const VendorDashboardPage = ({ onBack }) => {
     const fetchInventoryEntries = async () => {
       try {
         // TODO: Replace '13104' with actual vendor code from auth context
-        const response = await inventoryService.getInventoryEntries('13104');
+        const response = await inventoryService.getInventoryEntries(user.userName);
 
         if (response.success && response.data) {
           // Transform backend data to match frontend structure
@@ -261,7 +264,7 @@ const VendorDashboardPage = ({ onBack }) => {
       try {
         // Use actual vendor ID from currentUser context
         const vendorId = currentUser?.id?.toString() || '13104';
-        const response = await inspectionCallService.getVendorInspectionCallsWithStatus(vendorId);
+        const response = await inspectionCallService.getVendorInspectionCallsWithStatus(user.userName);
 
         if (response.success && response.data) {
           // Transform API data to match frontend structure
@@ -729,7 +732,7 @@ const VendorDashboardPage = ({ onBack }) => {
             typeOfCall: 'Process',
             ercType: data.type_of_erc || '',
             status: 'Pending',
-            vendorId: ':13104',
+            vendorId: user.userName,
             desiredInspectionDate: data.desired_inspection_date,
             actualInspectionDate: null,
             companyId: data.company_id,
@@ -771,7 +774,7 @@ const VendorDashboardPage = ({ onBack }) => {
             typeOfCall: 'Final',
             ercType: data.type_of_erc || '',
             status: 'Pending',
-            vendorId: ':13104',
+            vendorId: user.userName,
             desiredInspectionDate: data.desired_inspection_date,
             actualInspectionDate: null,
             companyId: data.company_id,

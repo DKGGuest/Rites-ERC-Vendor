@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import './styles/forms.css';
 import App from './App';
+import { BrowserRouter } from 'react-router-dom';
 
 // Global behavior: disable native number input increment via mouse wheel and arrow keys
 if (typeof window !== 'undefined' && !window.__numberInputListenersInstalled) {
@@ -31,6 +32,8 @@ if (typeof window !== 'undefined' && !window.__numberInputListenersInstalled) {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+     <BrowserRouter>      
+      <App />
+    </BrowserRouter> 
   </React.StrictMode>
 );
