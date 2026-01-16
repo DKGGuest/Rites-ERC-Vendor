@@ -263,7 +263,7 @@ const VendorDashboardPage = ({ onBack }) => {
       setRequestedCallsError(null);
       try {
         // Use actual vendor ID from currentUser context
-        const vendorId = currentUser?.id?.toString() || '13104';
+        const vendorId = currentUser?.id?.toString() || ':13104';
         const response = await inspectionCallService.getVendorInspectionCallsWithStatus(user.userName);
 
         if (response.success && response.data) {
@@ -753,7 +753,7 @@ const VendorDashboardPage = ({ onBack }) => {
             manufacturer: lotHeat.manufacturer,
             manufacturerHeat: lotHeat.manufacturerHeat,
             offeredQty: parseInt(lotHeat.offeredQty) || 0,
-            totalAcceptedQtyRm: data.process_total_accepted_qty_rm || 0,
+            totalAcceptedQtyRm: parseInt(lotHeat.totalAcceptedQtyRm) || 0,
             companyId: data.company_id,
             companyName: data.company_name,
             unitId: data.unit_id,
@@ -935,7 +935,7 @@ const VendorDashboardPage = ({ onBack }) => {
       // Add vendor code to the data (currently hardcoded as 13104)
       const inventoryData = {
         ...data,
-        vendorCode: '13104', // TODO: Get from auth context
+        vendorCode: ':13104', // TODO: Get from auth context
         vendorName: 'Vendor Name' // TODO: Get from auth context
       };
 

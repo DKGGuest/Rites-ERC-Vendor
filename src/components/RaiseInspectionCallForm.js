@@ -256,6 +256,7 @@ const getInitialFormState = (selectedPO = null) => {
         heatNumber: '',
         manufacturer: '',
         offeredQty: '',
+        totalAcceptedQtyRm: 0,
         isLoading: false
       }
     ],
@@ -370,14 +371,14 @@ export const RaiseInspectionCallForm = ({
   //   return HEAT_TC_MAPPING.filter(h => h.qtyAvailable > 0);
   // }, []);
 
-  // Fetch completed RM ICs (ER numbers) when call type is Process
+  // Fetch completed RM ICs (certificate numbers) when call type is Process
   useEffect(() => {
     const fetchCompletedRMICs = async () => {
       if (formData.type_of_call === 'Process') {
         setLoadingRMICs(true);
 
         try {
-          console.log('🔍 Fetching completed RM ICs (certificate numbers) from inspection_complete_details');
+          console.log('🔍 Fetching completed RM ICs (certificate numbers)');
           const response = await inspectionCallService.getCompletedRmIcNumbers();
           console.log('📦 Completed certificate numbers response:', response);
 
@@ -733,6 +734,7 @@ export const RaiseInspectionCallForm = ({
           heatNumber: '',
           manufacturer: '',
           offeredQty: '',
+          totalAcceptedQtyRm: 0,
           isLoading: false
         }
       ]
@@ -758,7 +760,7 @@ export const RaiseInspectionCallForm = ({
   };
 
   // Handle manufacturer-heat selection and auto-fetch details
-  const handleProcessManufacturerHeatChange = (id, manufacturerHeat, heatNumber = null, manufacturer = null, maxQty = null) => {
+  const handleProcessManufacturerHeatChange = (id, manufacturerHeat, heatNumber = null, manufacturer = null, maxQty = null, totalAcceptedQtyRm = null) => {
     // If heatNumber and manufacturer are not provided, parse from manufacturerHeat string
     if (!heatNumber || !manufacturer) {
       const parts = manufacturerHeat.split(' - ');
@@ -774,14 +776,14 @@ export const RaiseInspectionCallForm = ({
           manufacturerHeat,
           manufacturer,
           heatNumber,
-          maxQty: maxQty || item.maxQty
+          maxQty: maxQty || item.maxQty,
+          totalAcceptedQtyRm: totalAcceptedQtyRm || item.totalAcceptedQtyRm
         } : item
       )
     }));
   };
 
   // Handle offered quantity change for process lot-heat
-  // eslint-disable-next-line no-unused-vars
   const handleProcessOfferedQtyChange = (id, offeredQty) => {
     setFormData(prev => ({
       ...prev,
@@ -1189,10 +1191,9 @@ export const RaiseInspectionCallForm = ({
             if (!item.manufacturerHeat) {
               newErrors[`process_lot_${index}_manufacturerHeat`] = `Manufacturer-Heat is required for entry ${index + 1}`;
             }
-            // Removed validation: Offered Quantity is now optional for Process stage
-            // if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
-            //   newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
-            // }
+            if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
+              newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
+            }
           }
         });
       } else {
@@ -2107,7 +2108,8 @@ export const RaiseInspectionCallForm = ({
                                 `${selectedHeat.manufacturer} - ${heatValue}`,
                                 heatValue,
                                 selectedHeat.manufacturer,
-                                selectedHeat.qtyAccepted || 0
+                                selectedHeat.qtyAccepted || 0,
+                                selectedHeat.weightAcceptedMt || 0
                               );
                             }
                           }}
@@ -2117,15 +2119,15 @@ export const RaiseInspectionCallForm = ({
                             {loadingHeats ? "Loading..." : processHeatNumbers.length === 0 ? "Select RM IC first" : "Select Heat Number"}
                           </option>
                           {processHeatNumbers.map((heat) => {
-                            // Format offered quantity: show up to 2 decimal places or "N/A"
-                            let offeredQtyDisplay = 'N/A';
-                            if (heat.weightOfferedMt != null && heat.weightOfferedMt > 0) {
-                              offeredQtyDisplay = `${parseFloat(heat.weightOfferedMt).toFixed(2)} MT`;
+                            // Format accepted quantity: show up to 2 decimal places or "N/A"
+                            let acceptedQtyDisplay = 'N/A';
+                            if (heat.weightAcceptedMt != null && heat.weightAcceptedMt > 0) {
+                              acceptedQtyDisplay = `${parseFloat(heat.weightAcceptedMt).toFixed(2)} MT`;
                             }
 
                             return (
                               <option key={heat.id} value={heat.heatNumber}>
-                                {heat.heatNumber} (Offered: {offeredQtyDisplay})
+                                {heat.heatNumber} (Accepted: {acceptedQtyDisplay})
                               </option>
                             );
                           })}
@@ -2133,7 +2135,7 @@ export const RaiseInspectionCallForm = ({
                       </FormField>
 
                       {/* Offered Quantity */}
-                      {/* <FormField
+                      <FormField
                         label="Offered Qty (ERCs)"
                         name={`process_offered_qty_${lotHeat.id}`}
                         required
@@ -2149,25 +2151,7 @@ export const RaiseInspectionCallForm = ({
                           placeholder="Enter quantity"
                           disabled={!lotHeat.heatNumber}
                         />
-                      </FormField> */}
-
-                      {/* Offered Quantity */}
-                      {/* <FormField
-                        label="Offered Qty (ERC)"
-                        name={`process_offered_qty_${lotHeat.id}`}
-                        required
-                        hint={`Max: ${formData.process_total_accepted_qty_rm} (Total Accepted in RM IC)`}
-                      >
-                        <input
-                          type="number"
-                          className="ric-form-input"
-                          value={lotHeat.offeredQty}
-                          onChange={(e) => handleProcessOfferedQtyChange(lotHeat.id, e.target.value)}
-                          min="0"
-                          max={formData.process_total_accepted_qty_rm}
-                          placeholder="Enter quantity"
-                        />
-                      </FormField> */}
+                      </FormField>
                     </div>
                   </div>
                 ))}

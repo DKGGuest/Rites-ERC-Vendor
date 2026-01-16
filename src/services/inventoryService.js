@@ -207,7 +207,7 @@ const inventoryService = {
 
       // Transform frontend data structure to match backend DTO
       const transformedData = {
-        vendorCode: inventoryData.vendorCode || '13104',
+        vendorCode: inventoryData.vendorCode || ':13104',
         vendorName: inventoryData.vendorName || 'Default Vendor',
         companyId: inventoryData.companyId ? parseInt(inventoryData.companyId) : null,
         companyName: inventoryData.companyName || '',

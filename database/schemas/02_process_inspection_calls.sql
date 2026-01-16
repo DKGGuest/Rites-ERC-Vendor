@@ -11,10 +11,10 @@
 CREATE TABLE IF NOT EXISTS process_inspection_details (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   ic_id BIGINT NOT NULL UNIQUE COMMENT 'Foreign key to inspection_calls.id',
-  
+
   -- Reference to parent RM Inspection Call
-  rm_ic_id BIGINT NOT NULL COMMENT 'Foreign key to parent RM inspection_calls.id',
-  rm_ic_number VARCHAR(50) NOT NULL COMMENT 'Parent RM IC Number for reference',
+  rm_ic_id BIGINT NULL COMMENT 'Foreign key to parent RM inspection_calls.id (nullable for flexibility)',
+  rm_ic_number VARCHAR(100) NOT NULL COMMENT 'Parent RM IC Certificate Number for reference (e.g., N/ER-01080001/RAJK)',
   
   -- Lot Information
   lot_number VARCHAR(100) NOT NULL COMMENT 'Lot number entered by vendor',

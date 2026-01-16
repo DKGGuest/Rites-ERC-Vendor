@@ -214,16 +214,16 @@ const inspectionCallService = {
   },
 
   /**
-   * Get completed RM IC numbers for Process IC dropdown
-   * Fetches from inspection_complete_details table
-   * @returns {Promise<Object>} - API response with list of completed RM IC numbers
+   * Get completed RM IC certificate numbers for Process IC dropdown
+   * Fetches from inspection_complete_details table filtered by ER prefix
+   * @returns {Promise<Object>} - API response with list of completed RM IC certificate numbers
    */
   getCompletedRmIcNumbers: async () => {
     try {
       const response = await httpClient.get('/raw-material/completed-rm-ics');
       return response;
     } catch (error) {
-      console.error('Error fetching completed RM IC numbers:', error);
+      console.error('Error fetching completed RM IC certificate numbers:', error);
       throw error;
     }
   },
@@ -231,7 +231,7 @@ const inspectionCallService = {
   /**
    * Get heat numbers by RM IC number
    * Fetches from rm_heat_quantities table based on the RM IC's ic_id
-   * @param {string} rmIcNumber - RM IC Number
+   * @param {string} rmIcNumber - RM IC Number (call_no from inspection_complete_details)
    * @returns {Promise<Object>} - API response with heat numbers and details
    */
   getHeatNumbersByRmIcNumber: async (rmIcNumber) => {
