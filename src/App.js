@@ -10,7 +10,6 @@ import VisualMaterialTestingPage from './pages/VisualMaterialTestingPage';
 import SummaryReportsPage from './pages/SummaryReportsPage';
 import VendorDashboardPage from './pages/VendorDashboardPage';
 import Header from './components/Header';
-import { useNavigate } from 'react-router-dom';
 import { isAuthenticated } from './services/authService';
 import LoginPage from './pages/LoginPage';
 

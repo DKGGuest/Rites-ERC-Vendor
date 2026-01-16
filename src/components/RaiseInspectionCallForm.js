@@ -393,7 +393,7 @@ export const RaiseInspectionCallForm = ({
             const formattedData = certificateNumbers.map(certNo => {
               // Extract call number from certificate number
               // Pattern: N/{CALL_NO}/{SUFFIX} → extract {CALL_NO}
-              const callNoMatch = certNo.match(/N\/([^\/]+)\//);
+              const callNoMatch = certNo.match(/N\/([^/]+)\//);
               const callNo = callNoMatch ? callNoMatch[1] : certNo;
 
               return {
@@ -439,7 +439,7 @@ export const RaiseInspectionCallForm = ({
 
               // Extract call number from certificate number for API call
               // Certificate format: "N/ER-01080001/RAJK" → Call number: "ER-01080001"
-              const callNoMatch = certificateNo.match(/N\/([^\/]+)\//);
+              const callNoMatch = certificateNo.match(/N\/([^/]+)\//);
               const callNo = callNoMatch ? callNoMatch[1] : certificateNo;
               console.log(`  ✂️ Extracted call number: ${callNo}`);
 

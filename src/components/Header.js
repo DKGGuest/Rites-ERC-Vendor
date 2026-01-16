@@ -1,6 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import LoginPage from '../pages/LoginPage';
 
 
 const Header = ({
@@ -8,7 +6,6 @@ const Header = ({
   userEmail = 'ie@sarthi.com'
 }) => {
 
-  const navigate = useNavigate();
 const handleLogout = () => {
   localStorage.clear();
   window.location.href = '/login';
