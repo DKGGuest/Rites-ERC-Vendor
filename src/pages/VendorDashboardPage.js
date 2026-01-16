@@ -935,7 +935,8 @@ const VendorDashboardPage = ({ onBack }) => {
       // Add vendor code to the data (currently hardcoded as 13104)
       const inventoryData = {
         ...data,
-        vendorCode: '13104', // TODO: Get from auth context
+        // vendorCode: '13104', // TODO: Get from auth context
+         vendorCode: user.userName, 
         vendorName: 'Vendor Name' // TODO: Get from auth context
       };
 
