@@ -614,9 +614,9 @@ export const RaiseInspectionCallForm = ({
   }, [formData.type_of_call, formData.final_rm_ic_numbers]);
 
   // Get available RM ICs for Process stage
-  const availableRmIcs = useMemo(() => {
-    return RM_INSPECTION_CALLS.filter(ic => ic.status === 'Completed');
-  }, []);
+  // const availableRmIcs = useMemo(() => {
+  //   return RM_INSPECTION_CALLS.filter(ic => ic.status === 'Completed');
+  // }, []);
 
   // Get available Process ICs for Final stage
   // const availableProcessIcs = useMemo(() => {
