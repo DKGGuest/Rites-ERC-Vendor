@@ -298,6 +298,7 @@ export const RaiseInspectionCallForm = ({
   selectedPO = null,
   selectedItem = null,
   selectedSubPO = null,
+  vendorId = null,
   onSubmit,
   isLoading = false
 }) => {
@@ -314,6 +315,14 @@ export const RaiseInspectionCallForm = ({
   const [loadingRMICs, setLoadingRMICs] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const [loadingHeats, setLoadingHeats] = useState(false);
+
+  // Final Inspection Call dropdown states
+  const [processIcCertificates, setProcessIcCertificates] = useState([]);
+  const [rmIcNumbersForFinal, setRmIcNumbersForFinal] = useState([]);
+  const [lotNumbersForFinal, setLotNumbersForFinal] = useState([]);
+  const [loadingProcessIcs, setLoadingProcessIcs] = useState(false);
+  const [loadingRmIcsForFinal, setLoadingRmIcsForFinal] = useState(false);
+  const [loadingLotsForFinal, setLoadingLotsForFinal] = useState(false);
 
   // Handle PO Serial selection
   const handlePoSerialChange = useCallback((serialNo, itemData = null) => {
@@ -497,6 +506,112 @@ export const RaiseInspectionCallForm = ({
 
     fetchHeatNumbers();
   }, [formData.type_of_call, formData.process_rm_ic_numbers]);
+
+  // ==================== FINAL INSPECTION CALL DROPDOWN EFFECTS ====================
+
+  // Fetch Process IC certificates when Final inspection type is selected
+  useEffect(() => {
+    console.log('🔄 Final IC useEffect triggered - type_of_call:', formData.type_of_call, 'vendorId:', vendorId);
+
+    const fetchProcessIcCertificates = async () => {
+      if (formData.type_of_call === 'Final' && vendorId) {
+        setLoadingProcessIcs(true);
+        try {
+          console.log('🔍 Fetching Process IC certificates for vendor:', vendorId);
+          const response = await inspectionCallService.getProcessIcCertificates(vendorId);
+          console.log('📦 Process IC certificates response:', response);
+
+          if (response && response.data) {
+            const certificates = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting Process IC certificates:', certificates);
+            setProcessIcCertificates(certificates);
+          } else {
+            console.warn('⚠️ No Process IC certificates found');
+            setProcessIcCertificates([]);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching Process IC certificates:', error);
+          setProcessIcCertificates([]);
+        } finally {
+          setLoadingProcessIcs(false);
+        }
+      } else {
+        setProcessIcCertificates([]);
+      }
+    };
+
+    fetchProcessIcCertificates();
+  }, [formData.type_of_call, vendorId]);
+
+  // Fetch RM IC numbers when Process IC certificate is selected
+  useEffect(() => {
+    const fetchRmIcNumbers = async () => {
+      if (formData.type_of_call === 'Final' && formData.final_process_ic_numbers && formData.final_process_ic_numbers.length > 0) {
+        setLoadingRmIcsForFinal(true);
+        try {
+          // Get RM ICs from the first selected Process IC certificate
+          const firstCertificate = formData.final_process_ic_numbers[0];
+          console.log('🔍 Fetching RM IC numbers for certificate:', firstCertificate);
+
+          const response = await inspectionCallService.getRmIcNumbersByCertificate(firstCertificate);
+          console.log('📦 RM IC numbers response:', response);
+
+          if (response && response.data) {
+            const rmIcNumbers = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting RM IC numbers:', rmIcNumbers);
+            setRmIcNumbersForFinal(rmIcNumbers);
+          } else {
+            console.warn('⚠️ No RM IC numbers found');
+            setRmIcNumbersForFinal([]);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching RM IC numbers:', error);
+          setRmIcNumbersForFinal([]);
+        } finally {
+          setLoadingRmIcsForFinal(false);
+        }
+      } else {
+        setRmIcNumbersForFinal([]);
+      }
+    };
+
+    fetchRmIcNumbers();
+  }, [formData.type_of_call, formData.final_process_ic_numbers]);
+
+  // Fetch Lot numbers when RM IC is selected
+  useEffect(() => {
+    const fetchLotNumbers = async () => {
+      if (formData.type_of_call === 'Final' && formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0) {
+        setLoadingLotsForFinal(true);
+        try {
+          // Get lots from the first selected RM IC
+          const firstRmIc = formData.final_rm_ic_numbers[0];
+          console.log('🔍 Fetching lot numbers for RM IC:', firstRmIc);
+
+          const response = await inspectionCallService.getLotNumbersByRmIc(firstRmIc);
+          console.log('📦 Lot numbers response:', response);
+
+          if (response && response.data) {
+            const lotNumbers = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting lot numbers:', lotNumbers);
+            setLotNumbersForFinal(lotNumbers);
+          } else {
+            console.warn('⚠️ No lot numbers found');
+            setLotNumbersForFinal([]);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching lot numbers:', error);
+          setLotNumbersForFinal([]);
+        } finally {
+          setLoadingLotsForFinal(false);
+        }
+      } else {
+        setLotNumbersForFinal([]);
+      }
+    };
+
+    fetchLotNumbers();
+  }, [formData.type_of_call, formData.final_rm_ic_numbers]);
 
   // Get available RM ICs for Process stage
   const availableRmIcs = useMemo(() => {
@@ -1066,20 +1181,9 @@ export const RaiseInspectionCallForm = ({
       newErrors.company_id = 'Company is required';
     }
 
-    // For Final inspection, check final_unit_id; for others, check unit_id
-    if (formData.type_of_call === 'Final') {
-      console.log('🔍 Final inspection - checking final_unit_id:', formData.final_unit_id);
-      console.log('🔍 Final inspection - final_unit_name:', formData.final_unit_name);
-      console.log('🔍 Final inspection - final_unit_address:', formData.final_unit_address);
-      if (!formData.final_unit_id) {
-        console.log('❌ final_unit_id is missing!');
-        newErrors.unit_id = 'Unit is required';
-      }
-    } else {
-      console.log('🔍 Non-Final inspection - checking unit_id:', formData.unit_id);
-      if (!formData.unit_id) {
-        newErrors.unit_id = 'Unit is required';
-      }
+    // Check unit_id for all call types (Raw Material, Process, Final)
+    if (!formData.unit_id) {
+      newErrors.unit_id = 'Unit is required';
     }
 
     // Raw Material stage validations
@@ -1314,14 +1418,8 @@ export const RaiseInspectionCallForm = ({
         final_hdpe_bags: formData.final_hdpe_bags,
         final_rm_ic_numbers: formData.final_rm_ic_numbers,
         final_process_ic_numbers: formData.final_process_ic_numbers,
-        final_total_accepted_qty_process: formData.final_total_accepted_qty_process,
-        final_unit_id: formData.final_unit_id,
-        final_unit_name: formData.final_unit_name,
-        final_unit_address: formData.final_unit_address,
-        // Copy Final unit details to general unit fields for validation
-        unit_id: formData.final_unit_id,
-        unit_name: formData.final_unit_name,
-        unit_address: formData.final_unit_address
+        final_total_accepted_qty_process: formData.final_total_accepted_qty_process
+        // Note: unit_id, unit_name, unit_address are already in filteredData from common fields
       };
     }
 
@@ -2171,24 +2269,62 @@ export const RaiseInspectionCallForm = ({
               />
 
               <div className="ric-form-grid">
+                            {/* Process IC Numbers - Dropdown with Multiple Selection */}
+                            <FormField
+                              label="Process IC Numbers"
+                              name="final_process_ic_numbers"
+                              required
+                              hint="Certificate numbers from completed Process ICs (EP prefix)"
+                              fullWidth
+                            >
+                              {loadingProcessIcs ? (
+                                <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
+                                  Loading Process IC certificates...
+                                </div>
+                              ) : (
+                                <MultiSelectDropdown
+                                  options={processIcCertificates.map(cert => ({
+                                    value: cert,
+                                    label: cert
+                                  }))}
+                                  selectedValues={formData.final_process_ic_numbers}
+                                  onChange={(selectedValues) => handleFinalProcessIcSelection(selectedValues)}
+                                  placeholder="Select Process IC Certificate Numbers"
+                                />
+                              )}
+                              {formData.final_process_ic_numbers.length > 0 && (
+                                <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+                                  Selected: {formData.final_process_ic_numbers.join(', ')}
+                                </div>
+                              )}
+                            </FormField>
+
+                            
                 {/* Lot No. - Dropdown with Multiple Selection */}
                       {/* RM IC Numbers - Dropdown with Multiple Selection */}
                       <FormField
                         label="RM IC Numbers"
                         name="final_rm_ic_numbers"
                         required
-                        hint="Mock data - showing all completed RM ICs for testing"
+                        hint="RM IC numbers from selected Process IC"
                         fullWidth
                       >
-                        <MultiSelectDropdown
-                          options={availableRmIcs.map(ic => ({
-                            value: ic.icNumber,
-                            label: `${ic.icNumber} (Heat: ${ic.heatNumber}, Accepted: ${ic.qtyAccepted})`
-                          }))}
-                          selectedValues={formData.final_rm_ic_numbers}
-                          onChange={(selectedValues) => setFormData(prev => ({ ...prev, final_rm_ic_numbers: selectedValues }))}
-                          placeholder="Select RM IC Numbers"
-                        />
+                        {loadingRmIcsForFinal ? (
+                          <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
+                            Loading RM IC numbers...
+                          </div>
+                        ) : (
+                          <MultiSelectDropdown
+                            options={rmIcNumbersForFinal.map(rmIc => ({
+                              value: rmIc,
+                              label: rmIc
+                            }))}
+                            selectedValues={formData.final_rm_ic_numbers}
+                            onChange={(selectedValues) => setFormData(prev => ({ ...prev, final_rm_ic_numbers: selectedValues }))}
+                            placeholder={formData.final_process_ic_numbers.length === 0 ? "Select Process IC first" : "Select RM IC Numbers"}
+                            disabled={formData.final_process_ic_numbers.length === 0}
+                          />
+                        )}
                         {formData.final_rm_ic_numbers.length > 0 && (
                           <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
                             Selected: {formData.final_rm_ic_numbers.join(', ')}
@@ -2196,62 +2332,44 @@ export const RaiseInspectionCallForm = ({
                         )}
                       </FormField>
 
-                      {/* Process IC Numbers - Dropdown with Multiple Selection */}
-                      <FormField
-                        label="Process IC Numbers"
-                        name="final_process_ic_numbers"
-                        required
-                        hint="Mock data - showing all completed Process ICs for testing"
-                        fullWidth
-                      >
-                        <MultiSelectDropdown
-                          options={PROCESS_INSPECTION_CALLS
-                            .filter(ic => ic.status === 'Completed')
-                            .map(ic => ({
-                              value: ic.icNumber,
-                              label: `${ic.icNumber} (Lot: ${ic.lotNumber}, Accepted: ${ic.qtyAccepted})`
-                            }))}
-                          selectedValues={formData.final_process_ic_numbers}
-                          onChange={(selectedValues) => handleFinalProcessIcSelection(selectedValues)}
-                          placeholder="Select Process IC Numbers"
-                        />
-                        {formData.final_process_ic_numbers.length > 0 && (
-                          <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                            Selected: {formData.final_process_ic_numbers.join(', ')}
-                          </div>
-                        )}
-                      </FormField>
                 {/* Lot No. - Dropdown with Add Button */}
                 <FormField
                   label="Lot No."
                   name="final_lot_numbers"
                   required
-                  hint="Select lot numbers and click Add to include multiple lots"
+                  hint="Lot numbers from selected RM IC"
                   fullWidth
                 >
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                      <select
-                        className="ric-form-select"
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value && !formData.final_lot_numbers.includes(e.target.value)) {
-                            const newLots = [...formData.final_lot_numbers, e.target.value];
-                            handleFinalLotSelection(newLots);
-                          }
-                        }}
-                      >
-                        <option value="">Select Lot Number</option>
-                        {PROCESS_INSPECTION_CALLS
-                          .filter(ic => ic.status === 'Completed')
-                          .map(ic => (
-                            <option key={ic.lotNumber} value={ic.lotNumber}>
-                              {ic.lotNumber} (IC: {ic.icNumber}, Accepted: {ic.qtyAccepted})
+                  {loadingLotsForFinal ? (
+                    <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
+                      Loading lot numbers...
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <select
+                          className="ric-form-select"
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value && !formData.final_lot_numbers.includes(e.target.value)) {
+                              const newLots = [...formData.final_lot_numbers, e.target.value];
+                              handleFinalLotSelection(newLots);
+                            }
+                          }}
+                          disabled={formData.final_rm_ic_numbers.length === 0}
+                        >
+                          <option value="">
+                            {formData.final_rm_ic_numbers.length === 0 ? "Select RM IC first" : "Select Lot Number"}
+                          </option>
+                          {lotNumbersForFinal.map(lot => (
+                            <option key={lot} value={lot}>
+                              {lot}
                             </option>
                           ))}
-                      </select>
+                        </select>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Display added lots */}
                   {formData.final_lot_numbers.length > 0 && (
@@ -2444,65 +2562,34 @@ export const RaiseInspectionCallForm = ({
               />
             </FormField> */}
 
-            {/* Unit Name - For Final stage: auto-filled from Process IC, For others: Dropdown */}
-            {formData.type_of_call === 'Final' ? (
-              <FormField
-                label="place of Inspection - Unit Name"
-                name="final_unit_name"
-                // hint="Auto fill - same as the data for Process Inspection for that particular serial number"
+            {/* Unit Name - Dropdown for all call types */}
+            <FormField
+              label="place of Inspection - Unit Name"
+              name="unit_id"
+              required
+              hint="DropDown (based upon the selection of Company name)"
+            >
+              <select
+                className="ric-form-select"
+                value={formData.unit_id}
+                onChange={(e) => handleUnitChange(e.target.value)}
               >
-                <input
-                  type="text"
-                  className="ric-form-input ric-form-input--disabled"
-                  value={formData.final_unit_name}
-                  disabled
-                />
-              </FormField>
-            ) : (
-              <FormField
-                label="place of Inspection - Unit Name"
-                name="unit_id"
-                required
-                hint="DropDown (based upon the selection of Company name)"
-              >
-                <select
-                  className="ric-form-select"
-                  value={formData.unit_id}
-                  onChange={(e) => handleUnitChange(e.target.value)}
-                >
-                  <option value="">Select Unit</option>
-                  {unitOptions.map(unit => (
-                    <option key={unit.id} value={unit.id}>{unit.unitName}</option>
-                  ))}
-                </select>
-              </FormField>
-            )}
+                <option value="">Select Unit</option>
+                {unitOptions.map(unit => (
+                  <option key={unit.id} value={unit.id}>{unit.unitName}</option>
+                ))}
+              </select>
+            </FormField>
 
-            {/* Unit Address - For Final stage: auto-filled from Process IC, For others: Auto Fetch */}
-            {formData.type_of_call === 'Final' ? (
-              <FormField
-                label="place of Inspection - Unit Address"
-                name="final_unit_address"
-                // hint="Auto fill - same as the data for Process Inspection for that particular serial number"
-                fullWidth
-              >
-                <input
-                  type="text"
-                  className="ric-form-input ric-form-input--disabled"
-                  value={formData.final_unit_address}
-                  disabled
-                />
-              </FormField>
-            ) : (
-              <FormField label="place of Inspection - Unit Address" name="unit_address" hint="Auto Fetch" fullWidth>
-                <input
-                  type="text"
-                  className="ric-form-input ric-form-input--disabled"
-                  value={formData.unit_address}
-                  disabled
-                />
-              </FormField>
-            )}
+            {/* Unit Address - Auto Fetch for all call types */}
+            <FormField label="place of Inspection - Unit Address" name="unit_address" hint="Auto Fetch" fullWidth>
+              <input
+                type="text"
+                className="ric-form-input ric-form-input--disabled"
+                value={formData.unit_address}
+                disabled
+              />
+            </FormField>
           </div>
 
           {/* Company Details Table - Show for non-Final stages when unit is selected, or for Final when lots are selected */}

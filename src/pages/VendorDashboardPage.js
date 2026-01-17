@@ -227,8 +227,8 @@ const VendorDashboardPage = ({ onBack }) => {
             rateOfMaterial: entry.rateOfMaterial,
             rateOfGst: entry.rateOfGst,
             declaredQuantity: entry.tcQuantity,
-            qtyOfferedForInspection: 0, // TODO: Calculate from inspection calls
-            qtyLeftForInspection: entry.tcQuantity, // TODO: Calculate remaining quantity
+            qtyOfferedForInspection: entry.offeredQuantity || 0,
+            qtyLeftForInspection: entry.qtyLeftForInspection || entry.tcQuantity,
             unitOfMeasurement: entry.unitOfMeasurement,
             baseValuePO: entry.baseValuePo,
             totalPO: entry.totalPo,
@@ -791,12 +791,12 @@ const VendorDashboardPage = ({ onBack }) => {
             vendorId: user.userName,
             desiredInspectionDate: data.desired_inspection_date,
             actualInspectionDate: null,
-            companyId: data.company_id,
+            companyId: parseInt(data.company_id) || null,
             companyName: data.company_name,
-            unitId: data.unit_id,
+            unitId: parseInt(data.unit_id) || null,
             unitName: data.unit_name,
             unitAddress: data.unit_address,
-            remarks: data.remarks,
+            remarks: data.remarks || '',
             createdBy: '3', // Fixed value for Final inspection calls
             updatedBy: '3'  // Fixed value for Final inspection calls
           },
@@ -807,9 +807,9 @@ const VendorDashboardPage = ({ onBack }) => {
             processIcNumber: data.final_process_ic_numbers && data.final_process_ic_numbers.length > 0
               ? data.final_process_ic_numbers[0]
               : null,
-            companyId: data.company_id,
+            companyId: parseInt(data.company_id) || null,
             companyName: data.company_name,
-            unitId: data.unit_id,
+            unitId: parseInt(data.unit_id) || null,
             unitName: data.unit_name,
             unitAddress: data.unit_address,
             totalLots: data.final_lot_numbers ? data.final_lot_numbers.length : 0,
@@ -2360,6 +2360,7 @@ const VendorDashboardPage = ({ onBack }) => {
                 selectedPO={VENDOR_RAISE_CALL_PO}
                 inventoryEntries={inventoryEntries}
                 availableHeatNumbers={availableHeatNumbers}
+                vendorId={currentUser.id}
                 onSubmit={(data) => {
                   // TODO: Replace with API call
                   console.log('Inspection call submitted:', data);
@@ -2655,6 +2656,7 @@ const VendorDashboardPage = ({ onBack }) => {
                 selectedSubPO={selectedPOItem?.subPO}
                 inventoryEntries={inventoryEntries}
                 availableHeatNumbers={availableHeatNumbers}
+                vendorId={currentUser.id}
                 onSubmit={handleSubmitInspectionRequest}
                 isLoading={isLoading}
               />

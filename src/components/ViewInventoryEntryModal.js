@@ -216,7 +216,19 @@ const ViewInventoryEntryModal = ({ isOpen, onClose, entryId, onEdit, onDelete, o
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">TC Quantity:</span>
-                  <span className="detail-value highlight">{entry.tcQuantity} {entry.unitOfMeasurement}</span>
+                  <span className="detail-value highlight">{entry.tcQuantity || entry.declaredQuantity} {entry.unitOfMeasurement}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Qty Offered for Inspection:</span>
+                  <span className="detail-value" style={{ color: '#059669', fontWeight: 600 }}>
+                    {entry.qtyOfferedForInspection || 0} {entry.unitOfMeasurement}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Qty Left for Inspection:</span>
+                  <span className="detail-value" style={{ color: (entry.qtyLeftForInspection || 0) > 0 ? '#dc2626' : '#6b7280', fontWeight: 600 }}>
+                    {entry.qtyLeftForInspection || entry.tcQuantity || entry.declaredQuantity} {entry.unitOfMeasurement}
+                  </span>
                 </div>
               </div>
             </div>

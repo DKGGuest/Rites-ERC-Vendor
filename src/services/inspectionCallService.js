@@ -363,6 +363,10 @@ const inspectionCallService = {
       console.error('❌ Error creating Final inspection call:', error);
       console.error('❌ Error message:', error.message);
       console.error('❌ Error data:', error.data);
+      console.error('❌ Full error response:', JSON.stringify(error, null, 2));
+      if (error.data && error.data.responseStatus) {
+        console.error('❌ Backend error details:', error.data.responseStatus);
+      }
       throw error;
     }
   },
@@ -496,6 +500,61 @@ const inspectionCallService = {
       return response;
     } catch (error) {
       console.error('Error fetching vendor inspection calls with status:', error);
+      throw error;
+    }
+  },
+
+  // ==================== FINAL INSPECTION CALL DROPDOWN APIs ====================
+
+  /**
+   * Get Process IC certificate numbers for Final Inspection Call
+   * Fetches from inspection_complete_details where CALL_NO starts with 'EP'
+   * Filtered by vendor_id
+   * @param {string} vendorId - Vendor ID
+   * @returns {Promise<Object>} - API response with list of certificate numbers
+   */
+  getProcessIcCertificates: async (vendorId) => {
+    try {
+      const response = await httpClient.get(
+        `/final-material/process-ic-certificates?vendorId=${vendorId}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching Process IC certificates:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get RM IC numbers by Process IC certificate number
+   * @param {string} certificateNo - Process IC certificate number
+   * @returns {Promise<Object>} - API response with list of RM IC numbers
+   */
+  getRmIcNumbersByCertificate: async (certificateNo) => {
+    try {
+      const response = await httpClient.get(
+        `/final-material/rm-ic-numbers?certificateNo=${encodeURIComponent(certificateNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching RM IC numbers:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Lot numbers by RM IC number
+   * @param {string} rmIcNumber - RM IC number
+   * @returns {Promise<Object>} - API response with list of lot numbers
+   */
+  getLotNumbersByRmIc: async (rmIcNumber) => {
+    try {
+      const response = await httpClient.get(
+        `/final-material/lot-numbers?rmIcNumber=${encodeURIComponent(rmIcNumber)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching lot numbers:', error);
       throw error;
     }
   }
