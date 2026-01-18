@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  COMPANY_UNIT_MASTER,
+  // COMPANY_UNIT_MASTER, // Commented out - now using POI API instead of mock data
   // MANUFACTURER_MASTER,
   HEAT_TC_MAPPING,
   CHEMICAL_ANALYSIS_HISTORY,
@@ -17,6 +17,7 @@ import {
   // VENDOR_PO_LIST
 } from '../data/vendorMockData';
 import inspectionCallService from '../services/inspectionCallService';
+import poiMappingService from '../services/poiMappingService';
 import '../styles/raiseInspectionCall.css';
 
 // Multi-Select Dropdown Component
@@ -324,6 +325,14 @@ export const RaiseInspectionCallForm = ({
   const [loadingRmIcsForFinal, setLoadingRmIcsForFinal] = useState(false);
   const [loadingLotsForFinal, setLoadingLotsForFinal] = useState(false);
 
+  // POI (Place of Inspection) states
+  const [companies, setCompanies] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [poiCode, setPoiCode] = useState('');
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [loadingUnitDetails, setLoadingUnitDetails] = useState(false);
+
   // Handle PO Serial selection
   const handlePoSerialChange = useCallback((serialNo, itemData = null) => {
     const poSerial = PO_SERIAL_DETAILS.find(p => p.serialNo === serialNo);
@@ -430,6 +439,114 @@ export const RaiseInspectionCallForm = ({
 
     fetchCompletedRMICs();
   }, [formData.type_of_call]);
+
+  // Fetch companies for POI dropdown on component mount
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      setLoadingCompanies(true);
+      try {
+        console.log('🏢 Fetching companies for POI dropdown');
+        const response = await poiMappingService.getCompanies();
+        console.log('📦 Companies response:', response);
+
+        if (response && response.data) {
+          const companyList = Array.isArray(response.data) ? response.data : [];
+          console.log('✅ Setting companies:', companyList);
+          setCompanies(companyList);
+        } else {
+          console.log('⚠️ Response not successful, setting empty array');
+          setCompanies([]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching companies:', error);
+        setCompanies([]);
+      } finally {
+        setLoadingCompanies(false);
+      }
+    };
+
+    fetchCompanies();
+  }, []); // Run once on mount
+
+  // Fetch units when company is selected
+  useEffect(() => {
+    const fetchUnits = async () => {
+      if (formData.company_name) {
+        setLoadingUnits(true);
+        try {
+          console.log('🏭 Fetching units for company:', formData.company_name);
+          const response = await poiMappingService.getUnitsByCompany(formData.company_name);
+          console.log('📦 Units response:', response);
+
+          if (response && response.data) {
+            const unitList = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting units:', unitList);
+            setUnits(unitList);
+          } else {
+            console.log('⚠️ Response not successful, setting empty array');
+            setUnits([]);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching units:', error);
+          setUnits([]);
+        } finally {
+          setLoadingUnits(false);
+        }
+      } else {
+        // Reset units when no company selected
+        setUnits([]);
+      }
+    };
+
+    fetchUnits();
+  }, [formData.company_name]);
+
+  // Fetch unit details (address and POI code) when both company and unit are selected
+  useEffect(() => {
+    const fetchUnitDetails = async () => {
+      if (formData.company_name && formData.unit_name) {
+        setLoadingUnitDetails(true);
+        try {
+          console.log('📍 Fetching unit details for:', formData.company_name, '-', formData.unit_name);
+          const response = await poiMappingService.getUnitDetails(
+            formData.company_name,
+            formData.unit_name
+          );
+          console.log('📦 Unit details response:', response);
+
+          if (response && response.data) {
+            const { address, poiCode: fetchedPoiCode } = response.data;
+            console.log('✅ Setting unit address and POI code:', address, fetchedPoiCode);
+
+            // Update form data with address
+            setFormData(prev => ({
+              ...prev,
+              unit_address: address || ''
+            }));
+
+            // Store POI code in state
+            setPoiCode(fetchedPoiCode || '');
+          } else {
+            console.log('⚠️ Response not successful');
+            setFormData(prev => ({ ...prev, unit_address: '' }));
+            setPoiCode('');
+          }
+        } catch (error) {
+          console.error('❌ Error fetching unit details:', error);
+          setFormData(prev => ({ ...prev, unit_address: '' }));
+          setPoiCode('');
+        } finally {
+          setLoadingUnitDetails(false);
+        }
+      } else {
+        // Reset address and POI code when company or unit not selected
+        setFormData(prev => ({ ...prev, unit_address: '' }));
+        setPoiCode('');
+      }
+    };
+
+    fetchUnitDetails();
+  }, [formData.company_name, formData.unit_name]);
 
   // Fetch heat numbers when certificate numbers are selected
   // Aggregates heat numbers from ALL selected RM IC numbers
@@ -628,11 +745,11 @@ export const RaiseInspectionCallForm = ({
   //   return LOT_NUMBERS.filter(l => l.qtyAvailable > 0);
   // }, []);
 
-  // Get units for selected company
-  const unitOptions = useMemo(() => {
-    const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(formData.company_id));
-    return company?.units || [];
-  }, [formData.company_id]);
+  // Get units for selected company - COMMENTED OUT - now using POI API
+  // const unitOptions = useMemo(() => {
+  //   const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(formData.company_id));
+  //   return company?.units || [];
+  // }, [formData.company_id]);
 
   // Calculate ERC quantity from MT (for Raw Material)
   const calculateErcFromMt = useCallback((mtQty, productType = 'ERC MK-III') => {
@@ -797,20 +914,20 @@ export const RaiseInspectionCallForm = ({
   // const availableTcNumbers = useMemo(() => { ... }, [formData.rm_heat_numbers]);
   // useEffect(() => { ... }, [formData.rm_tc_number]);
 
-  // Handle unit selection (company is auto-filled, not changeable)
-  const handleUnitChange = (unitId) => {
-    const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(formData.company_id));
-    const unit = company?.units.find(u => u.id === parseInt(unitId));
-    setFormData(prev => ({
-      ...prev,
-      unit_id: unitId,
-      unit_name: unit?.unitName || '',
-      unit_address: unit?.address || '',
-      unit_gstin: unit?.gstin || '',
-      unit_contact_person: unit?.contactPerson || '',
-      unit_role: unit?.roleOfUnit || ''
-    }));
-  };
+  // Handle unit selection - COMMENTED OUT - now using POI API
+  // const handleUnitChange = (unitId) => {
+  //   const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(formData.company_id));
+  //   const unit = company?.units.find(u => u.id === parseInt(unitId));
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     unit_id: unitId,
+  //     unit_name: unit?.unitName || '',
+  //     unit_address: unit?.address || '',
+  //     unit_gstin: unit?.gstin || '',
+  //     unit_contact_person: unit?.contactPerson || '',
+  //     unit_role: unit?.roleOfUnit || ''
+  //   }));
+  // };
 
   // Handle RM IC selection for Process stage
   const handleRmIcSelection = (selectedIcNumbers) => {
@@ -1177,13 +1294,18 @@ export const RaiseInspectionCallForm = ({
     //   newErrors.desired_inspection_date = 'Date must be within 7 days from today';
     // }
 
-    if (!formData.company_id) {
-      newErrors.company_id = 'Company is required';
+    if (!formData.company_name) {
+      newErrors.company_name = 'Company is required';
     }
 
-    // Check unit_id for all call types (Raw Material, Process, Final)
-    if (!formData.unit_id) {
-      newErrors.unit_id = 'Unit is required';
+    // Check unit_name for all call types (Raw Material, Process, Final)
+    if (!formData.unit_name) {
+      newErrors.unit_name = 'Unit is required';
+    }
+
+    // Check if POI code is available
+    if (!poiCode) {
+      newErrors.unit_name = 'Please select a valid company and unit to get POI code';
     }
 
     // Raw Material stage validations
@@ -1377,11 +1499,12 @@ export const RaiseInspectionCallForm = ({
       type_of_call: formData.type_of_call,
       type_of_erc: formData.type_of_erc,
       desired_inspection_date: formData.desired_inspection_date,
-      company_id: formData.company_id,
+      company_id: null, // Set to null since we're using POI API (backend expects Integer)
       company_name: formData.company_name,
-      unit_id: formData.unit_id,
+      unit_id: null, // Set to null since we're using POI API (backend expects Integer)
       unit_name: formData.unit_name,
       unit_address: formData.unit_address,
+      placeOfInspection: poiCode, // POI code from API
       remarks: formData.remarks
     };
 
@@ -1424,6 +1547,9 @@ export const RaiseInspectionCallForm = ({
     }
 
     console.log('📤 Calling onSubmit with filtered data:', filteredData);
+    console.log('🏢 POI Code being sent:', poiCode);
+    console.log('🏭 Company Name:', formData.company_name);
+    console.log('🏗️ Unit Name:', formData.unit_name);
     onSubmit(filteredData);
   };
 
@@ -2525,28 +2651,27 @@ export const RaiseInspectionCallForm = ({
             <FormField label="Place of Inspection - Company Name" name="company_name" required errors={errors}>
               <select
                 className="ric-form-select"
-                value={formData.company_id}
+                value={formData.company_name}
                 onChange={(e) => {
-                  const companyId = e.target.value;
-                  const company = COMPANY_UNIT_MASTER.find(c => c.id === parseInt(companyId));
+                  const selectedCompanyName = e.target.value;
                   setFormData(prev => ({
                     ...prev,
-                    company_id: companyId,
-                    company_name: company?.companyName || '',
-                    cin: company?.cin || '',
+                    company_name: selectedCompanyName,
                     // Reset unit when company changes
-                    unit_id: '',
                     unit_name: '',
-                    unit_address: '',
-                    unit_gstin: '',
-                    unit_contact_person: ''
+                    unit_address: ''
                   }));
+                  // Reset POI code when company changes
+                  setPoiCode('');
                 }}
+                disabled={loadingCompanies}
               >
-                <option value="">-- Select Company --</option>
-                {COMPANY_UNIT_MASTER.map(company => (
-                  <option key={company.id} value={company.id}>
-                    {company.companyName}
+                <option value="">
+                  {loadingCompanies ? 'Loading companies...' : '-- Select Company --'}
+                </option>
+                {companies.map((companyName, index) => (
+                  <option key={index} value={companyName}>
+                    {companyName}
                   </option>
                 ))}
               </select>
@@ -2565,18 +2690,35 @@ export const RaiseInspectionCallForm = ({
             {/* Unit Name - Dropdown for all call types */}
             <FormField
               label="place of Inspection - Unit Name"
-              name="unit_id"
+              name="unit_name"
               required
               hint="DropDown (based upon the selection of Company name)"
             >
               <select
                 className="ric-form-select"
-                value={formData.unit_id}
-                onChange={(e) => handleUnitChange(e.target.value)}
+                value={formData.unit_name}
+                onChange={(e) => {
+                  const selectedUnitName = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    unit_name: selectedUnitName,
+                    // Address will be auto-filled by useEffect
+                    unit_address: ''
+                  }));
+                  // POI code will be fetched by useEffect
+                  setPoiCode('');
+                }}
+                disabled={loadingUnits || !formData.company_name}
               >
-                <option value="">Select Unit</option>
-                {unitOptions.map(unit => (
-                  <option key={unit.id} value={unit.id}>{unit.unitName}</option>
+                <option value="">
+                  {loadingUnits ? 'Loading units...' :
+                   !formData.company_name ? 'Select company first' :
+                   'Select Unit'}
+                </option>
+                {units.map((unitName, index) => (
+                  <option key={index} value={unitName}>
+                    {unitName}
+                  </option>
                 ))}
               </select>
             </FormField>
@@ -2586,7 +2728,7 @@ export const RaiseInspectionCallForm = ({
               <input
                 type="text"
                 className="ric-form-input ric-form-input--disabled"
-                value={formData.unit_address}
+                value={loadingUnitDetails ? 'Loading address...' : formData.unit_address}
                 disabled
               />
             </FormField>

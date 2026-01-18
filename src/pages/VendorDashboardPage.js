@@ -734,6 +734,7 @@ const VendorDashboardPage = ({ onBack }) => {
             vendorId: user.userName,
             desiredInspectionDate: data.desired_inspection_date,
             actualInspectionDate: null,
+            placeOfInspection: data.placeOfInspection, // POI code from API
             companyId: data.company_id,
             companyName: data.company_name,
             unitId: data.unit_id,
@@ -769,8 +770,9 @@ const VendorDashboardPage = ({ onBack }) => {
         if (!processData.inspectionCall.poNo) missingFields.push('po_no');
         if (!processData.inspectionCall.poSerialNo) missingFields.push('po_serial_no');
         if (!processData.inspectionCall.desiredInspectionDate) missingFields.push('desired_inspection_date');
-        if (!processData.inspectionCall.companyId) missingFields.push('company_id');
-        if (!processData.inspectionCall.unitId) missingFields.push('unit_id');
+        // company_id and unit_id are now nullable - using POI API instead
+        // if (!processData.inspectionCall.companyId) missingFields.push('company_id');
+        // if (!processData.inspectionCall.unitId) missingFields.push('unit_id');
 
         if (missingFields.length > 0) {
           console.error('❌ Missing required fields:', missingFields);
@@ -791,6 +793,7 @@ const VendorDashboardPage = ({ onBack }) => {
             vendorId: user.userName,
             desiredInspectionDate: data.desired_inspection_date,
             actualInspectionDate: null,
+            placeOfInspection: data.placeOfInspection, // POI code from form
             companyId: parseInt(data.company_id) || null,
             companyName: data.company_name,
             unitId: parseInt(data.unit_id) || null,
