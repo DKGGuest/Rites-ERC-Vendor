@@ -228,7 +228,9 @@ const VendorDashboardPage = ({ onBack }) => {
             rateOfGst: entry.rateOfGst,
             declaredQuantity: entry.tcQuantity,
             qtyOfferedForInspection: entry.offeredQuantity || 0,
-            qtyLeftForInspection: entry.qtyLeftForInspection || entry.tcQuantity,
+            // FIX: Use nullish coalescing (??) instead of || to handle 0 correctly
+            // When qtyLeftForInspection is 0 (exhausted), it should display 0, not fall back to tcQuantity
+            qtyLeftForInspection: entry.qtyLeftForInspection !== null && entry.qtyLeftForInspection !== undefined ? entry.qtyLeftForInspection : entry.tcQuantity,
             unitOfMeasurement: entry.unitOfMeasurement,
             baseValuePO: entry.baseValuePo,
             totalPO: entry.totalPo,

@@ -232,16 +232,15 @@ const getInitialFormState = (selectedPO = null) => {
         offeredQty: '',
         maxQty: '',
         unit: '',
-        isLoading: false
+        isLoading: false,
+        // Chemical Analysis - Now per heat number
+        chemical_carbon: '',
+        chemical_manganese: '',
+        chemical_silicon: '',
+        chemical_sulphur: '',
+        chemical_phosphorus: ''
       }
     ],
-    // Chemical Analysis - Manual input (editable) - shared across all heats
-    rm_chemical_carbon: '',
-    rm_chemical_manganese: '',
-    rm_chemical_silicon: '',
-    rm_chemical_sulphur: '',
-    rm_chemical_phosphorus: '',
-    // rm_chemical_chromium: '',
     rm_total_offered_qty_mt: 0, // Auto-calculated (sum of all heat quantities)
     rm_offered_qty_erc: 0, // Auto-calculated from total
 
@@ -875,6 +874,29 @@ export const RaiseInspectionCallForm = ({
     return filtered;
   }, [availableHeatNumbers, inventoryEntries]);
 
+  // Get available heat numbers for a specific heat mapping dropdown
+  // Excludes heat numbers already selected in other dropdowns
+  const getAvailableHeatNumbersForDropdown = useCallback((currentHeatMappingId) => {
+    // Get all selected heat numbers except the current one
+    const selectedHeatNumbers = formData.rm_heat_tc_mapping
+      .filter(heat => heat.id !== currentHeatMappingId && heat.heatNumber)
+      .map(heat => heat.heatNumber);
+
+    // Filter out already selected heat numbers
+    const availableForThisDropdown = heatNumbersForDropdown.filter(
+      heat => !selectedHeatNumbers.includes(heat.heatNumber)
+    );
+
+    console.log(`📋 Heat numbers for dropdown ${currentHeatMappingId}:`, {
+      total: heatNumbersForDropdown.length,
+      selected: selectedHeatNumbers.length,
+      available: availableForThisDropdown.length,
+      selectedHeatNumbers
+    });
+
+    return availableForThisDropdown;
+  }, [heatNumbersForDropdown, formData.rm_heat_tc_mapping]);
+
   // Get available TC numbers for a specific heat number
   const getAvailableTcNumbers = useCallback((heatNumber) => {
     if (!heatNumber) return [];
@@ -1136,7 +1158,13 @@ export const RaiseInspectionCallForm = ({
           offeredQty: '',
           maxQty: '',
           unit: '',
-          isLoading: false
+          isLoading: false,
+          // Chemical Analysis - Now per heat number
+          chemical_carbon: '',
+          chemical_manganese: '',
+          chemical_silicon: '',
+          chemical_sulphur: '',
+          chemical_phosphorus: ''
         }
       ]
     }));
@@ -1246,6 +1274,16 @@ export const RaiseInspectionCallForm = ({
     }));
   };
 
+  // Handle chemical analysis change for a specific heat
+  const handleHeatChemicalChange = (id, fieldName, value) => {
+    setFormData(prev => ({
+      ...prev,
+      rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+        heat.id === id ? { ...heat, [fieldName]: value } : heat
+      )
+    }));
+  };
+
   // Generic change handler
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1333,9 +1371,9 @@ export const RaiseInspectionCallForm = ({
             } else {
               // Check if offered quantity exceeds TC qty remaining
               const offeredQty = parseFloat(heat.offeredQty);
-              const tcQtyRemaining = parseFloat(heat.tcQtyRemaining);
+              const tcQtyRemaining = parseFloat(heat.maxQty) || parseFloat(heat.tcQtyRemaining);
               if (tcQtyRemaining && offeredQty > tcQtyRemaining) {
-                newErrors[`heat_${index}_offeredQty`] = 'Offered Qty cannot be more than TC Qty Remaining with Vendor';
+                newErrors[`heat_${index}_offeredQty`] = `Offered Qty cannot be more than TC Qty Remaining with Vendor (${tcQtyRemaining} ${heat.unit})`;
               }
             }
           }
@@ -1346,52 +1384,60 @@ export const RaiseInspectionCallForm = ({
           newErrors.rm_total_offered_qty_mt = 'Total Offered Quantity (MT) must be greater than 0';
         }
 
-        // Chemical analysis validations only if heat data is provided
-        if (!formData.rm_chemical_carbon) {
-          newErrors.rm_chemical_carbon = 'Carbon % is required';
-        } else {
-          const carbon = parseFloat(formData.rm_chemical_carbon);
-          if (carbon < 0.5 || carbon > 0.6) {
-            newErrors.rm_chemical_carbon = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
-          }
-        }
+        // Chemical analysis validations per heat (now per-heat instead of global)
+        formData.rm_heat_tc_mapping.forEach((heat, index) => {
+          if (heat.heatNumber || heat.tcNumber || heat.offeredQty) {
+            // Validate Carbon
+            if (!heat.chemical_carbon) {
+              newErrors[`heat_${index}_chemical_carbon`] = 'Carbon % is required';
+            } else {
+              const carbon = parseFloat(heat.chemical_carbon);
+              if (carbon < 0.5 || carbon > 0.6) {
+                newErrors[`heat_${index}_chemical_carbon`] = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+              }
+            }
 
-        if (!formData.rm_chemical_manganese) {
-          newErrors.rm_chemical_manganese = 'Manganese % is required';
-        } else {
-          const manganese = parseFloat(formData.rm_chemical_manganese);
-          if (manganese < 0.8 || manganese > 1.0) {
-            newErrors.rm_chemical_manganese = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
-          }
-        }
+            // Validate Manganese
+            if (!heat.chemical_manganese) {
+              newErrors[`heat_${index}_chemical_manganese`] = 'Manganese % is required';
+            } else {
+              const manganese = parseFloat(heat.chemical_manganese);
+              if (manganese < 0.8 || manganese > 1.0) {
+                newErrors[`heat_${index}_chemical_manganese`] = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+              }
+            }
 
-        if (!formData.rm_chemical_silicon) {
-          newErrors.rm_chemical_silicon = 'Silicon % is required';
-        } else {
-          const silicon = parseFloat(formData.rm_chemical_silicon);
-          if (silicon < 1.5 || silicon > 2.0) {
-            newErrors.rm_chemical_silicon = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
-          }
-        }
+            // Validate Silicon
+            if (!heat.chemical_silicon) {
+              newErrors[`heat_${index}_chemical_silicon`] = 'Silicon % is required';
+            } else {
+              const silicon = parseFloat(heat.chemical_silicon);
+              if (silicon < 1.5 || silicon > 2.0) {
+                newErrors[`heat_${index}_chemical_silicon`] = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+              }
+            }
 
-        if (!formData.rm_chemical_sulphur) {
-          newErrors.rm_chemical_sulphur = 'Sulphur % is required';
-        } else {
-          const sulphur = parseFloat(formData.rm_chemical_sulphur);
-          if (sulphur > 0.03) {
-            newErrors.rm_chemical_sulphur = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
-          }
-        }
+            // Validate Sulphur
+            if (!heat.chemical_sulphur) {
+              newErrors[`heat_${index}_chemical_sulphur`] = 'Sulphur % is required';
+            } else {
+              const sulphur = parseFloat(heat.chemical_sulphur);
+              if (sulphur > 0.03) {
+                newErrors[`heat_${index}_chemical_sulphur`] = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+              }
+            }
 
-        if (!formData.rm_chemical_phosphorus) {
-          newErrors.rm_chemical_phosphorus = 'Phosphorus % is required';
-        } else {
-          const phosphorus = parseFloat(formData.rm_chemical_phosphorus);
-          if (phosphorus > 0.03) {
-            newErrors.rm_chemical_phosphorus = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+            // Validate Phosphorus
+            if (!heat.chemical_phosphorus) {
+              newErrors[`heat_${index}_chemical_phosphorus`] = 'Phosphorus % is required';
+            } else {
+              const phosphorus = parseFloat(heat.chemical_phosphorus);
+              if (phosphorus > 0.03) {
+                newErrors[`heat_${index}_chemical_phosphorus`] = 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry';
+              }
+            }
           }
-        }
-        // if (!formData.rm_chemical_chromium) newErrors.rm_chemical_chromium = 'Chromium % is required';
+        });
       }
     }
 
@@ -1510,15 +1556,32 @@ export const RaiseInspectionCallForm = ({
 
     // Add type-specific fields
     if (formData.type_of_call === 'Raw Material') {
+      // Transform heat-tc mapping to include chemical analysis per heat
+      const heatQuantities = formData.rm_heat_tc_mapping.map(heat => ({
+        heatNumber: heat.heatNumber,
+        manufacturer: heat.manufacturer,
+        offeredQty: parseFloat(heat.offeredQty) || 0,
+        tcNumber: heat.tcNumber,
+        tcDate: heat.tcDate,
+        tcQuantity: parseFloat(heat.tcQty) || 0,
+        qtyLeft: parseFloat(heat.tcQtyRemaining) || 0
+      }));
+
+      // Transform chemical analysis data per heat
+      const chemicalAnalysis = formData.rm_heat_tc_mapping.map(heat => ({
+        heatNumber: heat.heatNumber,
+        carbon: heat.chemical_carbon ? parseFloat(heat.chemical_carbon) : null,
+        manganese: heat.chemical_manganese ? parseFloat(heat.chemical_manganese) : null,
+        silicon: heat.chemical_silicon ? parseFloat(heat.chemical_silicon) : null,
+        sulphur: heat.chemical_sulphur ? parseFloat(heat.chemical_sulphur) : null,
+        phosphorus: heat.chemical_phosphorus ? parseFloat(heat.chemical_phosphorus) : null
+      }));
+
       filteredData = {
         ...filteredData,
         rm_heat_tc_mapping: formData.rm_heat_tc_mapping,
-        rm_chemical_carbon: formData.rm_chemical_carbon,
-        rm_chemical_manganese: formData.rm_chemical_manganese,
-        rm_chemical_silicon: formData.rm_chemical_silicon,
-        rm_chemical_sulphur: formData.rm_chemical_sulphur,
-        rm_chemical_phosphorus: formData.rm_chemical_phosphorus,
-        // rm_chemical_chromium: formData.rm_chemical_chromium,
+        heatQuantities: heatQuantities,
+        chemicalAnalysis: chemicalAnalysis,
         rm_total_offered_qty_mt: formData.rm_total_offered_qty_mt,
         rm_offered_qty_erc: formData.rm_offered_qty_erc,
         rm_remarks: formData.remarks
@@ -1860,7 +1923,7 @@ export const RaiseInspectionCallForm = ({
                         onChange={(e) => handleHeatNumberChange(heatMapping.id, e.target.value)}
                       >
                         <option value="">-- Select Heat Number --</option>
-                        {heatNumbersForDropdown.map(heat => (
+                        {getAvailableHeatNumbersForDropdown(heatMapping.id).map(heat => (
                           <option key={heat.heatNumber} value={heat.heatNumber}>
                             {heat.heatNumber} -  ({heat.supplierName})
                           </option>
@@ -2029,6 +2092,80 @@ export const RaiseInspectionCallForm = ({
                       />
                     </FormField>
                   </div>
+
+                  {/* Chemical Analysis for this Heat Number */}
+                  <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e0e0e0' }}>
+                    <SectionHeader
+                      title={`Chemical Analysis of TC - Heat #${index + 1}`}
+                      subtitle={`Enter chemical composition percentages for ${heatMapping.heatNumber || 'this heat'}`}
+                    />
+                    <div className="ric-form-grid">
+                      <FormField label="Carbon (C) %" name={`heat_${index}_chemical_carbon`} required hint="Range: 0.5 - 0.6" errors={errors}>
+                        <input
+                          type="number"
+                          className="ric-form-input"
+                          value={heatMapping.chemical_carbon}
+                          onChange={(e) => handleHeatChemicalChange(heatMapping.id, 'chemical_carbon', e.target.value)}
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          placeholder="e.g., 0.55"
+                        />
+                      </FormField>
+
+                      <FormField label="Manganese (Mn) %" name={`heat_${index}_chemical_manganese`} required hint="Range: 0.8 - 1.0" errors={errors}>
+                        <input
+                          type="number"
+                          className="ric-form-input"
+                          value={heatMapping.chemical_manganese}
+                          onChange={(e) => handleHeatChemicalChange(heatMapping.id, 'chemical_manganese', e.target.value)}
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          placeholder="e.g., 0.9"
+                        />
+                      </FormField>
+
+                      <FormField label="Silicon (Si) %" name={`heat_${index}_chemical_silicon`} required hint="Range: 1.5 - 2.0" errors={errors}>
+                        <input
+                          type="number"
+                          className="ric-form-input"
+                          value={heatMapping.chemical_silicon}
+                          onChange={(e) => handleHeatChemicalChange(heatMapping.id, 'chemical_silicon', e.target.value)}
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          placeholder="e.g., 1.75"
+                        />
+                      </FormField>
+
+                      <FormField label="Sulphur (S) %" name={`heat_${index}_chemical_sulphur`} required hint="Max: 0.03" errors={errors}>
+                        <input
+                          type="number"
+                          className="ric-form-input"
+                          value={heatMapping.chemical_sulphur}
+                          onChange={(e) => handleHeatChemicalChange(heatMapping.id, 'chemical_sulphur', e.target.value)}
+                          step="0.001"
+                          min="0"
+                          max="100"
+                          placeholder="e.g., 0.02"
+                        />
+                      </FormField>
+
+                      <FormField label="Phosphorus (P) %" name={`heat_${index}_chemical_phosphorus`} required hint="Max: 0.03" errors={errors}>
+                        <input
+                          type="number"
+                          className="ric-form-input"
+                          value={heatMapping.chemical_phosphorus}
+                          onChange={(e) => handleHeatChemicalChange(heatMapping.id, 'chemical_phosphorus', e.target.value)}
+                          step="0.001"
+                          min="0"
+                          max="100"
+                          placeholder="e.g., 0.02"
+                        />
+                      </FormField>
+                    </div>
+                  </div>
                 </div>
               ))}
 
@@ -2041,97 +2178,6 @@ export const RaiseInspectionCallForm = ({
                 >
                   + Add Another Heat Number
                 </button>
-              </div>
-
-              {/* Chemical Analysis - Manual Input (Editable) - Shared across all heats */}
-              <SectionHeader
-                title="Chemical Analysis of TC"
-                subtitle="Enter chemical composition percentages (auto-filled if previously entered)"
-              />
-              <div className="ric-form-grid">
-                <FormField label="Carbon (C) %" name="rm_chemical_carbon" required hint="Range: 0.5 - 0.6" errors={errors}>
-                  <input
-                    type="number"
-                    name="rm_chemical_carbon"
-                    className="ric-form-input"
-                    value={formData.rm_chemical_carbon}
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="e.g., 0.55"
-                  />
-                </FormField>
-
-                <FormField label="Manganese (Mn) %" name="rm_chemical_manganese" required hint="Range: 0.8 - 1.0" errors={errors}>
-                  <input
-                    type="number"
-                    name="rm_chemical_manganese"
-                    className="ric-form-input"
-                    value={formData.rm_chemical_manganese}
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="e.g., 0.9"
-                  />
-                </FormField>
-
-                <FormField label="Silicon (Si) %" name="rm_chemical_silicon" required hint="Range: 1.5 - 2.0" errors={errors}>
-                  <input
-                    type="number"
-                    name="rm_chemical_silicon"
-                    className="ric-form-input"
-                    value={formData.rm_chemical_silicon}
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="e.g., 1.75"
-                  />
-                </FormField>
-
-                <FormField label="Sulphur (S) %" name="rm_chemical_sulphur" required hint="Max: 0.03" errors={errors}>
-                  <input
-                    type="number"
-                    name="rm_chemical_sulphur"
-                    className="ric-form-input"
-                    value={formData.rm_chemical_sulphur}
-                    onChange={handleChange}
-                    step="0.001"
-                    min="0"
-                    max="100"
-                    placeholder="e.g., 0.02"
-                  />
-                </FormField>
-
-                <FormField label="Phosphorus (P) %" name="rm_chemical_phosphorus" required hint="Max: 0.03" errors={errors}>
-                  <input
-                    type="number"
-                    name="rm_chemical_phosphorus"
-                    className="ric-form-input"
-                    value={formData.rm_chemical_phosphorus}
-                    onChange={handleChange}
-                    step="0.001"
-                    min="0"
-                    max="100"
-                    placeholder="e.g., 0.02"
-                  />
-                </FormField>
-
-                {/* <FormField label="Chromium (Cr) %" name="rm_chemical_chromium" required errors={errors}>
-                  <input
-                    type="number"
-                    name="rm_chemical_chromium"
-                    className="ric-form-input"
-                    value={formData.rm_chemical_chromium}
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    placeholder="e.g., 0.15"
-                  />
-                </FormField> */}
               </div>
 
               {/* Total Offered Quantity - Auto-calculated from all heats */}

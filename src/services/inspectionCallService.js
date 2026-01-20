@@ -77,7 +77,7 @@ const inspectionCallService = {
           unitOfMeasurement: rmInspectionData.po_unit || 'MT',
 
           // Heat Quantities - match backend DTO exactly
-          heatQuantities: rmInspectionData.rm_heat_tc_mapping?.map(heat => ({
+          heatQuantities: rmInspectionData.heatQuantities?.map(heat => ({
             heatNumber: heat.heatNumber,
             manufacturer: heat.manufacturer || 'Test Manufacturer',
             offeredQty: parseFloat(heat.offeredQty) || 0.0, // Backend expects 'offeredQty' not 'quantityMt'
@@ -90,16 +90,16 @@ const inspectionCallService = {
             rejectionReason: null
           })) || [],
 
-          // Chemical Analysis - match backend DTO exactly
-          chemicalAnalysis: rmInspectionData.rm_chemical_carbon ? [{
-            heatNumber: rmInspectionData.rm_heat_tc_mapping?.[0]?.heatNumber || 'TEST-HEAT-001',
-            carbon: parseFloat(rmInspectionData.rm_chemical_carbon) || null,
-            manganese: parseFloat(rmInspectionData.rm_chemical_manganese) || null,
-            silicon: parseFloat(rmInspectionData.rm_chemical_silicon) || null,
-            sulphur: parseFloat(rmInspectionData.rm_chemical_sulphur) || null,
-            phosphorus: parseFloat(rmInspectionData.rm_chemical_phosphorus) || null,
-            // chromium: parseFloat(rmInspectionData.rm_chemical_chromium) || null
-          }] : []
+          // Chemical Analysis - per heat number (now supports multiple heats)
+          chemicalAnalysis: rmInspectionData.chemicalAnalysis?.map(chem => ({
+            heatNumber: chem.heatNumber,
+            carbon: chem.carbon ? parseFloat(chem.carbon) : null,
+            manganese: chem.manganese ? parseFloat(chem.manganese) : null,
+            silicon: chem.silicon ? parseFloat(chem.silicon) : null,
+            sulphur: chem.sulphur ? parseFloat(chem.sulphur) : null,
+            phosphorus: chem.phosphorus ? parseFloat(chem.phosphorus) : null,
+            chromium: chem.chromium ? parseFloat(chem.chromium) : null
+          })) || []
         }
       };
 
