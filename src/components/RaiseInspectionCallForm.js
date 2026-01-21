@@ -218,6 +218,8 @@ const getInitialFormState = (selectedPO = null) => {
       {
         id: Date.now(), // Unique ID for React key
         heatNumber: '',
+        supplierName: '',
+        compositeKey: '', // Composite key: "heatNumber|supplierName" to uniquely identify heat
         tcNumber: '',
         tcDate: '',
         manufacturer: '',
@@ -255,6 +257,7 @@ const getInitialFormState = (selectedPO = null) => {
         manufacturerHeat: '',
         heatNumber: '',
         manufacturer: '',
+        compositeKey: '', // Composite key: "heatNumber|manufacturer" to uniquely identify heat
         offeredQty: '',
         totalAcceptedQtyRm: 0,
         isLoading: false
@@ -875,35 +878,44 @@ export const RaiseInspectionCallForm = ({
   }, [availableHeatNumbers, inventoryEntries]);
 
   // Get available heat numbers for a specific heat mapping dropdown
-  // Excludes heat numbers already selected in other dropdowns
+  // Shows ALL heat numbers (no filtering based on selection)
+  // Deduplicates based on composite key (heatNumber + supplierName)
   const getAvailableHeatNumbersForDropdown = useCallback((currentHeatMappingId) => {
-    // Get all selected heat numbers except the current one
-    const selectedHeatNumbers = formData.rm_heat_tc_mapping
-      .filter(heat => heat.id !== currentHeatMappingId && heat.heatNumber)
-      .map(heat => heat.heatNumber);
+    // Deduplicate heat numbers based on composite key
+    const seenCompositeKeys = new Set();
+    const deduplicatedHeats = [];
 
-    // Filter out already selected heat numbers
-    const availableForThisDropdown = heatNumbersForDropdown.filter(
-      heat => !selectedHeatNumbers.includes(heat.heatNumber)
-    );
+    heatNumbersForDropdown.forEach(heat => {
+      const compositeKey = `${heat.heatNumber}|${heat.supplierName}`;
+      // Only add if we haven't seen this composite key before
+      if (!seenCompositeKeys.has(compositeKey)) {
+        seenCompositeKeys.add(compositeKey);
+        deduplicatedHeats.push(heat);
+      }
+    });
 
     console.log(`📋 Heat numbers for dropdown ${currentHeatMappingId}:`, {
       total: heatNumbersForDropdown.length,
-      selected: selectedHeatNumbers.length,
-      available: availableForThisDropdown.length,
-      selectedHeatNumbers
+      deduplicated: deduplicatedHeats.length
     });
 
-    return availableForThisDropdown;
-  }, [heatNumbersForDropdown, formData.rm_heat_tc_mapping]);
+    return deduplicatedHeats;
+  }, [heatNumbersForDropdown]);
 
-  // Get available TC numbers for a specific heat number
-  const getAvailableTcNumbers = useCallback((heatNumber) => {
+  // Get available TC numbers for a specific heat number and supplier/manufacturer
+  // Filters out TC numbers that are already selected in other heat sections
+  const getAvailableTcNumbers = useCallback((heatNumber, supplierName = null, currentHeatMappingId = null) => {
     if (!heatNumber) return [];
 
     const tcList = [];
-    // Find all inventory entries matching this heat number
-    const matchingEntries = inventoryEntries.filter(entry => entry.heatNumber === heatNumber);
+    // Find all inventory entries matching this heat number and supplier (if provided)
+    // Filter out entries where TC Qty Remaining (qtyLeftForInspection) is 0 or less
+    const matchingEntries = inventoryEntries.filter(entry => {
+      const heatMatches = entry.heatNumber === heatNumber;
+      const supplierMatches = !supplierName || entry.supplierName === supplierName;
+      const hasRemainingQty = entry.qtyLeftForInspection > 0;
+      return heatMatches && supplierMatches && hasRemainingQty;
+    });
 
     matchingEntries.forEach(entry => {
       if (!tcList.find(tc => tc.tcNumber === entry.tcNumber)) {
@@ -918,7 +930,7 @@ export const RaiseInspectionCallForm = ({
 
     // Fallback to old HEAT_TC_MAPPING if not found in inventory
     if (tcList.length === 0) {
-      const heat = HEAT_TC_MAPPING.find(h => h.heatNumber === heatNumber);
+      const heat = HEAT_TC_MAPPING.find(h => h.heatNumber === heatNumber && (!supplierName || h.manufacturer === supplierName));
       if (heat) {
         tcList.push({
           tcNumber: heat.tcNumber,
@@ -929,8 +941,23 @@ export const RaiseInspectionCallForm = ({
       }
     }
 
-    return tcList;
-  }, [inventoryEntries]);
+    // Filter out TC numbers that are already selected in other heat sections
+    const selectedTcNumbers = formData.rm_heat_tc_mapping
+      .filter(heat => heat.id !== currentHeatMappingId && heat.tcNumber)
+      .map(heat => heat.tcNumber);
+
+    const filteredTcList = tcList.filter(tc => !selectedTcNumbers.includes(tc.tcNumber));
+
+    console.log(`📋 TC numbers for heat ${heatNumber}:`, {
+      total: tcList.length,
+      filtered: filteredTcList.length,
+      selectedInOtherSections: selectedTcNumbers.length,
+      selectedTcNumbers,
+      note: 'Excluded TC numbers with 0 remaining quantity'
+    });
+
+    return filteredTcList;
+  }, [inventoryEntries, formData.rm_heat_tc_mapping]);
 
   // OLD CODE - Commented out as we now handle per heat-TC combination
   // const availableTcNumbers = useMemo(() => { ... }, [formData.rm_heat_numbers]);
@@ -987,6 +1014,7 @@ export const RaiseInspectionCallForm = ({
           manufacturerHeat: '',
           heatNumber: '',
           manufacturer: '',
+          compositeKey: '',
           offeredQty: '',
           totalAcceptedQtyRm: 0,
           isLoading: false
@@ -1014,7 +1042,7 @@ export const RaiseInspectionCallForm = ({
   };
 
   // Handle manufacturer-heat selection and auto-fetch details
-  const handleProcessManufacturerHeatChange = (id, manufacturerHeat, heatNumber = null, manufacturer = null, maxQty = null, totalAcceptedQtyRm = null) => {
+  const handleProcessManufacturerHeatChange = (id, manufacturerHeat, heatNumber = null, manufacturer = null, maxQty = null, totalAcceptedQtyRm = null, compositeKey = null) => {
     // If heatNumber and manufacturer are not provided, parse from manufacturerHeat string
     if (!heatNumber || !manufacturer) {
       const parts = manufacturerHeat.split(' - ');
@@ -1030,6 +1058,7 @@ export const RaiseInspectionCallForm = ({
           manufacturerHeat,
           manufacturer,
           heatNumber,
+          compositeKey: compositeKey || `${heatNumber}|${manufacturer}`,
           maxQty: maxQty || item.maxQty,
           totalAcceptedQtyRm: totalAcceptedQtyRm || item.totalAcceptedQtyRm
         } : item
@@ -1144,6 +1173,8 @@ export const RaiseInspectionCallForm = ({
         {
           id: Date.now(),
           heatNumber: '',
+          supplierName: '',
+          compositeKey: '',
           tcNumber: '',
           tcDate: '',
           manufacturer: '',
@@ -1179,12 +1210,12 @@ export const RaiseInspectionCallForm = ({
   };
 
   // Handle heat number selection for a specific section
-  const handleHeatNumberChange = (id, heatNumber) => {
+  const handleHeatNumberChange = (id, heatNumber, supplierName = '', compositeKey = '') => {
     setFormData(prev => ({
       ...prev,
       rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
         heat.id === id
-          ? { ...heat, heatNumber, tcNumber: '', tcDate: '', manufacturer: '', invoiceNo: '', invoiceDate: '', subPoNumber: '', subPoDate: '', subPoQty: '', subPoTotalValue: '', tcQty: '', tcQtyRemaining: '', maxQty: '', unit: '' }
+          ? { ...heat, heatNumber, supplierName, compositeKey, tcNumber: '', tcDate: '', manufacturer: '', invoiceNo: '', invoiceDate: '', subPoNumber: '', subPoDate: '', subPoQty: '', subPoTotalValue: '', tcQty: '', tcQtyRemaining: '', maxQty: '', unit: '' }
           : heat
       )
     }));
@@ -1919,15 +1950,32 @@ export const RaiseInspectionCallForm = ({
                     >
                       <select
                         className="ric-form-select"
-                        value={heatMapping.heatNumber}
-                        onChange={(e) => handleHeatNumberChange(heatMapping.id, e.target.value)}
+                        value={heatMapping.compositeKey || ''}
+                        onChange={(e) => {
+                          const compositeKey = e.target.value;
+                          if (compositeKey) {
+                            // Parse composite key: "heatNumber|supplierName"
+                            const [heatNum, supplier] = compositeKey.split('|');
+                            const selectedHeat = getAvailableHeatNumbersForDropdown(heatMapping.id).find(
+                              h => h.heatNumber === heatNum && h.supplierName === supplier
+                            );
+                            if (selectedHeat) {
+                              handleHeatNumberChange(heatMapping.id, selectedHeat.heatNumber, selectedHeat.supplierName, compositeKey);
+                            }
+                          } else {
+                            handleHeatNumberChange(heatMapping.id, '', '', '');
+                          }
+                        }}
                       >
                         <option value="">-- Select Heat Number --</option>
-                        {getAvailableHeatNumbersForDropdown(heatMapping.id).map(heat => (
-                          <option key={heat.heatNumber} value={heat.heatNumber}>
-                            {heat.heatNumber} -  ({heat.supplierName})
-                          </option>
-                        ))}
+                        {getAvailableHeatNumbersForDropdown(heatMapping.id).map(heat => {
+                          const compositeKey = `${heat.heatNumber}|${heat.supplierName}`;
+                          return (
+                            <option key={compositeKey} value={compositeKey}>
+                              {heat.heatNumber} -  ({heat.supplierName})
+                            </option>
+                          );
+                        })}
                       </select>
                     </FormField>
 
@@ -1946,7 +1994,7 @@ export const RaiseInspectionCallForm = ({
                         disabled={!heatMapping.heatNumber}
                       >
                         <option value="">Select TC Number</option>
-                        {getAvailableTcNumbers(heatMapping.heatNumber).map(tc => (
+                        {getAvailableTcNumbers(heatMapping.heatNumber, heatMapping.supplierName, heatMapping.id).map(tc => (
                           <option key={tc.tcNumber} value={tc.tcNumber}>
                             {tc.tcNumber} - {tc.manufacturer}
                           </option>
@@ -2367,20 +2415,28 @@ export const RaiseInspectionCallForm = ({
                       >
                         <select
                           className="ric-form-select"
-                          value={lotHeat.heatNumber}
+                          value={lotHeat.compositeKey || ''}
                           onChange={(e) => {
-                            const heatValue = e.target.value;
-                            // Find the selected heat from the fetched data
-                            const selectedHeat = processHeatNumbers.find(h => h.heatNumber === heatValue);
-                            if (selectedHeat) {
-                              handleProcessManufacturerHeatChange(
-                                lotHeat.id,
-                                `${selectedHeat.manufacturer} - ${heatValue}`,
-                                heatValue,
-                                selectedHeat.manufacturer,
-                                selectedHeat.qtyAccepted || 0,
-                                selectedHeat.weightAcceptedMt || 0
+                            const compositeKey = e.target.value;
+                            if (compositeKey) {
+                              // Parse composite key: "heatNumber|manufacturer"
+                              const [heatNum, manufacturer] = compositeKey.split('|');
+                              const selectedHeat = processHeatNumbers.find(
+                                h => h.heatNumber === heatNum && h.manufacturer === manufacturer
                               );
+                              if (selectedHeat) {
+                                handleProcessManufacturerHeatChange(
+                                  lotHeat.id,
+                                  `${selectedHeat.manufacturer} - ${heatNum}`,
+                                  heatNum,
+                                  selectedHeat.manufacturer,
+                                  selectedHeat.qtyAccepted || 0,
+                                  selectedHeat.weightAcceptedMt || 0,
+                                  compositeKey
+                                );
+                              }
+                            } else {
+                              handleProcessManufacturerHeatChange(lotHeat.id, '', '', '', 0, 0, '');
                             }
                           }}
                           disabled={loadingHeats || processHeatNumbers.length === 0}
@@ -2395,9 +2451,10 @@ export const RaiseInspectionCallForm = ({
                               acceptedQtyDisplay = `${parseFloat(heat.weightAcceptedMt).toFixed(2)} MT`;
                             }
 
+                            const compositeKey = `${heat.heatNumber}|${heat.manufacturer}`;
                             return (
-                              <option key={heat.id} value={heat.heatNumber}>
-                                {heat.heatNumber} (Accepted: {acceptedQtyDisplay})
+                              <option key={compositeKey} value={compositeKey}>
+                                {heat.heatNumber} - ({heat.manufacturer}) (Accepted: {acceptedQtyDisplay})
                               </option>
                             );
                           })}
