@@ -11,7 +11,7 @@ import {
   RM_INSPECTION_CALLS,
   PROCESS_INSPECTION_CALLS,
   // LOT_NUMBERS, // Removed unused import
-  ERC_CONVERSION_FACTORS,
+  // ERC_CONVERSION_FACTORS, // Removed - using direct calculation instead
   PO_SERIAL_DETAILS,
   // VENDOR_INVENTORY_ENTRIES, // Import inventory data
   // VENDOR_PO_LIST
@@ -755,9 +755,25 @@ export const RaiseInspectionCallForm = ({
   // }, [formData.company_id]);
 
   // Calculate ERC quantity from MT (for Raw Material)
-  const calculateErcFromMt = useCallback((mtQty, productType = 'ERC MK-III') => {
-    const factor = ERC_CONVERSION_FACTORS[productType] || ERC_CONVERSION_FACTORS.default;
-    return Math.floor((mtQty / factor) * 1000);
+  const calculateErcFromMt = useCallback((mtQty, ercType) => {
+    if (!mtQty || !ercType) return 0;
+
+    const qty = parseFloat(mtQty);
+    if (isNaN(qty) || qty <= 0) return 0;
+
+    let maxErc = 0;
+    if (ercType === 'MK-III') {
+      // Formula: (mtQty * 1000) / 0.928426
+      maxErc = (qty * 1000) / 0.928426;
+    } else if (ercType === 'MK-V') {
+      // Formula: (mtQty * 1000) / 1.15321
+      maxErc = (qty * 1000) / 1.15321;
+    } else if (ercType === 'J-Type') {
+      // Formula: (mtQty * 1000) / 1.100
+      maxErc = (qty * 1000) / 1.100;
+    }
+
+    return Math.floor(maxErc);
   }, []);
 
   // Calculate maximum ERC that can be manufactured from a specific heat-TC mapping
@@ -807,7 +823,8 @@ export const RaiseInspectionCallForm = ({
       const totalMt = formData.rm_heat_tc_mapping.reduce((sum, heat) => {
         return sum + (parseFloat(heat.offeredQty) || 0);
       }, 0);
-      const ercQty = calculateErcFromMt(totalMt);
+      // Pass the type_of_erc to calculate correctly based on selected ERC type
+      const ercQty = calculateErcFromMt(totalMt, formData.type_of_erc);
       setFormData(prev => ({
         ...prev,
         rm_total_offered_qty_mt: totalMt,
@@ -820,7 +837,7 @@ export const RaiseInspectionCallForm = ({
         rm_offered_qty_erc: 0
       }));
     }
-  }, [formData.rm_heat_tc_mapping, formData.type_of_call, calculateErcFromMt]);
+  }, [formData.rm_heat_tc_mapping, formData.type_of_call, formData.type_of_erc, calculateErcFromMt]);
 
   // Use availableHeatNumbers from props (fetched from /api/vendor/available-heat-numbers/{vendorCode})
   // This endpoint returns only heat numbers with:
@@ -2265,9 +2282,10 @@ export const RaiseInspectionCallForm = ({
                   label="Approx. No. of ERC to be Supplied"
                   name="rm_offered_qty_erc"
                   // hint="Auto-calculated from Total Qty (1.150 MT per 1000 ERCs)"
-                  hint="Formula: (Total Offered Qty MT × 1000) / Division Factor
+                  hint={`Formula: (Total Offered Qty MT × 1000) / Division Factor
+                        MK-III: Division Factor = 0.928426
                         MK-V: Division Factor = 1.15321
-                        MK-III: Division Factor = 0.928426"
+                        J-Type: Division Factor = 1.100${formData.type_of_erc ? ` | Current: ${formData.type_of_erc}` : ''}`}
                 >
                   <input
                     type="text"

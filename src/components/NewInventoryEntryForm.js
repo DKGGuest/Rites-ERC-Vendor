@@ -116,28 +116,29 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 
 
 
-  useEffect(() => {
-  const qty = Number(formData.subPoQty);
-  const rate = Number(formData.rateOfMaterial);
-  const gst = Number(formData.rateOfGst);
+  // COMMENTED OUT - Auto-calculation for pricing fields
+  // useEffect(() => {
+  //   const qty = Number(formData.subPoQty);
+  //   const rate = Number(formData.rateOfMaterial);
+  //   const gst = Number(formData.rateOfGst);
 
-  if (qty > 0 && rate > 0 && !isNaN(qty) && !isNaN(rate)) {
-    const baseValue = qty * rate;
-    const totalValue = baseValue + (baseValue * gst) / 100;
+  //   if (qty > 0 && rate > 0 && !isNaN(qty) && !isNaN(rate)) {
+  //     const baseValue = qty * rate;
+  //     const totalValue = baseValue + (baseValue * gst) / 100;
 
-    setFormData(prev => ({
-      ...prev,
-      baseValuePO: baseValue.toFixed(2),
-      totalPO: totalValue.toFixed(2)
-    }));
-  } else {
-    setFormData(prev => ({
-      ...prev,
-      baseValuePO: '',
-      totalPO: ''
-    }));
-  }
-}, [formData.subPoQty, formData.rateOfMaterial, formData.rateOfGst]);
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       baseValuePO: baseValue.toFixed(2),
+  //       totalPO: totalValue.toFixed(2)
+  //     }));
+  //   } else {
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       baseValuePO: '',
+  //       totalPO: ''
+  //     }));
+  //   }
+  // }, [formData.subPoQty, formData.rateOfMaterial, formData.rateOfGst]);
 
   // Handle company selection - cascading effect (COMMENTED OUT - No longer needed)
   // const handleCompanyChange = (e) => {
@@ -266,8 +267,8 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
     'subPoNumber',
     'subPoDate',
     'subPoQty',
-    'rateOfMaterial',
-    'rateOfGst',
+    // 'rateOfMaterial',  // COMMENTED OUT - Pricing section disabled
+    // 'rateOfGst',       // COMMENTED OUT - Pricing section disabled
     'declaredQuantity',
     'numberOfBundles',
     'unitOfMeasurement',
@@ -287,8 +288,8 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
   /* ---------- NUMERIC FIELD VALIDATION ---------- */
   const numericFields = [
     'subPoQty',
-    'rateOfMaterial',
-    'rateOfGst',
+    // 'rateOfMaterial',  // COMMENTED OUT - Pricing section disabled
+    // 'rateOfGst',       // COMMENTED OUT - Pricing section disabled
     'declaredQuantity'
   ];
 
@@ -865,8 +866,8 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
         </div>
 
 
-        {/* Pricing & Quantity Information Section */}
-        <div className="form-section">
+        {/* Pricing & Quantity Information Section - COMMENTED OUT */}
+        {/* <div className="form-section">
           <div className="form-section-header">
             <h4 className="form-section-title">💰 Pricing & Quantity Details</h4>
           </div>
@@ -905,37 +906,6 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
               {errors.rateOfGst && <span className="error-text">{errors.rateOfGst}</span>}
             </div>
 
-            {/* <div className="form-group">
-              <label className="form-label">
-                TC Quantity <span className="required">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                name="declaredQuantity"
-                value={formData.declaredQuantity}
-                onChange={handleChange}
-                className={`form-input ${errors.declaredQuantity ? 'error' : ''}`}
-                placeholder="Enter TC Qty"
-              />
-              {errors.declaredQuantity && <span className="error-text">{errors.declaredQuantity}</span>}
-            </div> */}
-
-            {/* <div className="form-group">
-              <label className="form-label">
-               Base Value of PO <span className="required">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                name="baseValuePO"
-                value={formData.baseValuePO}
-                onChange={handleChange}
-                className={`form-input ${errors.baseValuePO ? 'error' : ''}`}
-                placeholder="Enter Base Value of PO"
-              />
-              {errors.rateOfGst && <span className="error-text">{errors.baseValuePO}</span>}
-            </div> */}
             <div className="form-group">
   <label className="form-label">
     Base Value of PO <span className="required">*</span>
@@ -956,21 +926,6 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 </div>
 
 
-            {/* <div className="form-group">
-              <label className="form-label">
-                Total PO <span className="required">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                name="totalPO"
-                value={formData.totalPO}
-                onChange={handleChange}
-                className={`form-input ${errors.totalPO ? 'error' : ''}`}
-                placeholder="Enter Total PO"
-              />
-              {errors.rateOfGst && <span className="error-text">{errors.totalPO}</span>}
-            </div> */}
             <div className="form-group">
   <label className="form-label">
     Total PO <span className="required">*</span>
@@ -990,12 +945,8 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
   </div>
 </div>
 
-
-
-
-
           </div>
-        </div>
+        </div> */}
           </>
         )}
 
