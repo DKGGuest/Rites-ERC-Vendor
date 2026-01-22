@@ -204,6 +204,187 @@
   color: #dc2626;
 }
 
+/* View Details Modal Styles */
+.view-details-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.detail-section {
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.detail-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #6b7280;
+  min-width: 150px;
+}
+
+.detail-value {
+  color: #374151;
+  word-break: break-word;
+  text-align: right;
+  flex: 1;
+  padding-left: 16px;
+}
+
+/* ============ MASTER ENTRIES ACTION BUTTONS ============ */
+.master-actions-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.master-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 32px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.master-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.master-action-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.master-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* View Button - Primary Blue */
+.master-action-view {
+  background-color: #3b82f6;
+  color: #ffffff;
+  border: 1px solid #3b82f6;
+}
+
+.master-action-view:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.master-action-view:active:not(:disabled) {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+/* Edit Button - Outline Gray */
+.master-action-edit {
+  background-color: #ffffff;
+  color: #374151;
+  border: 1.5px solid #d1d5db;
+}
+
+.master-action-edit:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+  color: #1f2937;
+}
+
+.master-action-edit:active:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #6b7280;
+}
+
+/* Delete Button - Red */
+.master-action-delete {
+  background-color: #ef4444;
+  color: #ffffff;
+  border: 1px solid #ef4444;
+}
+
+.master-action-delete:hover:not(:disabled) {
+  background-color: #dc2626;
+  border-color: #dc2626;
+}
+
+.master-action-delete:active:not(:disabled) {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .master-actions-container {
+    gap: 6px;
+  }
+
+  .master-action-btn {
+    width: 65px;
+    height: 30px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .master-actions-container {
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .master-action-btn {
+    width: 60px;
+    height: 28px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .master-actions-container {
+    gap: 4px;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .master-action-btn {
+    width: 100%;
+    height: 32px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .vendor-summary-grid {

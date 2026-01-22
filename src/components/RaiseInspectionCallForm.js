@@ -260,6 +260,7 @@ const getInitialFormState = (selectedPO = null) => {
         compositeKey: '', // Composite key: "heatNumber|manufacturer" to uniquely identify heat
         offeredQty: '',
         totalAcceptedQtyRm: 0,
+        tentativeStartDate: '', // Tentative date of start of production
         isLoading: false
       }
     ],
@@ -768,11 +769,11 @@ export const RaiseInspectionCallForm = ({
 
     let maxErc = 0;
     if (ercType === 'MK-III') {
-      // Formula: (offeredQty * 1000) / 0.937
-      maxErc = (qty * 1000) / 0.937;
+      // Formula: (offeredQty * 1000) / 0.928426
+      maxErc = (qty * 1000) / 0.928426;
     } else if (ercType === 'MK-V') {
-      // Formula: (offeredQty * 1000) / 1.17
-      maxErc = (qty * 1000) / 1.17;
+      // Formula: (offeredQty * 1000) / 1.15321
+      maxErc = (qty * 1000) / 1.15321;
     } else if (ercType === 'J-Type') {
       // Use default conversion factor for J-Type
       maxErc = (qty * 1000) / 1.100;
@@ -1017,6 +1018,7 @@ export const RaiseInspectionCallForm = ({
           compositeKey: '',
           offeredQty: '',
           totalAcceptedQtyRm: 0,
+          tentativeStartDate: '',
           isLoading: false
         }
       ]
@@ -1072,6 +1074,16 @@ export const RaiseInspectionCallForm = ({
       ...prev,
       process_lot_heat_mapping: prev.process_lot_heat_mapping.map(item =>
         item.id === id ? { ...item, offeredQty } : item
+      )
+    }));
+  };
+
+  // Handle tentative start date change
+  const handleProcessTentativeStartDateChange = (id, tentativeStartDate) => {
+    setFormData(prev => ({
+      ...prev,
+      process_lot_heat_mapping: prev.process_lot_heat_mapping.map(item =>
+        item.id === id ? { ...item, tentativeStartDate } : item
       )
     }));
   };
@@ -1486,7 +1498,7 @@ export const RaiseInspectionCallForm = ({
       if (hasLotHeatData) {
         // Validate each lot-heat mapping
         formData.process_lot_heat_mapping.forEach((item, index) => {
-          if (item.lotNumber || item.manufacturerHeat || item.offeredQty) {
+          if (item.lotNumber || item.manufacturerHeat || item.offeredQty || item.tentativeStartDate) {
             if (!item.lotNumber) {
               newErrors[`process_lot_${index}_lotNumber`] = `Lot Number is required for entry ${index + 1}`;
             }
@@ -1495,6 +1507,9 @@ export const RaiseInspectionCallForm = ({
             }
             if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
               newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
+            }
+            if (!item.tentativeStartDate) {
+              newErrors[`process_lot_${index}_tentativeStartDate`] = `Tentative Start Date is required for entry ${index + 1}`;
             }
           }
         });
@@ -2123,7 +2138,7 @@ export const RaiseInspectionCallForm = ({
                     <FormField
                       label="Max ERC can be manufactured from this Manufacturer - Heat No. combination for this PO Sr. No."
                       name={`heat_${index}_maxErc`}
-                      hint={formData.type_of_erc ? `Based on ${formData.type_of_erc} conversion factor` : 'Select ERC type to calculate'}
+                      hint={formData.type_of_erc ? `Formula: (Offered Qty MT × 1000) / Division Factor. ${formData.type_of_erc === 'MK-V' ? 'MK-V: 1.15321' : formData.type_of_erc === 'MK-III' ? 'MK-III: 0.928426' : 'J-Type: 1.100'}` : 'Select ERC type to calculate'}
                       fullWidth
                     >
                       <input
@@ -2250,8 +2265,9 @@ export const RaiseInspectionCallForm = ({
                   label="Approx. No. of ERC to be Supplied"
                   name="rm_offered_qty_erc"
                   // hint="Auto-calculated from Total Qty (1.150 MT per 1000 ERCs)"
-                  hint="total offfered Qty / 1.170 (MK-V)
-                        total offered Qty / (will tell) -- MK-III"
+                  hint="Formula: (Total Offered Qty MT × 1000) / Division Factor
+                        MK-V: Division Factor = 1.15321
+                        MK-III: Division Factor = 0.928426"
                 >
                   <input
                     type="text"
@@ -2476,6 +2492,22 @@ export const RaiseInspectionCallForm = ({
                           max={lotHeat.maxQty || undefined}
                           placeholder="Enter quantity in Number"
                           disabled={!lotHeat.heatNumber}
+                        />
+                      </FormField>
+
+                      {/* Tentative Start Date */}
+                      <FormField
+                        label="Tentative Date of Start of Production"
+                        name={`process_tentative_start_date_${lotHeat.id}`}
+                        required
+                        hint="Expected date when production will start for this lot"
+                      >
+                        <input
+                          type="date"
+                          className="ric-form-input"
+                          value={lotHeat.tentativeStartDate}
+                          onChange={(e) => handleProcessTentativeStartDateChange(lotHeat.id, e.target.value)}
+                          min={new Date().toISOString().split('T')[0]}
                         />
                       </FormField>
                     </div>

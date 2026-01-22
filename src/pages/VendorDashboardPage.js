@@ -10,6 +10,7 @@ import { MasterUpdatingForm } from '../components/MasterUpdatingForm';
 import NewInventoryEntryForm from '../components/NewInventoryEntryForm';
 import AddSubPOForm from '../components/AddSubPOForm';
 import ViewInventoryEntryModal from '../components/ViewInventoryEntryModal';
+import ViewMasterEntryModal from '../components/ViewMasterEntryModal';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import {
   // VENDOR_PO_LIST,
@@ -96,6 +97,14 @@ const VendorDashboardPage = ({ onBack }) => {
   // const [inventoryEntries, setInventoryEntries] = useState(VENDOR_INVENTORY_ENTRIES);
   const [inventoryEntries, setInventoryEntries] = useState([]);
   const [availableHeatNumbers] = useState([]); // Used in RaiseInspectionCallForm props
+
+  // Master Entries state
+  const [masterItems, setMasterItems] = useState(VENDOR_MASTER_ITEMS);
+  const [isViewMasterModalOpen, setIsViewMasterModalOpen] = useState(false);
+  const [selectedMasterEntry, setSelectedMasterEntry] = useState(null);
+  const [isEditingMaster, setIsEditingMaster] = useState(false);
+  const [isDeleteMasterConfirmOpen, setIsDeleteMasterConfirmOpen] = useState(false);
+  const [masterToDelete, setMasterToDelete] = useState(null);
 
   // Inventory Entry Modal states
   const [isViewInventoryModalOpen, setIsViewInventoryModalOpen] = useState(false);
@@ -756,6 +765,8 @@ const VendorDashboardPage = ({ onBack }) => {
             manufacturerHeat: lotHeat.manufacturerHeat,
             offeredQty: parseInt(lotHeat.offeredQty) || 0,
             totalAcceptedQtyRm: parseInt(lotHeat.totalAcceptedQtyRm) || 0,
+            declaredLotSize: parseInt(lotHeat.declaredLotSize) || 0,
+            tentativeStartDate: lotHeat.tentativeStartDate || null,
             companyId: data.company_id,
             companyName: data.company_name,
             unitId: data.unit_id,
@@ -1319,6 +1330,66 @@ const VendorDashboardPage = ({ onBack }) => {
     }
   ];
 
+  // ============ MASTER ENTRIES HANDLERS ============
+  const handleViewMasterEntry = useCallback((entry) => {
+    setSelectedMasterEntry(entry);
+    setIsViewMasterModalOpen(true);
+  }, []);
+
+  const handleEditMasterEntry = useCallback((entry) => {
+    setSelectedMasterEntry(entry);
+    setIsEditingMaster(true);
+  }, []);
+
+  const handleDeleteMasterEntry = useCallback((entry) => {
+    setMasterToDelete(entry);
+    setIsDeleteMasterConfirmOpen(true);
+  }, []);
+
+  const handleConfirmDeleteMaster = useCallback(() => {
+    if (masterToDelete) {
+      setMasterItems(prev => prev.filter(item => item.id !== masterToDelete.id));
+      setIsDeleteMasterConfirmOpen(false);
+      setMasterToDelete(null);
+      alert(`Master entry for ${masterToDelete.company_name} - ${masterToDelete.unit_name} deleted successfully`);
+    }
+  }, [masterToDelete]);
+
+  const handleCancelDeleteMaster = useCallback(() => {
+    setIsDeleteMasterConfirmOpen(false);
+    setMasterToDelete(null);
+  }, []);
+
+  const handleCloseMasterModal = useCallback(() => {
+    setIsViewMasterModalOpen(false);
+    setSelectedMasterEntry(null);
+  }, []);
+
+  const handleMasterFormSubmit = useCallback((formData) => {
+    if (isEditingMaster && selectedMasterEntry) {
+      // Update existing entry
+      setMasterItems(prev => prev.map(item =>
+        item.id === selectedMasterEntry.id ? { ...item, ...formData } : item
+      ));
+      alert(`Master entry updated successfully!`);
+    } else {
+      // Add new entry
+      const newEntry = {
+        id: Math.max(...masterItems.map(m => m.id), 0) + 1,
+        ...formData
+      };
+      setMasterItems(prev => [...prev, newEntry]);
+      alert(`Master entry added successfully!`);
+    }
+    setIsEditingMaster(false);
+    setSelectedMasterEntry(null);
+  }, [isEditingMaster, selectedMasterEntry, masterItems]);
+
+  const handleCancelEditMaster = useCallback(() => {
+    setIsEditingMaster(false);
+    setSelectedMasterEntry(null);
+  }, []);
+
   // Column definitions for DataTable
 
   const poColumns = [
@@ -1501,12 +1572,45 @@ const VendorDashboardPage = ({ onBack }) => {
   ];
 
   const masterColumns = [
-    { key: 'master_type', label: 'Master Type' }, // from Excel
-    { key: 'value', label: 'Value' },
+    { key: 'company_name', label: 'Company Name' },
+    { key: 'unit_name', label: 'Unit Name' },
+    { key: 'pincode', label: 'Pin Code' },
+    { key: 'city', label: 'City' },
+    { key: 'address', label: 'Address' },
+    { key: 'role', label: 'Role' },
     {
       key: 'is_active',
       label: 'Active?',
       render: (value) => (value ? 'Yes' : 'No')
+    },
+    {
+      key: 'actions',
+      label: 'Action',
+      render: (_, row) => (
+        <div className="master-actions-container">
+          <button
+            className="master-action-btn master-action-view"
+            onClick={() => handleViewMasterEntry(row)}
+            title="View entry details"
+          >
+            View
+          </button>
+          <button
+            className="master-action-btn master-action-edit"
+            onClick={() => handleEditMasterEntry(row)}
+            title="Edit this entry"
+          >
+            Edit
+          </button>
+          <button
+            className="master-action-btn master-action-delete"
+            onClick={() => handleDeleteMasterEntry(row)}
+            title="Delete this entry"
+          >
+            Delete
+          </button>
+        </div>
+      )
     }
   ];
 
@@ -2549,34 +2653,48 @@ const VendorDashboardPage = ({ onBack }) => {
             <>
               <div className="vendor-section-header">
                 <div>
-                  <h3 className="vendor-section-header-title">Master Updating</h3>
+                  <h3 className="vendor-section-header-title">
+                    {isEditingMaster ? 'Edit Master Entry' : 'Add New Master Entry'}
+                  </h3>
                   <p className="vendor-section-header-desc">
-                    Add or update master data for Places, Factories, Contractors, Manufacturers, or Sub-PO Entities.
-                    Field labels change based on the Master Type selected.
+                    {isEditingMaster
+                      ? 'Update the master data for the selected entry'
+                      : 'Add new master data for Companies, Units, and their roles'
+                    }
                   </p>
                 </div>
               </div>
 
+              {isEditingMaster && (
+                <div style={{ marginBottom: 16 }}>
+                  <button
+                    className="btn btn-outline"
+                    onClick={handleCancelEditMaster}
+                  >
+                    ← Back to List
+                  </button>
+                </div>
+              )}
+
               <MasterUpdatingForm
-                onSubmit={(data) => {
-                  // TODO: Replace with API call
-                  console.log('Master entry submitted:', data);
-                  alert(`Master entry saved successfully!\nType: ${data.master_type}\nEntity: ${data.entity_name}`);
-                }}
+                editData={isEditingMaster ? selectedMasterEntry : null}
+                onSubmit={handleMasterFormSubmit}
                 isLoading={isLoading}
               />
 
-              <div style={{ marginTop: 24 }}>
-                <h4 style={{ marginBottom: 12, color: '#374151' }}>Existing Master Entries</h4>
-                <DataTable
-                  columns={masterColumns}
-                  data={VENDOR_MASTER_ITEMS}
-                  onRowClick={handleRowClick}
-                  selectable={false}
-                  selectedRows={[]}
-                  onSelectionChange={() => {}}
-                />
-              </div>
+              {!isEditingMaster && (
+                <div style={{ marginTop: 24 }}>
+                  <h4 style={{ marginBottom: 12, color: '#374151' }}>Existing Master Entries</h4>
+                  <DataTable
+                    columns={masterColumns}
+                    data={masterItems}
+                    onRowClick={handleRowClick}
+                    selectable={false}
+                    selectedRows={[]}
+                    onSelectionChange={() => {}}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>
@@ -3194,6 +3312,26 @@ const VendorDashboardPage = ({ onBack }) => {
         onConfirm={handleConfirmDelete}
         entry={selectedInventoryEntry}
         isDeleting={isDeletingEntry}
+      />
+
+      {/* ============ MASTER ENTRY MODALS ============ */}
+
+      {/* View Master Entry Modal */}
+      <ViewMasterEntryModal
+        isOpen={isViewMasterModalOpen}
+        entry={selectedMasterEntry}
+        onClose={handleCloseMasterModal}
+      />
+
+      {/* Delete Master Entry Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteMasterConfirmOpen}
+        onClose={handleCancelDeleteMaster}
+        onConfirm={handleConfirmDeleteMaster}
+        entry={masterToDelete}
+        isDeleting={false}
+        title="Delete Master Entry"
+        message={`Are you sure you want to delete the master entry for ${masterToDelete?.company_name} - ${masterToDelete?.unit_name}?`}
       />
     </div>
   );
