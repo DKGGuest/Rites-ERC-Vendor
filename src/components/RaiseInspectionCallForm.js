@@ -122,11 +122,11 @@ const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder })
 
 // Helper functions
 const getTodayDate = () => new Date().toISOString().split('T')[0];
-// const getMaxDate = () => {
-//   const date = new Date();
-//   date.setDate(date.getDate() + 7);
-//   return date.toISOString().split('T')[0];
-// };
+const getMaxDate = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 6);
+  return date.toISOString().split('T')[0];
+};
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -1358,10 +1358,9 @@ export const RaiseInspectionCallForm = ({
       newErrors.desired_inspection_date = 'Desired Inspection Date is required';
     } else if (formData.desired_inspection_date < today) {
       newErrors.desired_inspection_date = 'Date cannot be in the past';
+    } else if (formData.desired_inspection_date > getMaxDate()) {
+      newErrors.desired_inspection_date = 'Desired Date of Inspection should not be more than 6 days from today';
     }
-    // else if (formData.desired_inspection_date > maxDate) {
-    //   newErrors.desired_inspection_date = 'Date must be within 7 days from today';
-    // }
 
     if (!formData.company_name) {
       newErrors.company_name = 'Company is required';
@@ -1761,7 +1760,7 @@ export const RaiseInspectionCallForm = ({
           </select>
         </FormField>
 
-        <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="" errors={errors}>
+        <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="Maximum 6 days from today" errors={errors}>
               <input
                 type="date"
                 name="desired_inspection_date"
@@ -1769,7 +1768,7 @@ export const RaiseInspectionCallForm = ({
                 value={formData.desired_inspection_date}
                 onChange={handleChange}
                 min={getTodayDate()}
-                // max={getMaxDate()}
+                max={getMaxDate()}
               />
             </FormField>
 
@@ -2463,7 +2462,7 @@ export const RaiseInspectionCallForm = ({
 
                       {/* Offered Quantity */}
                       <FormField
-                        label="Offered Qty (ERCs)"
+                        label="Decalred Quantity of Lot in Nos."
                         name={`process_offered_qty_${lotHeat.id}`}
                         required
                         hint={lotHeat.heatNumber && lotHeat.maxQty ? `Max: ${lotHeat.maxQty} ERCs (from RM IC)` : "Select heat number first"}
@@ -2475,7 +2474,7 @@ export const RaiseInspectionCallForm = ({
                           onChange={(e) => handleProcessOfferedQtyChange(lotHeat.id, e.target.value)}
                           min="0"
                           max={lotHeat.maxQty || undefined}
-                          placeholder="Enter quantity"
+                          placeholder="Enter quantity in Number"
                           disabled={!lotHeat.heatNumber}
                         />
                       </FormField>
