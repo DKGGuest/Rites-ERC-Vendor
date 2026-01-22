@@ -849,10 +849,56 @@ export const RaiseInspectionCallForm = ({
 
   // If availableHeatNumbers prop is empty, fall back to filtering inventoryEntries (for backward compatibility)
   const heatNumbersForDropdown = useMemo(() => {
+    // Helper function to filter by grade based on ERC type and Call type
+    const filterByGrade = (entries) => {
+      // Only apply grade filtering for Raw Material calls
+      if (formData.type_of_call !== 'Raw Material') {
+        return entries;
+      }
+
+      // Only apply filtering if both Type of ERC and Type of Call are selected
+      if (!formData.type_of_erc || formData.type_of_erc === '') {
+        return entries;
+      }
+
+      // Filter based on Type of ERC
+      if (formData.type_of_erc === 'MK-III') {
+        // MK-III + Raw Material: Only show grade "55Si7 20.64MM"
+        const filtered = entries.filter(entry => {
+          const grade = entry.gradeSpecification || '';
+          const matches = grade.includes('55Si7') && grade.includes('20.64');
+          if (!matches) {
+            console.log(`🚫 Filtering out ${entry.heatNumber} - Grade: ${grade} (MK-III requires 55Si7 20.64MM)`);
+          }
+          return matches;
+        });
+        console.log(`🔍 MK-III + Raw Material filter: ${filtered.length} of ${entries.length} heat numbers match grade 55Si7 20.64MM`);
+        return filtered;
+      } else if (formData.type_of_erc === 'MK-V') {
+        // MK-V + Raw Material: Only show grade "55Si7 23MM"
+        const filtered = entries.filter(entry => {
+          const grade = entry.gradeSpecification || '';
+          const matches = grade.includes('55Si7') && grade.includes('23');
+          if (!matches) {
+            console.log(`🚫 Filtering out ${entry.heatNumber} - Grade: ${grade} (MK-V requires 55Si7 23MM)`);
+          }
+          return matches;
+        });
+        console.log(`🔍 MK-V + Raw Material filter: ${filtered.length} of ${entries.length} heat numbers match grade 55Si7 23MM`);
+        return filtered;
+      }
+
+      // For other ERC types (J-Type), return all entries
+      return entries;
+    };
+
     if (availableHeatNumbers && availableHeatNumbers.length > 0) {
       console.log('✅ Using availableHeatNumbers from API:', availableHeatNumbers.length);
       console.log('📊 Available heat numbers:', availableHeatNumbers);
-      return availableHeatNumbers;
+
+      // Apply grade filtering to API results
+      const gradeFiltered = filterByGrade(availableHeatNumbers);
+      return gradeFiltered;
     }
 
     // Fallback: filter from inventoryEntries
@@ -885,6 +931,7 @@ export const RaiseInspectionCallForm = ({
         tcNumber: entry.tcNumber,
         rawMaterial: entry.rawMaterial,
         supplierName: entry.supplierName,
+        gradeSpecification: entry.gradeSpecification, // Include grade for filtering
         qtyLeft: entry.qtyLeftForInspection,
         unit: entry.unitOfMeasurement,
         status: entry.status // Include status for debugging
@@ -892,8 +939,11 @@ export const RaiseInspectionCallForm = ({
 
     console.log(`📊 Fallback filtered ${filtered.length} available heat numbers from ${inventoryEntries.length} total entries`);
     console.log(`📋 Included statuses: FRESH_PO, UNDER_INSPECTION, ACCEPTED, REJECTED (excluding EXHAUSTED)`);
-    return filtered;
-  }, [availableHeatNumbers, inventoryEntries]);
+
+    // Apply grade filtering to fallback results
+    const gradeFiltered = filterByGrade(filtered);
+    return gradeFiltered;
+  }, [availableHeatNumbers, inventoryEntries, formData.type_of_erc, formData.type_of_call]);
 
   // Get available heat numbers for a specific heat mapping dropdown
   // Shows ALL heat numbers (no filtering based on selection)
