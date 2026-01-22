@@ -24,6 +24,7 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
     rateOfMaterial: '',
     rateOfGst: '',
     declaredQuantity: '',
+    numberOfBundles: '',
     baseValuePO: '',
     totalPO: '',
     lengthOfBars: '',
@@ -268,6 +269,7 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
     'rateOfMaterial',
     'rateOfGst',
     'declaredQuantity',
+    'numberOfBundles',
     'unitOfMeasurement',
     'lengthOfBars'
   ];
@@ -698,7 +700,25 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 
             <div className="form-group">
               <label className="form-label">
-                TC Quantity <span className="required">*</span>
+                Unit of Measurement <span className="required">*</span>
+              </label>
+              <select
+                name="unitOfMeasurement"
+                value={formData.unitOfMeasurement}
+                onChange={handleChange}
+                className={`form-input ${errors.unitOfMeasurement ? 'error' : ''}`}
+              >
+                <option value="">-- Select Unit --</option>
+                {data.units.map(item => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+              {errors.unitOfMeasurement && <span className="error-text">{errors.unitOfMeasurement}</span>}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                TC Quantity in MT <span className="required">*</span>
               </label>
               <input
                 type="number"
@@ -712,7 +732,21 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
               {errors.declaredQuantity && <span className="error-text">{errors.declaredQuantity}</span>}
             </div>
 
-
+            <div className="form-group">
+              <label className="form-label">
+                No. of Bundles <span className="required">*</span>
+              </label>
+              <input
+                type="number"
+                step="1"
+                name="numberOfBundles"
+                value={formData.numberOfBundles}
+                onChange={handleChange}
+                className={`form-input ${errors.numberOfBundles ? 'error' : ''}`}
+                placeholder="Enter number of bundles"
+              />
+              {errors.numberOfBundles && <span className="error-text">{errors.numberOfBundles}</span>}
+            </div>
 
           </div>
         </div>
@@ -839,26 +873,6 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 
 
           <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label">
-                Unit of Measurement <span className="required">*</span>
-              </label>
-              <select
-                name="unitOfMeasurement"
-                value={formData.unitOfMeasurement}
-                onChange={handleChange}
-                className={`form-input ${errors.unitOfMeasurement ? 'error' : ''}`}
-              >
-                <option value="">-- Select Unit --</option>
-                {data.units.map(item => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
-              {errors.unitOfMeasurement && <span className="error-text">{errors.unitOfMeasurement}</span>}
-            </div>
-
-
-
             <div className="form-group">
               <label className="form-label">
                 Rate of Material (Rs/UOM) <span className="required">*</span>

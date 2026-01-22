@@ -92,12 +92,14 @@ CREATE TABLE IF NOT EXISTS process_lot_details (
   qty_accepted INT NULL COMMENT 'Quantity accepted for this lot',
   qty_rejected INT NULL COMMENT 'Quantity rejected for this lot',
   rejection_reason TEXT NULL COMMENT 'Rejection reason if any',
-  
+  declared_lot_size INT NOT NULL COMMENT 'Declared lot size in number of ERCs',
+  tentative_start_date DATE NOT NULL COMMENT 'Tentative date of start of production',
+
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  
+
   FOREIGN KEY (process_detail_id) REFERENCES process_inspection_details(id) ON DELETE CASCADE,
-  
+
   INDEX idx_process_detail_id (process_detail_id),
   INDEX idx_lot_number (lot_number),
   INDEX idx_heat_number (heat_number)

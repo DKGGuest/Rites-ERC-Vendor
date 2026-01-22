@@ -1,174 +1,72 @@
 // src/components/MasterUpdatingForm.js
-// Master Updating Form - Fields dynamically change based on Master Type selection
+// Master Updating Form - For adding/updating master data (Company, Unit, Role information)
 // Designed for future backend integration
 
-import React, { useState, useMemo } from 'react';
-
-// Master Type options
-const MASTER_TYPES = [
-  { value: '', label: 'Select Master Type' },
-  { value: 'Place', label: 'Place' },
-  { value: 'Factory', label: 'Factory' },
-  { value: 'Contractor', label: 'Contractor' },
-  { value: 'Manufacturer', label: 'Manufacturer' },
-  { value: 'Sub-PO Entity', label: 'Sub-PO Entity' }
-];
-
-// Dynamic field labels based on Master Type
-const FIELD_LABELS = {
-  'Place': {
-    entity_name: 'Place Name',
-    primary_identifier: 'PIN Code',
-    address_details: 'Full Address',
-    statutory_document: 'Address Proof',
-    support_document: 'Utility Bill',
-    contact_details: 'Place Contact No.',
-    email: 'Place Email'
-  },
-  'Factory': {
-    entity_name: 'Factory Name',
-    primary_identifier: 'GSTIN',
-    address_details: 'Factory Address',
-    statutory_document: 'GST Certificate',
-    support_document: 'Factory License',
-    contact_details: 'Factory Contact No.',
-    email: 'Factory Email'
-  },
-  'Contractor': {
-    entity_name: 'Contractor Name',
-    primary_identifier: 'GSTIN / CIN',
-    address_details: 'Office Address',
-    statutory_document: 'CIN Document',
-    support_document: 'Contractor Agreement',
-    contact_details: 'Contractor Contact No.',
-    email: 'Contractor Email'
-  },
-  'Manufacturer': {
-    entity_name: 'Manufacturer Name',
-    primary_identifier: 'GSTIN / CIN',
-    address_details: 'Manufacturing Address',
-    statutory_document: 'GST Certificate / CIN Document',
-    support_document: 'Manufacturing License',
-    contact_details: 'Manufacturer Contact No.',
-    email: 'Manufacturer Email'
-  },
-  'Sub-PO Entity': {
-    entity_name: 'Entity Name',
-    primary_identifier: 'GSTIN / CIN',
-    address_details: 'Entity Address',
-    statutory_document: 'GST Certificate / CIN Document',
-    support_document: 'Supporting Documents',
-    contact_details: 'Entity Contact No.',
-    email: 'Entity Email'
-  }
-};
-
-// Default labels when no Master Type is selected
-const DEFAULT_LABELS = {
-  entity_name: 'Entity Name',
-  primary_identifier: 'Primary Identifier (PIN/GSTIN/CIN)',
-  address_details: 'Address Details',
-  statutory_document: 'Statutory Document (GST/CIN/Address Proof)',
-  support_document: 'Support Document',
-  contact_details: 'Contact Details',
-  email: 'Email (If applicable)'
-};
+import React, { useState } from 'react';
+import { MASTER_ROLE_OPTIONS, PRODUCT_OPTIONS, SUB_PRODUCT_OPTIONS } from '../data/vendorMockData';
 
 // Initial form state
 const getInitialFormState = () => ({
-  master_type: '',
-  entity_name: '',
-  primary_identifier: '',
-  address_details: '',
-  statutory_document: null,
-  statutory_document_filename: '',
-  support_document: null,
-  support_document_filename: '',
-  contact_details: '',
-  email: '',
+  company_name: '',
+  cin: '',
+  unit_name: '',
+  pincode: '',
+  city: '',
+  district: '',
+  state: '',
+  address: '',
+  contact_person: '',
+  contact_phone: '',
+  contact_email: '',
+  master_role: '',
+  product: '',
+  sub_product: '',
   is_active: true
 });
 
 export const MasterUpdatingForm = ({
-  masterData = {},
   editData = null,
   onSubmit,
   isLoading = false
 }) => {
-  const [formData, setFormData] = useState(() => 
+  const [formData, setFormData] = useState(() =>
     editData ? { ...getInitialFormState(), ...editData } : getInitialFormState()
   );
   const [errors, setErrors] = useState({});
 
-  // Get dynamic labels based on selected master type
-  const labels = useMemo(() => {
-    return formData.master_type 
-      ? FIELD_LABELS[formData.master_type] || DEFAULT_LABELS 
-      : DEFAULT_LABELS;
-  }, [formData.master_type]);
-
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    if (name === 'master_type') {
-      // Reset form when master type changes
-      setFormData({
-        ...getInitialFormState(),
-        master_type: value
-      });
-      setErrors({});
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value
-      }));
-    }
-    
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-  };
-
-  const handleFileChange = (e, fieldName) => {
-    const file = e.target.files[0];
-    if (file) {
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-      if (!allowedTypes.includes(file.type)) {
-        setErrors(prev => ({ ...prev, [fieldName]: 'Only PDF, JPG, PNG files allowed' }));
-        return;
-      }
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        setErrors(prev => ({ ...prev, [fieldName]: 'File size must be less than 10MB' }));
-        return;
-      }
-      setFormData(prev => ({
-        ...prev,
-        [fieldName]: file,
-        [`${fieldName}_filename`]: file.name
-      }));
-      setErrors(prev => ({ ...prev, [fieldName]: '' }));
     }
   };
 
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.master_type) newErrors.master_type = 'Master Type is required';
-    if (!formData.entity_name?.trim()) newErrors.entity_name = `${labels.entity_name} is required`;
-    if (!formData.primary_identifier?.trim()) newErrors.primary_identifier = `${labels.primary_identifier} is required`;
-    if (!formData.address_details?.trim()) newErrors.address_details = `${labels.address_details} is required`;
-
-    // Statutory Document is required
-    if (!formData.statutory_document && !formData.statutory_document_filename) {
-      newErrors.statutory_document = `${labels.statutory_document} is required`;
-    }
-
-    if (!formData.contact_details?.trim()) newErrors.contact_details = `${labels.contact_details} is required`;
+    if (!formData.company_name?.trim()) newErrors.company_name = 'Company Name is required';
+    if (!formData.cin?.trim()) newErrors.cin = 'CIN is required';
+    if (!formData.unit_name?.trim()) newErrors.unit_name = 'Unit Name is required';
+    if (!formData.pincode?.trim()) newErrors.pincode = 'Pincode is required';
+    if (!formData.city?.trim()) newErrors.city = 'City is required';
+    if (!formData.district?.trim()) newErrors.district = 'District is required';
+    if (!formData.state?.trim()) newErrors.state = 'State is required';
+    if (!formData.address?.trim()) newErrors.address = 'Address is required';
+    if (!formData.contact_person?.trim()) newErrors.contact_person = 'Contact Person is required';
+    if (!formData.contact_phone?.trim()) newErrors.contact_phone = 'Contact Phone is required';
+    if (!formData.master_role?.trim()) newErrors.master_role = 'Master Role is required';
+    if (!formData.product?.trim()) newErrors.product = 'Product is required';
+    if (!formData.sub_product?.trim()) newErrors.sub_product = 'Sub Product is required';
 
     // Email validation (optional but must be valid if provided)
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+    if (formData.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_email)) {
+      newErrors.contact_email = 'Please enter a valid email address';
     }
 
     setErrors(newErrors);
@@ -201,160 +99,200 @@ export const MasterUpdatingForm = ({
   return (
     <div className="master-updating-form">
       <div className="vendor-form-grid">
-        {/* Master Type Dropdown - Controls all other fields */}
-        <FormField
-          label="Master Type"
-          name="master_type"
-          required
-          hint="Controls the labels and requirements of all other fields"
-        >
+        {/* Company Name */}
+        <FormField label="Company Name" name="company_name" required>
+          <input
+            type="text"
+            name="company_name"
+            value={formData.company_name}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter company name"
+          />
+        </FormField>
+
+        {/* CIN */}
+        <FormField label="CIN" name="cin" required>
+          <input
+            type="text"
+            name="cin"
+            value={formData.cin}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter CIN"
+          />
+        </FormField>
+
+        {/* Unit Name */}
+        <FormField label="Unit Name" name="unit_name" required>
+          <input
+            type="text"
+            name="unit_name"
+            value={formData.unit_name}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter unit name"
+          />
+        </FormField>
+
+        {/* Pincode */}
+        <FormField label="Pincode" name="pincode" required hint="Integer">
+          <input
+            type="text"
+            name="pincode"
+            value={formData.pincode}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter pincode"
+          />
+        </FormField>
+
+        {/* City */}
+        <FormField label="City" name="city" required>
+          <input
+            type="text"
+            name="city"
+            value={formData.city}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter city"
+          />
+        </FormField>
+
+        {/* District */}
+        <FormField label="District" name="district" required hint="Auto-fetched based upon the pincode value">
+          <input
+            type="text"
+            name="district"
+            value={formData.district}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter district"
+          />
+        </FormField>
+
+        {/* State */}
+        <FormField label="State" name="state" required>
+          <input
+            type="text"
+            name="state"
+            value={formData.state}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter state"
+          />
+        </FormField>
+
+        {/* Address - Full width */}
+        <FormField label="Address" name="address" required fullWidth>
+          <textarea
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            className="vendor-form-input"
+            rows={3}
+            placeholder="Enter full address"
+            style={{ resize: 'vertical' }}
+          />
+        </FormField>
+
+        {/* Contact Person */}
+        <FormField label="Contact Person" name="contact_person" required>
+          <input
+            type="text"
+            name="contact_person"
+            value={formData.contact_person}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter contact person name"
+          />
+        </FormField>
+
+        {/* Contact Phone Number */}
+        <FormField label="Contact Phone Number" name="contact_phone" required>
+          <input
+            type="tel"
+            name="contact_phone"
+            value={formData.contact_phone}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter phone number"
+          />
+        </FormField>
+
+        {/* Contact Email */}
+        <FormField label="Contact Email" name="contact_email" hint="Optional">
+          <input
+            type="email"
+            name="contact_email"
+            value={formData.contact_email}
+            onChange={handleChange}
+            className="vendor-form-input"
+            placeholder="Enter email address"
+          />
+        </FormField>
+
+        {/* Master Role Dropdown */}
+        <FormField label="Master Role" name="master_role" required>
           <select
-            name="master_type"
-            value={formData.master_type}
+            name="master_role"
+            value={formData.master_role}
             onChange={handleChange}
             className="vendor-form-select"
           >
-            {(masterData.master_types || MASTER_TYPES).map(opt => (
+            {MASTER_ROLE_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
         </FormField>
 
-        {/* Entity Name */}
-        <FormField
-          label={labels.entity_name}
-          name="entity_name"
-          required
-          hint={formData.master_type ? `Enter ${labels.entity_name}` : 'Select Master Type first'}
-        >
-          <input
-            type="text"
-            name="entity_name"
-            value={formData.entity_name}
+        {/* Product Dropdown */}
+        <FormField label="Product" name="product" required>
+          <select
+            name="product"
+            value={formData.product}
             onChange={handleChange}
-            className="vendor-form-input"
-            placeholder={`Enter ${labels.entity_name}`}
-            disabled={!formData.master_type}
-          />
+            className="vendor-form-select"
+          >
+            {PRODUCT_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </FormField>
 
-        {/* Primary Identifier */}
-        <FormField
-          label={labels.primary_identifier}
-          name="primary_identifier"
-          required
-          hint={formData.master_type === 'Place' ? '6-digit PIN Code' : 'GSTIN (15 chars) or CIN (21 chars)'}
-        >
-          <input
-            type="text"
-            name="primary_identifier"
-            value={formData.primary_identifier}
+        {/* Sub Product Dropdown */}
+        <FormField label="Sub Product" name="sub_product" required>
+          <select
+            name="sub_product"
+            value={formData.sub_product}
             onChange={handleChange}
-            className="vendor-form-input"
-            placeholder={`Enter ${labels.primary_identifier}`}
-            disabled={!formData.master_type}
-          />
+            className="vendor-form-select"
+            disabled={!formData.product}
+          >
+            {formData.product && SUB_PRODUCT_OPTIONS[formData.product]
+              ? SUB_PRODUCT_OPTIONS[formData.product].map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))
+              : [<option key="" value="">Select Product first</option>]
+            }
+          </select>
         </FormField>
 
-        {/* Address Details - Full width */}
-        <FormField
-          label={labels.address_details}
-          name="address_details"
-          required
-          fullWidth
-        >
-          <textarea
-            name="address_details"
-            value={formData.address_details}
-            onChange={handleChange}
-            className="vendor-form-input"
-            rows={3}
-            placeholder={`Enter ${labels.address_details}`}
-            disabled={!formData.master_type}
-            style={{ resize: 'vertical' }}
-          />
-        </FormField>
-
-        {/* Statutory Document Upload - Required */}
-        <FormField
-          label={labels.statutory_document}
-          name="statutory_document"
-          required
-          hint="PDF/JPG/PNG, Max 10MB - Required"
-        >
-          <input
-            type="file"
-            onChange={(e) => handleFileChange(e, 'statutory_document')}
-            className="vendor-form-input"
-            accept=".pdf,.jpg,.jpeg,.png"
-            disabled={!formData.master_type}
-          />
-          {formData.statutory_document_filename && (
-            <span className="vendor-form-hint" style={{ color: '#16a34a' }}>
-              Selected: {formData.statutory_document_filename}
-            </span>
-          )}
-        </FormField>
-
-        {/* Support Document Upload - Optional */}
-        <FormField
-          label={labels.support_document}
-          name="support_document"
-          hint="PDF/JPG/PNG, Max 10MB - Optional"
-        >
-          <input
-            type="file"
-            onChange={(e) => handleFileChange(e, 'support_document')}
-            className="vendor-form-input"
-            accept=".pdf,.jpg,.jpeg,.png"
-            disabled={!formData.master_type}
-          />
-          {formData.support_document_filename && (
-            <span className="vendor-form-hint" style={{ color: '#16a34a' }}>
-              Selected: {formData.support_document_filename}
-            </span>
-          )}
-        </FormField>
-
-        {/* Contact Details */}
-        <FormField
-          label={labels.contact_details}
-          name="contact_details"
-          required
-        >
-          <input
-            type="tel"
-            name="contact_details"
-            value={formData.contact_details}
-            onChange={handleChange}
-            className="vendor-form-input"
-            placeholder="Enter contact number"
-            disabled={!formData.master_type}
-          />
-        </FormField>
-
-        {/* Email */}
-        <FormField
-          label={labels.email}
-          name="email"
-          hint="Optional"
-        >
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="vendor-form-input"
-            placeholder="Enter email address"
-            disabled={!formData.master_type}
-          />
-        </FormField>
+        {/* Note about admin approval */}
+        <div style={{
+          gridColumn: '1 / -1',
+          padding: '12px',
+          backgroundColor: '#fef3c7',
+          border: '1px solid #fcd34d',
+          borderRadius: '6px',
+          fontSize: '13px',
+          color: '#92400e'
+        }}>
+          <strong>Note:</strong> New role/unit requests will be sent to admin for approval before appearing in system dropdowns.
+        </div>
 
         {/* Is Active */}
-        <FormField
-          label="Active Status"
-          name="is_active"
-        >
+        <FormField label="Active Status" name="is_active">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
             <input
               type="checkbox"
@@ -376,7 +314,7 @@ export const MasterUpdatingForm = ({
         <button
           className="btn btn-primary"
           onClick={handleSubmit}
-          disabled={isLoading || !formData.master_type}
+          disabled={isLoading}
         >
           {isLoading ? 'Saving...' : editData ? 'Update Master Entry' : 'Save Master Entry'}
         </button>

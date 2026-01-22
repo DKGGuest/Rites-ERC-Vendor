@@ -238,6 +238,40 @@ export const VENDOR_COMPLETED_CALLS = [
   }
 ];
 
+// ============ MASTER UPDATING DROPDOWN OPTIONS ============
+export const MASTER_ROLE_OPTIONS = [
+  { value: '', label: 'Select Master Role' },
+  { value: 'Manufacturer', label: 'Manufacturer' },
+  { value: 'Place of Inspection', label: 'Place of Inspection' },
+  { value: 'Consignee', label: 'Consignee' },
+  { value: 'Purchaser', label: 'Purchaser' }
+];
+
+export const PRODUCT_OPTIONS = [
+  { value: '', label: 'Select Product' },
+  { value: 'ERC', label: 'ERC' },
+  { value: 'Sleeper', label: 'Sleeper' },
+  { value: 'GRSP', label: 'GRSP' }
+];
+
+export const SUB_PRODUCT_OPTIONS = {
+  'ERC': [
+    { value: '', label: 'Select Sub Product' },
+    { value: 'Spring Steel Round Bars', label: 'Spring Steel Round Bars' }
+  ],
+  'Sleeper': [
+    { value: '', label: 'Select Sub Product' },
+    { value: 'HTS Wire', label: 'HTS Wire' },
+    { value: 'Dowel', label: 'Dowel' },
+    { value: 'SGCI Insert', label: 'SGCI Insert' }
+  ],
+  'GRSP': [
+    { value: '', label: 'Select Sub Product' },
+    { value: 'Rubber Pad', label: 'Rubber Pad' },
+    { value: 'Fastener', label: 'Fastener' }
+  ]
+};
+
 // ============ MASTER DATA (Admin-configured dropdowns for future API) ============
 // These will be fetched from backend in future
 export const CALIBRATION_MASTER_DATA = {
@@ -740,21 +774,51 @@ export const VENDOR_PAYMENT_ITEMS = [
 export const VENDOR_MASTER_ITEMS = [
   {
     id: 1,
-    master_type: 'Factory',
-    value: 'Factory A, City 1',
+    company_name: 'JSPL',
+    cin: 'L27106OR1979PLC001349',
+    unit_name: 'Steel Manufacturing Unit',
+    pincode: 492002,
+    city: 'Raigarh',
+    district: 'Raigarh',
+    state: 'Chhattisgarh',
+    address: 'Patrapali, Raigarh, C.G.',
+    contact_person: 'Rajesh Kumar',
+    contact_phone: '9876543210',
+    contact_email: 'rajesh@jspl.com',
+    role: 'Manufacturer - ERC - Round',
     is_active: true
   },
   {
     id: 2,
-    master_type: 'Contractor',
-    value: 'ABC Contractors Pvt Ltd',
+    company_name: 'JSPL',
+    cin: 'L27106OR1979PLC001349',
+    unit_name: 'Steel Manufacturing Unit',
+    pincode: 492002,
+    city: 'Raigarh',
+    district: 'Raigarh',
+    state: 'Chhattisgarh',
+    address: 'Patrapali, Raigarh, C.G.',
+    contact_person: 'Priya Sharma',
+    contact_phone: '9876543211',
+    contact_email: 'priya@jspl.com',
+    role: 'Manufacturer - Sleeper - HTS Wire',
     is_active: true
   },
   {
     id: 3,
-    master_type: 'Manufacturer',
-    value: 'XYZ Steel Mills',
-    is_active: false
+    company_name: 'JSPL',
+    cin: 'L27106OR1979PLC001349',
+    unit_name: 'Cement Manufacturing Unit',
+    pincode: 492002,
+    city: 'Raigarh',
+    district: 'Raigarh',
+    state: 'Chhattisgarh',
+    address: 'Patrapali, Raigarh, C.G.',
+    contact_person: 'Amit Verma',
+    contact_phone: '9876543212',
+    contact_email: 'amit@jspl.com',
+    role: 'Manufacturer - Sleeper - Cement',
+    is_active: true
   }
 ];
 
@@ -1075,10 +1139,11 @@ export const LOT_NUMBERS = [
   { lotNumber: 'LOT-2025-003', rmIcNumber: 'RM-IC-2025-003', qtyAvailable: 1800, status: 'Partially Used' }
 ];
 
-// ERC Conversion Factors (MT per 1000 ERCs)
+// ERC Conversion Factors (Division factors for calculating max ERCs)
+// Formula: (offered_qty_mt * 1000) / division_factor = max_erc_count
 export const ERC_CONVERSION_FACTORS = {
-  'ERC MK-III': 1.150,
-  'ERC MK-V': 1.170,
+  'ERC MK-III': 0.928426,
+  'ERC MK-V': 1.15321,
   'default': 1.100
 };
 
