@@ -130,6 +130,10 @@ const VendorDashboardPage = ({ onBack }) => {
   const [poAssignedSearchTerm, setPoAssignedSearchTerm] = useState('');
   const [poAssignedPageSize, setPoAssignedPageSize] = useState(10);
 
+  // Sorting state for PO Items table (nested table)
+  const [poItemsSortColumn, setPoItemsSortColumn] = useState({});
+  const [poItemsSortDirection, setPoItemsSortDirection] = useState({});
+
   // Search state for Requested Inspection Call Status table
   const [requestedCallsSearchTerm, setRequestedCallsSearchTerm] = useState('');
 
@@ -1567,6 +1571,49 @@ const VendorDashboardPage = ({ onBack }) => {
     setRequestedCallsCurrentPage(1);
   };
 
+  // Handle sorting for PO Items table (nested table)
+  const handlePOItemsSort = (poId, columnKey) => {
+    const currentSortColumn = poItemsSortColumn[poId];
+    const currentSortDirection = poItemsSortDirection[poId] || 'asc';
+
+    if (currentSortColumn === columnKey) {
+      setPoItemsSortDirection({
+        ...poItemsSortDirection,
+        [poId]: currentSortDirection === 'asc' ? 'desc' : 'asc'
+      });
+    } else {
+      setPoItemsSortColumn({
+        ...poItemsSortColumn,
+        [poId]: columnKey
+      });
+      setPoItemsSortDirection({
+        ...poItemsSortDirection,
+        [poId]: 'asc'
+      });
+    }
+  };
+
+  // Sort PO items for a specific PO
+  const getSortedPOItems = (poId, items) => {
+    if (!items || items.length === 0) return items;
+
+    const sortColumn = poItemsSortColumn[poId];
+    const sortDirection = poItemsSortDirection[poId] || 'asc';
+
+    if (!sortColumn) return items;
+
+    const sortedItems = [...items].sort((a, b) => {
+      const aVal = a[sortColumn];
+      const bVal = b[sortColumn];
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return sortedItems;
+  };
+
   // Updated column definitions with expiry highlighting
   const calibrationInstrumentColumns = [
     { key: 'instrument_name', label: 'Instrument / Machine Name' },
@@ -2046,12 +2093,42 @@ const VendorDashboardPage = ({ onBack }) => {
                                   <table className="po-items-table">
                                     <thead>
                                       <tr>
-                                        <th>Item Description</th>
-                                        <th>PO Serial No.</th>
-                                        <th>Consignee</th>
-                                        <th>Ordered Quantity</th>
-                                        <th>Delivery Period</th>
-                                        <th>Status</th>
+                                        <th
+                                          onClick={() => handlePOItemsSort(po.id, 'item_name')}
+                                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                                        >
+                                          Item Description {poItemsSortColumn[po.id] === 'item_name' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th
+                                          onClick={() => handlePOItemsSort(po.id, 'po_serial_no')}
+                                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                                        >
+                                          PO Serial No. {poItemsSortColumn[po.id] === 'po_serial_no' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th
+                                          onClick={() => handlePOItemsSort(po.id, 'consignee')}
+                                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                                        >
+                                          Consignee {poItemsSortColumn[po.id] === 'consignee' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th
+                                          onClick={() => handlePOItemsSort(po.id, 'item_qty')}
+                                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                                        >
+                                          Ordered Quantity {poItemsSortColumn[po.id] === 'item_qty' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th
+                                          onClick={() => handlePOItemsSort(po.id, 'delivery_period')}
+                                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                                        >
+                                          Delivery Period {poItemsSortColumn[po.id] === 'delivery_period' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                        </th>
+                                        <th
+                                          onClick={() => handlePOItemsSort(po.id, 'item_status')}
+                                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                                        >
+                                          Status {poItemsSortColumn[po.id] === 'item_status' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                        </th>
                                         <th>Action</th>
                                       </tr>
                                     </thead>
@@ -2061,7 +2138,10 @@ const VendorDashboardPage = ({ onBack }) => {
                                           // Get all approved Sub POs for this PO (shared across all items,  selectedSubPOsByItem[item.id] || )
                                           const approvedSubPOs = getApprovedSubPOsForPO(po);
 
-                                          return po.items.map((item) => {
+                                          // Sort the items based on current sort state
+                                          const sortedItems = getSortedPOItems(po.id, po.items);
+
+                                          return sortedItems.map((item) => {
                                             const selectedSubPO = '';
 
                                             return (
