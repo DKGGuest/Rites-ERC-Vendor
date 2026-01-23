@@ -262,11 +262,11 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
                 options={[
                   {
                     value: new Date().toISOString().split('T')[0],
-                    label: `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} (Today)`
+                    label: `${formatDate(new Date().toISOString())} (Today)`
                   },
                   {
                     value: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-                    label: `${new Date(Date.now() - 86400000).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} (Yesterday)`
+                    label: `${formatDate(new Date(Date.now() - 86400000).toISOString())} (Yesterday)`
                   }
                 ]}
                 required={true}
@@ -275,7 +275,7 @@ const InspectionInitiationFormContent = ({ call, formData, onFormDataChange, sho
               <input
                 type="text"
                 className="form-input"
-                value={formData.dateOfInspection ? new Date(formData.dateOfInspection).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
+                value={formData.dateOfInspection ? formatDate(formData.dateOfInspection) : ''}
                 disabled
               />
             )}

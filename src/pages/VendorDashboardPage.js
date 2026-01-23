@@ -123,6 +123,22 @@ const VendorDashboardPage = ({ onBack }) => {
   const [loadingRequestedCalls, setLoadingRequestedCalls] = useState(false);
   const [requestedCallsError, setRequestedCallsError] = useState(null);
 
+  // Pagination and sorting state for PO Assigned table
+  const [poAssignedCurrentPage, setPoAssignedCurrentPage] = useState(1);
+  const [poAssignedSortColumn, setPoAssignedSortColumn] = useState(null);
+  const [poAssignedSortDirection, setPoAssignedSortDirection] = useState('asc');
+  const [poAssignedSearchTerm, setPoAssignedSearchTerm] = useState('');
+  const [poAssignedPageSize, setPoAssignedPageSize] = useState(10);
+
+  // Search state for Requested Inspection Call Status table
+  const [requestedCallsSearchTerm, setRequestedCallsSearchTerm] = useState('');
+
+  // Pagination and sorting state for Requested Inspection Call Status table
+  const [requestedCallsPageSize, setRequestedCallsPageSize] = useState(10);
+  const [requestedCallsCurrentPage, setRequestedCallsCurrentPage] = useState(1);
+  const [requestedCallsSortColumn, setRequestedCallsSortColumn] = useState(null);
+  const [requestedCallsSortDirection, setRequestedCallsSortDirection] = useState('asc');
+
     const user = getStoredUser();
 
   // ============ VENDOR WORKFLOW API INTEGRATION ============
@@ -1399,7 +1415,7 @@ const VendorDashboardPage = ({ onBack }) => {
       label: 'PO Date',
       render: (value) => formatDate(value)
     },
-    { key: 'description', label: 'Description' },
+    { key: 'description', label: 'Vendor Name' },
     { key: 'quantity', label: 'Qty' },
     { key: 'unit', label: 'Unit' },
     // { key: 'location', label: 'Location' },
@@ -1448,6 +1464,108 @@ const VendorDashboardPage = ({ onBack }) => {
     },
     { key: 'ic_number', label: 'IC No.' }
   ];
+
+  // Sort and filter PO Assigned list
+  const sortedPOAssigned = useMemo(() => {
+    let result = [...poAssignedList];
+
+    // Apply search filter
+    if (poAssignedSearchTerm) {
+      const searchLower = poAssignedSearchTerm.toLowerCase();
+      result = result.filter(po =>
+        Object.values(po).some(val =>
+          String(val).toLowerCase().includes(searchLower)
+        )
+      );
+    }
+
+    // Apply sorting
+    if (poAssignedSortColumn) {
+      result.sort((a, b) => {
+        const aVal = a[poAssignedSortColumn];
+        const bVal = b[poAssignedSortColumn];
+
+        if (aVal < bVal) return poAssignedSortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return poAssignedSortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [poAssignedList, poAssignedSortColumn, poAssignedSortDirection, poAssignedSearchTerm]);
+
+  // Paginate the sorted PO Assigned list
+  const paginatedPOAssigned = useMemo(() => {
+    const startIndex = (poAssignedCurrentPage - 1) * poAssignedPageSize;
+    return sortedPOAssigned.slice(startIndex, startIndex + poAssignedPageSize);
+  }, [sortedPOAssigned, poAssignedCurrentPage, poAssignedPageSize]);
+
+  // Filter, sort, and paginate requested calls
+  const filteredAndSortedRequestedCalls = useMemo(() => {
+    let result = [...requestedCalls];
+
+    // Apply search filter
+    if (requestedCallsSearchTerm) {
+      const searchLower = requestedCallsSearchTerm.toLowerCase();
+      result = result.filter(call => {
+        return (
+          (call.call_no && call.call_no.toLowerCase().includes(searchLower)) ||
+          (call.po_no && call.po_no.toLowerCase().includes(searchLower)) ||
+          (call.item_name && call.item_name.toLowerCase().includes(searchLower)) ||
+          (call.stage && call.stage.toLowerCase().includes(searchLower)) ||
+          (call.quantity_offered && String(call.quantity_offered).toLowerCase().includes(searchLower)) ||
+          (call.location && call.location.toLowerCase().includes(searchLower)) ||
+          (call.status && call.status.toLowerCase().includes(searchLower))
+        );
+      });
+    }
+
+    // Apply sorting
+    if (requestedCallsSortColumn) {
+      result.sort((a, b) => {
+        const aVal = a[requestedCallsSortColumn];
+        const bVal = b[requestedCallsSortColumn];
+
+        if (aVal < bVal) return requestedCallsSortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return requestedCallsSortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [requestedCalls, requestedCallsSearchTerm, requestedCallsSortColumn, requestedCallsSortDirection]);
+
+  // Paginate the filtered and sorted calls
+  const paginatedRequestedCalls = useMemo(() => {
+    const startIndex = (requestedCallsCurrentPage - 1) * requestedCallsPageSize;
+    return filteredAndSortedRequestedCalls.slice(startIndex, startIndex + requestedCallsPageSize);
+  }, [filteredAndSortedRequestedCalls, requestedCallsCurrentPage, requestedCallsPageSize]);
+
+  // Handle sorting for PO Assigned
+  const handlePOAssignedSort = (columnKey) => {
+    if (poAssignedSortColumn === columnKey) {
+      setPoAssignedSortDirection(poAssignedSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setPoAssignedSortColumn(columnKey);
+      setPoAssignedSortDirection('asc');
+    }
+    // Reset to first page when sorting
+    setPoAssignedCurrentPage(1);
+  };
+
+  const requestedCallsTotalPages = Math.ceil(filteredAndSortedRequestedCalls.length / requestedCallsPageSize);
+
+  // Handle sorting for requested calls
+  const handleRequestedCallsSort = (columnKey) => {
+    if (requestedCallsSortColumn === columnKey) {
+      setRequestedCallsSortDirection(requestedCallsSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setRequestedCallsSortColumn(columnKey);
+      setRequestedCallsSortDirection('asc');
+    }
+    // Reset to first page when sorting
+    setRequestedCallsCurrentPage(1);
+  };
 
   // Updated column definitions with expiry highlighting
   const calibrationInstrumentColumns = [
@@ -1777,26 +1895,60 @@ const VendorDashboardPage = ({ onBack }) => {
 
               {/* Custom Expandable PO Table */}
               {!loadingPOData && (
+                <>
                 <div className="data-table-wrapper">
+                  {/* Search Bar and Page Size Selector */}
+                  <div className="table-controls">
+                    <input
+                      type="text"
+                      className="form-control search-box"
+                      placeholder="Search..."
+                      value={poAssignedSearchTerm}
+                      onChange={(e) => {
+                        setPoAssignedSearchTerm(e.target.value);
+                        setPoAssignedCurrentPage(1); // Reset to first page on search
+                      }}
+                    />
+                    <select
+                      className="form-control"
+                      style={{ width: '120px' }}
+                      value={poAssignedPageSize}
+                      onChange={(e) => {
+                        setPoAssignedPageSize(Number(e.target.value));
+                        setPoAssignedCurrentPage(1); // Reset to first page on page size change
+                      }}
+                    >
+                      <option value={10}>10 / page</option>
+                      <option value={25}>25 / page</option>
+                      <option value={50}>50 / page</option>
+                      <option value={100}>100 / page</option>
+                    </select>
+                  </div>
                   <div className="data-table-container">
                     <table className="data-table expandable-po-table">
                       <thead>
                         <tr>
                           <th style={{ width: '50px' }}></th>
                           {poColumns.map(col => (
-                            <th key={col.key}>{col.label}</th>
+                            <th
+                              key={col.key}
+                              onClick={() => handlePOAssignedSort(col.key)}
+                              style={{ cursor: 'pointer', userSelect: 'none' }}
+                            >
+                              {col.label} {poAssignedSortColumn === col.key && (poAssignedSortDirection === 'asc' ? '↑' : '↓')}
+                            </th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {poAssignedList.length === 0 ? (
+                        {sortedPOAssigned.length === 0 ? (
                           <tr>
-                            <td colSpan={poColumns.length + 1} className="text-center py-4">
+                            <td colSpan={poColumns.length + 1} style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
                               No PO data available
                             </td>
                           </tr>
                         ) : (
-                          poAssignedList.map((po) => (
+                          paginatedPOAssigned.map((po) => (
                         <React.Fragment key={po.id}>
                           {/* PO Row */}
                           <tr className={`po-row ${expandedPORows[po.id] ? 'expanded' : ''}`}>
@@ -2044,6 +2196,35 @@ const VendorDashboardPage = ({ onBack }) => {
                     </table>
                   </div>
                 </div>
+
+                {/* Pagination Controls */}
+                {sortedPOAssigned.length > 0 && (
+                  <div className="pagination-controls" style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                      Showing {((poAssignedCurrentPage - 1) * poAssignedPageSize) + 1} to {Math.min(poAssignedCurrentPage * poAssignedPageSize, sortedPOAssigned.length)} of {sortedPOAssigned.length} POs
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => setPoAssignedCurrentPage(Math.max(1, poAssignedCurrentPage - 1))}
+                        disabled={poAssignedCurrentPage === 1}
+                      >
+                        ← Previous
+                      </button>
+                      <span style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', color: '#6b7280' }}>
+                        Page {poAssignedCurrentPage} of {Math.ceil(sortedPOAssigned.length / poAssignedPageSize)}
+                      </span>
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => setPoAssignedCurrentPage(Math.min(Math.ceil(sortedPOAssigned.length / poAssignedPageSize), poAssignedCurrentPage + 1))}
+                        disabled={poAssignedCurrentPage === Math.ceil(sortedPOAssigned.length / poAssignedPageSize)}
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  </div>
+                )}
+                </>
               )}
             </>
           )}
@@ -2071,6 +2252,35 @@ const VendorDashboardPage = ({ onBack }) => {
                 </div>
               )}
 
+              {/* Search Bar and Pagination Controls */}
+              <div className="table-controls" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  className="form-control search-box"
+                  placeholder="Search..."
+                  value={requestedCallsSearchTerm}
+                  onChange={(e) => {
+                    setRequestedCallsSearchTerm(e.target.value);
+                    setRequestedCallsCurrentPage(1); // Reset to first page on search
+                  }}
+                  style={{ maxWidth: '400px' }}
+                />
+                <select
+                  className="form-control"
+                  style={{ width: '120px' }}
+                  value={requestedCallsPageSize}
+                  onChange={(e) => {
+                    setRequestedCallsPageSize(Number(e.target.value));
+                    setRequestedCallsCurrentPage(1); // Reset to first page on page size change
+                  }}
+                >
+                  <option value={10}>10 / page</option>
+                  <option value={25}>25 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
+                </select>
+              </div>
+
               {/* Custom Expandable Inspection Calls Table */}
               <div className="data-table-wrapper">
                 <div className="data-table-container">
@@ -2078,77 +2288,121 @@ const VendorDashboardPage = ({ onBack }) => {
                     <thead>
                       <tr>
                         {requestedColumns.map(col => (
-                          <th key={col.key}>{col.label}</th>
+                          <th
+                            key={col.key}
+                            onClick={() => handleRequestedCallsSort(col.key)}
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                          >
+                            {col.label} {requestedCallsSortColumn === col.key && (requestedCallsSortDirection === 'asc' ? '↑' : '↓')}
+                          </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {requestedCalls.map((call) => (
-                        <React.Fragment key={call.id}>
-                          {/* Call Row */}
-                          <tr
-                            className={`call-row ${expandedCallRows[call.id] ? 'expanded' : ''}`}
-                            onClick={() => toggleCallRow(call.id)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            {requestedColumns.map(col => (
-                              <td key={col.key} data-label={col.label}>
-                                {col.render ? col.render(call[col.key], call) : call[col.key]}
-                              </td>
-                            ))}
-                          </tr>
-                          {/* Expanded Actions Row */}
-                          {expandedCallRows[call.id] && (
-                            <tr className="call-actions-row">
-                              <td colSpan={requestedColumns.length}>
-                                <div className="call-actions-container">
-                                  <button
-                                    className="btn btn-sm btn-outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenCallDetailsModal(call);
-                                    }}
-                                  >
-                                    View Full Inspection Call Details
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleViewTransitionHistory(call);
-                                    }}
-                                    disabled={workflowLoading.transitionHistory}
-                                  >
-                                    {workflowLoading.transitionHistory ? 'Loading...' : 'View Workflow History'}
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenRectificationModal(call);
-                                    }}
-                                  >
-                                    Update Rectification Details
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDownloadDocuments(call);
-                                    }}
-                                  >
-                                    Download Acknowledged Documents
-                                  </button>
-                                </div>
-                              </td>
+                      {filteredAndSortedRequestedCalls.length === 0 ? (
+                        <tr>
+                          <td colSpan={requestedColumns.length} style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
+                            {requestedCallsSearchTerm
+                              ? `No inspection calls found matching "${requestedCallsSearchTerm}"`
+                              : 'No inspection calls found'}
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedRequestedCalls.map((call) => (
+                          <React.Fragment key={call.id}>
+                            {/* Call Row */}
+                            <tr
+                              className={`call-row ${expandedCallRows[call.id] ? 'expanded' : ''}`}
+                              onClick={() => toggleCallRow(call.id)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {requestedColumns.map(col => (
+                                <td key={col.key} data-label={col.label}>
+                                  {col.render ? col.render(call[col.key], call) : call[col.key]}
+                                </td>
+                              ))}
                             </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
+                            {/* Expanded Actions Row */}
+                            {expandedCallRows[call.id] && (
+                              <tr className="call-actions-row">
+                                <td colSpan={requestedColumns.length}>
+                                  <div className="call-actions-container">
+                                    <button
+                                      className="btn btn-sm btn-outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenCallDetailsModal(call);
+                                      }}
+                                    >
+                                      View Full Inspection Call Details
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewTransitionHistory(call);
+                                      }}
+                                      disabled={workflowLoading.transitionHistory}
+                                    >
+                                      {workflowLoading.transitionHistory ? 'Loading...' : 'View Workflow History'}
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenRectificationModal(call);
+                                      }}
+                                    >
+                                      Update Rectification Details
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDownloadDocuments(call);
+                                      }}
+                                    >
+                                      Download Acknowledged Documents
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
+
+              {/* Pagination Info and Controls */}
+              {filteredAndSortedRequestedCalls.length > 0 && (
+                <div className="table-pagination" style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderTop: '1px solid #e5e7eb' }}>
+                  <div className="pagination-info" style={{ fontSize: '14px', color: '#6b7280' }}>
+                    Showing {((requestedCallsCurrentPage - 1) * requestedCallsPageSize) + 1} to {Math.min(requestedCallsCurrentPage * requestedCallsPageSize, filteredAndSortedRequestedCalls.length)} of {filteredAndSortedRequestedCalls.length} entries
+                  </div>
+                  <div className="pagination-controls" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                      className="btn btn-sm btn-outline"
+                      disabled={requestedCallsCurrentPage === 1}
+                      onClick={() => setRequestedCallsCurrentPage(requestedCallsCurrentPage - 1)}
+                    >
+                      Previous
+                    </button>
+                    <span style={{ fontSize: '14px', color: '#6b7280' }}>
+                      Page {requestedCallsCurrentPage} of {requestedCallsTotalPages}
+                    </span>
+                    <button
+                      className="btn btn-sm btn-outline"
+                      disabled={requestedCallsCurrentPage === requestedCallsTotalPages}
+                      onClick={() => setRequestedCallsCurrentPage(requestedCallsCurrentPage + 1)}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

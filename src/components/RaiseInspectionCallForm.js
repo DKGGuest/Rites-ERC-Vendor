@@ -130,7 +130,10 @@ const getMaxDate = () => {
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
 };
 
 // Inspection stage options
@@ -1392,6 +1395,51 @@ export const RaiseInspectionCallForm = ({
         heat.id === id ? { ...heat, [fieldName]: value } : heat
       )
     }));
+
+    // Find the index of this heat for error key
+    const heatIndex = formData.rm_heat_tc_mapping.findIndex(h => h.id === id);
+    const errorKey = `heat_${heatIndex}_${fieldName}`;
+
+    // Check if value is out of range and set error immediately
+    if (isChemistryOutOfRange(fieldName, value)) {
+      setErrors(prev => ({
+        ...prev,
+        [errorKey]: 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry'
+      }));
+    } else {
+      // Clear error if value is now in range
+      if (errors[errorKey]) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[errorKey];
+          return newErrors;
+        });
+      }
+    }
+  };
+
+  // Helper function to check if chemistry value is out of range
+  const isChemistryOutOfRange = (fieldName, value) => {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || value === '') return false;
+
+    // Handle both rm_chemical_ and chemical_ prefixes
+    const baseFieldName = fieldName.replace('rm_chemical_', '').replace('chemical_', '');
+
+    switch (baseFieldName) {
+      case 'carbon':
+        return numValue < 0.5 || numValue > 0.6;
+      case 'manganese':
+        return numValue < 0.8 || numValue > 1.0;
+      case 'silicon':
+        return numValue < 1.5 || numValue > 2.0;
+      case 'sulphur':
+        return numValue > 0.03;
+      case 'phosphorus':
+        return numValue > 0.03;
+      default:
+        return false;
+    }
   };
 
   // Generic change handler
@@ -1405,8 +1453,25 @@ export const RaiseInspectionCallForm = ({
     // }
 
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+
+    // For chemistry fields, immediately show error if out of range
+    if (name.startsWith('rm_chemical_')) {
+      if (isChemistryOutOfRange(name, value)) {
+        setErrors(prev => ({
+          ...prev,
+          [name]: 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry'
+        }));
+      } else {
+        // Clear error if value is now in range
+        if (errors[name]) {
+          setErrors(prev => ({ ...prev, [name]: '' }));
+        }
+      }
+    } else {
+      // Clear error for non-chemistry fields when user starts typing
+      if (errors[name]) {
+        setErrors(prev => ({ ...prev, [name]: '' }));
+      }
     }
   };
 
