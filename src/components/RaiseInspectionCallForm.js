@@ -331,6 +331,9 @@ export const RaiseInspectionCallForm = ({
   const [loadingRmIcsForFinal, setLoadingRmIcsForFinal] = useState(false);
   const [loadingLotsForFinal, setLoadingLotsForFinal] = useState(false);
 
+  // State to store lot-heat mapping for Final Inspection
+  const [lotHeatMapping, setLotHeatMapping] = useState({});
+
   // POI (Place of Inspection) states
   const [companies, setCompanies] = useState([]);
   const [units, setUnits] = useState([]);
@@ -402,8 +405,8 @@ export const RaiseInspectionCallForm = ({
         setLoadingRMICs(true);
 
         try {
-          console.log('🔍 Fetching completed RM ICs (certificate numbers)');
-          const response = await inspectionCallService.getCompletedRmIcNumbers();
+          console.log('🔍 Fetching completed RM ICs (certificate numbers) for PO:', formData.po_no);
+          const response = await inspectionCallService.getCompletedRmIcNumbers(formData.po_no);
           console.log('📦 Completed certificate numbers response:', response);
 
           if (response && response.data) {
@@ -444,7 +447,7 @@ export const RaiseInspectionCallForm = ({
     };
 
     fetchCompletedRMICs();
-  }, [formData.type_of_call]);
+  }, [formData.type_of_call, formData.po_no]);
 
   // Fetch companies for POI dropdown on component mount
   useEffect(() => {
@@ -630,18 +633,52 @@ export const RaiseInspectionCallForm = ({
     fetchHeatNumbers();
   }, [formData.type_of_call, formData.process_rm_ic_numbers]);
 
-  // ==================== FINAL INSPECTION CALL DROPDOWN EFFECTS ====================
+  // ==================== FINAL INSPECTION CALL DROPDOWN EFFECTS (NEW REVERSED FLOW) ====================
 
-  // Fetch Process IC certificates when Final inspection type is selected
+  // Step 1: Fetch RM IC certificates when Final inspection type is selected
   useEffect(() => {
     console.log('🔄 Final IC useEffect triggered - type_of_call:', formData.type_of_call, 'vendorId:', vendorId);
 
-    const fetchProcessIcCertificates = async () => {
+    const fetchRmIcCertificates = async () => {
       if (formData.type_of_call === 'Final' && vendorId) {
+        setLoadingRmIcsForFinal(true);
+        try {
+          console.log('🔍 Fetching RM IC certificates for vendor:', vendorId);
+          const response = await inspectionCallService.getRmIcCertificates(vendorId);
+          console.log('📦 RM IC certificates response:', response);
+
+          if (response && response.data) {
+            const certificates = Array.isArray(response.data) ? response.data : [];
+            console.log('✅ Setting RM IC certificates:', certificates);
+            setRmIcNumbersForFinal(certificates);
+          } else {
+            console.warn('⚠️ No RM IC certificates found');
+            setRmIcNumbersForFinal([]);
+          }
+        } catch (error) {
+          console.error('❌ Error fetching RM IC certificates:', error);
+          setRmIcNumbersForFinal([]);
+        } finally {
+          setLoadingRmIcsForFinal(false);
+        }
+      } else {
+        setRmIcNumbersForFinal([]);
+      }
+    };
+
+    fetchRmIcCertificates();
+  }, [formData.type_of_call, vendorId]);
+
+  // Step 2: Fetch Process IC certificates when RM IC certificate is selected
+  useEffect(() => {
+    const fetchProcessIcCertificates = async () => {
+      if (formData.type_of_call === 'Final' && formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0) {
         setLoadingProcessIcs(true);
         try {
-          console.log('🔍 Fetching Process IC certificates for vendor:', vendorId);
-          const response = await inspectionCallService.getProcessIcCertificates(vendorId);
+          console.log('🔍 Fetching Process IC certificates for multiple RM certificates:', formData.final_rm_ic_numbers);
+
+          // Get Process ICs for ALL selected RM IC certificates
+          const response = await inspectionCallService.getProcessIcCertificatesByMultipleRmCertificates(formData.final_rm_ic_numbers);
           console.log('📦 Process IC certificates response:', response);
 
           if (response && response.data) {
@@ -664,54 +701,20 @@ export const RaiseInspectionCallForm = ({
     };
 
     fetchProcessIcCertificates();
-  }, [formData.type_of_call, vendorId]);
+  }, [formData.type_of_call, formData.final_rm_ic_numbers]);
 
-  // Fetch RM IC numbers when Process IC certificate is selected
-  useEffect(() => {
-    const fetchRmIcNumbers = async () => {
-      if (formData.type_of_call === 'Final' && formData.final_process_ic_numbers && formData.final_process_ic_numbers.length > 0) {
-        setLoadingRmIcsForFinal(true);
-        try {
-          // Get RM ICs from the first selected Process IC certificate
-          const firstCertificate = formData.final_process_ic_numbers[0];
-          console.log('🔍 Fetching RM IC numbers for certificate:', firstCertificate);
-
-          const response = await inspectionCallService.getRmIcNumbersByCertificate(firstCertificate);
-          console.log('📦 RM IC numbers response:', response);
-
-          if (response && response.data) {
-            const rmIcNumbers = Array.isArray(response.data) ? response.data : [];
-            console.log('✅ Setting RM IC numbers:', rmIcNumbers);
-            setRmIcNumbersForFinal(rmIcNumbers);
-          } else {
-            console.warn('⚠️ No RM IC numbers found');
-            setRmIcNumbersForFinal([]);
-          }
-        } catch (error) {
-          console.error('❌ Error fetching RM IC numbers:', error);
-          setRmIcNumbersForFinal([]);
-        } finally {
-          setLoadingRmIcsForFinal(false);
-        }
-      } else {
-        setRmIcNumbersForFinal([]);
-      }
-    };
-
-    fetchRmIcNumbers();
-  }, [formData.type_of_call, formData.final_process_ic_numbers]);
-
-  // Fetch Lot numbers when RM IC is selected
+  // Step 3: Fetch Lot numbers when both RM IC and Process IC are selected
   useEffect(() => {
     const fetchLotNumbers = async () => {
-      if (formData.type_of_call === 'Final' && formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0) {
+      if (formData.type_of_call === 'Final' &&
+          formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0 &&
+          formData.final_process_ic_numbers && formData.final_process_ic_numbers.length > 0) {
         setLoadingLotsForFinal(true);
         try {
-          // Get lots from the first selected RM IC
-          const firstRmIc = formData.final_rm_ic_numbers[0];
-          console.log('🔍 Fetching lot numbers for RM IC:', firstRmIc);
+          // Get lots based on ALL selected RM IC and Process IC certificates (MULTI-SELECT)
+          console.log('🔍 Fetching lot numbers for multiple RM certificates:', formData.final_rm_ic_numbers, 'and Process certificates:', formData.final_process_ic_numbers);
 
-          const response = await inspectionCallService.getLotNumbersByRmIc(firstRmIc);
+          const response = await inspectionCallService.getLotNumbersByMultipleCertificates(formData.final_rm_ic_numbers, formData.final_process_ic_numbers);
           console.log('📦 Lot numbers response:', response);
 
           if (response && response.data) {
@@ -734,7 +737,53 @@ export const RaiseInspectionCallForm = ({
     };
 
     fetchLotNumbers();
-  }, [formData.type_of_call, formData.final_rm_ic_numbers]);
+  }, [formData.type_of_call, formData.final_rm_ic_numbers, formData.final_process_ic_numbers]);
+
+  // Step 4: Fetch heat numbers for each selected lot
+  useEffect(() => {
+    const fetchHeatNumbersForLots = async () => {
+      if (formData.type_of_call === 'Final' &&
+          formData.final_lot_numbers && formData.final_lot_numbers.length > 0 &&
+          formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0) {
+        try {
+          const newLotHeatMapping = {};
+
+          // Fetch heat numbers for each lot with each selected RM IC (MULTI-SELECT)
+          for (const lotNumber of formData.final_lot_numbers) {
+            // Try to fetch heat numbers from the first RM IC that has data for this lot
+            let heatNumberFound = false;
+
+            for (const rmCertificate of formData.final_rm_ic_numbers) {
+              console.log('🔍 Fetching heat numbers for lot:', lotNumber, 'with RM certificate:', rmCertificate);
+              const response = await inspectionCallService.getHeatNumbersByLotNumber(lotNumber, rmCertificate);
+
+              if (response && response.data) {
+                const heatNumbers = Array.isArray(response.data) ? response.data : [];
+                if (heatNumbers.length > 0) {
+                  newLotHeatMapping[lotNumber] = heatNumbers[0]; // Take first heat number
+                  console.log(`✅ Heat number for lot ${lotNumber}:`, newLotHeatMapping[lotNumber]);
+                  heatNumberFound = true;
+                  break; // Found heat number, move to next lot
+                }
+              }
+            }
+
+            if (!heatNumberFound) {
+              newLotHeatMapping[lotNumber] = '';
+            }
+          }
+
+          setLotHeatMapping(newLotHeatMapping);
+        } catch (error) {
+          console.error('❌ Error fetching heat numbers for lots:', error);
+        }
+      } else {
+        setLotHeatMapping({});
+      }
+    };
+
+    fetchHeatNumbersForLots();
+  }, [formData.type_of_call, formData.final_lot_numbers, formData.final_rm_ic_numbers]);
 
   // Get available RM ICs for Process stage
   // const availableRmIcs = useMemo(() => {
@@ -2662,75 +2711,86 @@ export const RaiseInspectionCallForm = ({
               />
 
               <div className="ric-form-grid">
-                            {/* Process IC Numbers - Dropdown with Multiple Selection */}
-                            <FormField
-                              label="Process IC Numbers"
-                              name="final_process_ic_numbers"
-                              required
-                              hint="Certificate numbers from completed Process ICs (EP prefix)"
-                              fullWidth
-                            >
-                              {loadingProcessIcs ? (
-                                <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
-                                  Loading Process IC certificates...
-                                </div>
-                              ) : (
-                                <MultiSelectDropdown
-                                  options={processIcCertificates.map(cert => ({
-                                    value: cert,
-                                    label: cert
-                                  }))}
-                                  selectedValues={formData.final_process_ic_numbers}
-                                  onChange={(selectedValues) => handleFinalProcessIcSelection(selectedValues)}
-                                  placeholder="Select Process IC Certificate Numbers"
-                                />
-                              )}
-                              {formData.final_process_ic_numbers.length > 0 && (
-                                <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                                  Selected: {formData.final_process_ic_numbers.join(', ')}
-                                </div>
-                              )}
-                            </FormField>
+                {/* STEP 1: RM IC Numbers - First Dropdown (Single Selection) */}
+                <FormField
+                  label="RM IC Numbers"
+                  name="final_rm_ic_numbers"
+                  required
+                  hint="Certificate numbers from completed RM ICs (ER prefix)"
+                  fullWidth
+                >
+                  {loadingRmIcsForFinal ? (
+                    <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
+                      Loading RM IC certificates...
+                    </div>
+                  ) : (
+                    <MultiSelectDropdown
+                      options={rmIcNumbersForFinal.map(cert => ({
+                        value: cert,
+                        label: cert
+                      }))}
+                      selectedValues={formData.final_rm_ic_numbers}
+                      onChange={(selectedValues) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          final_rm_ic_numbers: selectedValues,
+                          final_process_ic_numbers: [], // Reset downstream selections
+                          final_lot_numbers: []
+                        }));
+                      }}
+                      placeholder="Select RM IC Certificate Number"
+                    />
+                  )}
+                  {formData.final_rm_ic_numbers.length > 0 && (
+                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+                      Selected: {formData.final_rm_ic_numbers.join(', ')}
+                    </div>
+                  )}
+                </FormField>
 
-                            
-                {/* Lot No. - Dropdown with Multiple Selection */}
-                      {/* RM IC Numbers - Dropdown with Multiple Selection */}
-                      <FormField
-                        label="RM IC Numbers"
-                        name="final_rm_ic_numbers"
-                        required
-                        hint="RM IC numbers from selected Process IC"
-                        fullWidth
-                      >
-                        {loadingRmIcsForFinal ? (
-                          <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
-                            Loading RM IC numbers...
-                          </div>
-                        ) : (
-                          <MultiSelectDropdown
-                            options={rmIcNumbersForFinal.map(rmIc => ({
-                              value: rmIc,
-                              label: rmIc
-                            }))}
-                            selectedValues={formData.final_rm_ic_numbers}
-                            onChange={(selectedValues) => setFormData(prev => ({ ...prev, final_rm_ic_numbers: selectedValues }))}
-                            placeholder={formData.final_process_ic_numbers.length === 0 ? "Select Process IC first" : "Select RM IC Numbers"}
-                            disabled={formData.final_process_ic_numbers.length === 0}
-                          />
-                        )}
-                        {formData.final_rm_ic_numbers.length > 0 && (
-                          <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                            Selected: {formData.final_rm_ic_numbers.join(', ')}
-                          </div>
-                        )}
-                      </FormField>
+                {/* STEP 2: Process IC Numbers - Second Dropdown (Single Selection) */}
+                <FormField
+                  label="Process IC Numbers"
+                  name="final_process_ic_numbers"
+                  required
+                  hint="Certificate numbers from completed Process ICs (EP prefix)"
+                  fullWidth
+                >
+                  {loadingProcessIcs ? (
+                    <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
+                      Loading Process IC certificates...
+                    </div>
+                  ) : (
+                    <MultiSelectDropdown
+                      options={processIcCertificates.map(cert => ({
+                        value: cert,
+                        label: cert
+                      }))}
+                      selectedValues={formData.final_process_ic_numbers}
+                      onChange={(selectedValues) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          final_process_ic_numbers: selectedValues,
+                          final_lot_numbers: [] // Reset downstream selections
+                        }));
+                      }}
+                      placeholder={formData.final_rm_ic_numbers.length === 0 ? "Select RM IC first" : "Select Process IC Certificate Number"}
+                      disabled={formData.final_rm_ic_numbers.length === 0}
+                    />
+                  )}
+                  {formData.final_process_ic_numbers.length > 0 && (
+                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+                      Selected: {formData.final_process_ic_numbers.join(', ')}
+                    </div>
+                  )}
+                </FormField>
 
-                {/* Lot No. - Dropdown with Add Button */}
+                {/* STEP 3: Lot Numbers - Third Dropdown (Multi-Select) */}
                 <FormField
                   label="Lot No."
                   name="final_lot_numbers"
                   required
-                  hint="Lot numbers from selected RM IC"
+                  hint="Lot numbers from selected RM IC and Process IC"
                   fullWidth
                 >
                   {loadingLotsForFinal ? (
@@ -2738,104 +2798,125 @@ export const RaiseInspectionCallForm = ({
                       Loading lot numbers...
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1 }}>
-                        <select
-                          className="ric-form-select"
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value && !formData.final_lot_numbers.includes(e.target.value)) {
-                              const newLots = [...formData.final_lot_numbers, e.target.value];
-                              handleFinalLotSelection(newLots);
-                            }
-                          }}
-                          disabled={formData.final_rm_ic_numbers.length === 0}
-                        >
-                          <option value="">
-                            {formData.final_rm_ic_numbers.length === 0 ? "Select RM IC first" : "Select Lot Number"}
-                          </option>
-                          {lotNumbersForFinal.map(lot => (
-                            <option key={lot} value={lot}>
-                              {lot}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    <MultiSelectDropdown
+                      options={lotNumbersForFinal.map(lot => ({
+                        value: lot,
+                        label: lot
+                      }))}
+                      selectedValues={formData.final_lot_numbers}
+                      onChange={(selectedValues) => {
+                        setFormData(prev => ({ ...prev, final_lot_numbers: selectedValues }));
+                      }}
+                      placeholder={
+                        formData.final_rm_ic_numbers.length === 0
+                          ? "Select RM IC first"
+                          : formData.final_process_ic_numbers.length === 0
+                          ? "Select Process IC first"
+                          : "Select Lot Numbers"
+                      }
+                      disabled={formData.final_rm_ic_numbers.length === 0 || formData.final_process_ic_numbers.length === 0}
+                    />
                   )}
-
-                  {/* Display added lots */}
                   {formData.final_lot_numbers.length > 0 && (
-                    <div style={{ marginTop: '12px' }}>
-                      <div style={{ fontSize: '14px', fontWeight: '500', marginBottom: '8px', color: '#374151' }}>
-                        Added Lots ({formData.final_lot_numbers.length}):
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {formData.final_lot_numbers.map((lotNumber, index) => {
-                          const lotInfo = PROCESS_INSPECTION_CALLS.find(ic => ic.lotNumber === lotNumber);
-                          return (
-                            <div
-                              key={index}
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 12px',
-                                backgroundColor: '#f3f4f6',
-                                borderRadius: '6px',
-                                border: '1px solid #e5e7eb'
-                              }}
-                            >
-                              <div style={{ fontSize: '14px', color: '#374151' }}>
-                                <strong>{lotNumber}</strong>
-                                {lotInfo && (
-                                  <span style={{ color: '#6b7280', marginLeft: '8px' }}>
-                                    (IC: {lotInfo.icNumber}, Accepted: {lotInfo.qtyAccepted})
-                                  </span>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newLots = formData.final_lot_numbers.filter((_, i) => i !== index);
-                                  handleFinalLotSelection(newLots);
-                                }}
-                                style={{
-                                  padding: '4px 12px',
-                                  backgroundColor: '#ef4444',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  fontSize: '13px',
-                                  fontWeight: '500'
-                                }}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
+                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
+                      Selected: {formData.final_lot_numbers.join(', ')}
                     </div>
                   )}
                 </FormField>
+              </div>
 
-                {/* Manufacturer - Heat No. - Auto Fetch */}
-                <FormField
-                  label="Manufacturer - Heat No."
-                  name="final_manufacturer_heat"
-                  hint="Auto Fetch based on selected lots"
-                  fullWidth
-                >
-                  <input
-                    type="text"
-                    className="ric-form-input ric-form-input--disabled"
-                    value={formData.final_manufacturer_heat}
-                    disabled
-                    placeholder="Auto-fetched from selected lots"
-                  />
-                </FormField>
+              {/* STEP 4: Display separate sections for each selected lot with auto-filled heat numbers */}
+              {formData.final_lot_numbers.length > 0 && (
+                <div style={{ marginTop: '24px' }}>
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    marginBottom: '16px',
+                    color: '#1f2937',
+                    borderBottom: '2px solid #e5e7eb',
+                    paddingBottom: '8px'
+                  }}>
+                    Lot Details ({formData.final_lot_numbers.length} lot{formData.final_lot_numbers.length > 1 ? 's' : ''} selected)
+                  </div>
+
+                  {formData.final_lot_numbers.map((lotNumber, index) => (
+                    <div
+                      key={lotNumber}
+                      style={{
+                        marginBottom: '16px',
+                        padding: '16px',
+                        backgroundColor: '#f9fafb',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb'
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '12px'
+                      }}>
+                        <div style={{ fontSize: '15px', fontWeight: '600', color: '#374151' }}>
+                          Lot #{index + 1}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLots = formData.final_lot_numbers.filter(lot => lot !== lotNumber);
+                            setFormData(prev => ({ ...prev, final_lot_numbers: newLots }));
+                          }}
+                          style={{
+                            padding: '4px 12px',
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: '500'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      <div className="ric-form-grid">
+                        {/* Lot Number - Auto-filled */}
+                        <FormField
+                          label="Lot No."
+                          name={`lot_number_${index}`}
+                          hint="Auto-filled from selection"
+                        >
+                          <input
+                            type="text"
+                            className="ric-form-input ric-form-input--disabled"
+                            value={lotNumber}
+                            disabled
+                            style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                          />
+                        </FormField>
+
+                        {/* Heat Number - Auto-filled */}
+                        <FormField
+                          label="Heat No."
+                          name={`heat_number_${index}`}
+                          hint="Auto-filled based on lot number"
+                        >
+                          <input
+                            type="text"
+                            className="ric-form-input ric-form-input--disabled"
+                            value={lotHeatMapping[lotNumber] || 'Loading...'}
+                            disabled
+                            style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                          />
+                        </FormField>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="ric-form-grid">
 
                 {/* Qunantity (No. of ERC) - Free Text */}
                 <FormField

@@ -9,19 +9,19 @@ import httpClient from './httpClient';
 // eslint-disable-next-line no-unused-vars
 import { API_ENDPOINTS } from './apiConfig';
 import { getStoredUser } from '../services/authService';
-    
+
 
 /**
  * Inspection Call Service
  * Provides methods for creating and fetching inspection calls
  */
 const inspectionCallService = {
- 
-  
+
+
   // ============================================================
   // RAW MATERIAL INSPECTION CALLS
   // ============================================================
-  
+
   /**
    * Create a new Raw Material Inspection Call
    * @param {Object} rmInspectionData - RM inspection call data
@@ -121,7 +121,7 @@ const inspectionCallService = {
       throw error;
     }
   },
-  
+
   /**
    * Get all Raw Material Inspection Calls
    * @param {Object} filters - Optional filters (status, po_no, etc.)
@@ -130,10 +130,10 @@ const inspectionCallService = {
   getRMInspectionCalls: async (filters = {}) => {
     try {
       const queryParams = new URLSearchParams(filters).toString();
-      const endpoint = queryParams 
+      const endpoint = queryParams
         ? `/inspection-calls/raw-material?${queryParams}`
         : '/inspection-calls/raw-material';
-      
+
       const response = await httpClient.get(endpoint);
       return response;
     } catch (error) {
@@ -141,7 +141,7 @@ const inspectionCallService = {
       throw error;
     }
   },
-  
+
   /**
    * Get approved Raw Material Inspection Calls for a specific PO
    * Used in Process Inspection dropdown
@@ -160,7 +160,7 @@ const inspectionCallService = {
       throw error;
     }
   },
-  
+
   /**
    * Get RM Inspection Call by IC Number
    * @param {string} icNumber - IC Number
@@ -177,7 +177,7 @@ const inspectionCallService = {
       throw error;
     }
   },
-  
+
   /**
    * Get approved RM ICs with heat details for a specific PO
    * Used in Vendor Dashboard to display approved RM ICs
@@ -215,12 +215,16 @@ const inspectionCallService = {
 
   /**
    * Get completed RM IC certificate numbers for Process IC dropdown
-   * Fetches from inspection_complete_details table filtered by ER prefix
+   * Fetches from inspection_complete_details table filtered by ER prefix and optionally by PO number
+   * @param {string} poNo - Purchase Order Number (optional)
    * @returns {Promise<Object>} - API response with list of completed RM IC certificate numbers
    */
-  getCompletedRmIcNumbers: async () => {
+  getCompletedRmIcNumbers: async (poNo = null) => {
     try {
-      const response = await httpClient.get('/raw-material/completed-rm-ics');
+      const endpoint = poNo
+        ? `/raw-material/completed-rm-ics?poNo=${encodeURIComponent(poNo)}`
+        : '/raw-material/completed-rm-ics';
+      const response = await httpClient.get(endpoint);
       return response;
     } catch (error) {
       console.error('Error fetching completed RM IC certificate numbers:', error);
@@ -245,11 +249,11 @@ const inspectionCallService = {
       throw error;
     }
   },
-  
+
   // ============================================================
   // PROCESS INSPECTION CALLS
   // ============================================================
-  
+
   /**
    * Create a new Process Inspection Call
    * @param {Object} processInspectionData - Process inspection call data
@@ -283,7 +287,7 @@ const inspectionCallService = {
       throw error;
     }
   },
-  
+
   /**
    * Get all Process Inspection Calls
    * @param {Object} filters - Optional filters (status, rm_ic_number, etc.)
@@ -292,10 +296,10 @@ const inspectionCallService = {
   getProcessInspectionCalls: async (filters = {}) => {
     try {
       const queryParams = new URLSearchParams(filters).toString();
-      const endpoint = queryParams 
+      const endpoint = queryParams
         ? `/inspection-calls/process?${queryParams}`
         : '/inspection-calls/process';
-      
+
       const response = await httpClient.get(endpoint);
       return response;
     } catch (error) {
@@ -303,7 +307,7 @@ const inspectionCallService = {
       throw error;
     }
   },
-  
+
   /**
    * Get approved Process Inspection Calls for a specific RM IC
    * Used in Final Inspection dropdown
@@ -321,7 +325,7 @@ const inspectionCallService = {
       throw error;
     }
   },
-  
+
   /**
    * Get lot numbers from a specific Process IC
    * @param {string} processIcNumber - Process IC Number
@@ -557,7 +561,119 @@ const inspectionCallService = {
       console.error('Error fetching lot numbers:', error);
       throw error;
     }
-  }
+  },
+
+  // ==================== NEW METHODS FOR REVERSED DROPDOWN FLOW ====================
+
+  /**
+   * Get RM IC certificate numbers for Final Inspection Call (NEW FLOW)
+   * Fetches from inspection_complete_details where CALL_NO starts with 'ER'
+   * Filtered by vendor_id
+   * @param {string} vendorId - Vendor ID
+   * @returns {Promise<Object>} - API response with list of RM IC certificate numbers
+   */
+  getRmIcCertificates: async (vendorId) => {
+    try {
+      const response = await httpClient.get(
+        `/final-material/rm-ic-certificates?vendorId=${vendorId}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching RM IC certificates:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Process IC certificate numbers by RM IC certificate (NEW FLOW)
+   * @param {string} rmCertificateNo - RM IC certificate number
+   * @returns {Promise<Object>} - API response with list of Process IC certificate numbers
+   */
+  getProcessIcCertificatesByRmCertificate: async (rmCertificateNo) => {
+    try {
+      const response = await httpClient.get(
+        `/final-material/process-ic-by-rm?rmCertificateNo=${encodeURIComponent(rmCertificateNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching Process IC certificates by RM certificate:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Lot numbers by both RM IC and Process IC certificates (NEW FLOW)
+   * @param {string} rmCertificateNo - RM IC certificate number
+   * @param {string} processCertificateNo - Process IC certificate number
+   * @returns {Promise<Object>} - API response with list of lot numbers
+   */
+  getLotNumbersByCertificates: async (rmCertificateNo, processCertificateNo) => {
+    try {
+      const response = await httpClient.get(
+        `/final-material/lot-numbers-by-certificates?rmCertificateNo=${encodeURIComponent(rmCertificateNo)}&processCertificateNo=${encodeURIComponent(processCertificateNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching lot numbers by certificates:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Heat numbers by lot number and RM IC certificate (NEW FLOW)
+   * @param {string} lotNumber - Lot number
+   * @param {string} rmCertificateNo - RM IC certificate number
+   * @returns {Promise<Object>} - API response with list of heat numbers
+   */
+  getHeatNumbersByLotNumber: async (lotNumber, rmCertificateNo) => {
+    try {
+      const response = await httpClient.get(
+        `/final-material/heat-numbers-by-lot?lotNumber=${encodeURIComponent(lotNumber)}&rmCertificateNo=${encodeURIComponent(rmCertificateNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching heat numbers by lot number:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Process IC certificate numbers for multiple RM IC certificates (MULTI-SELECT)
+   * @param {Array<string>} rmCertificateNos - Array of RM IC certificate numbers
+   * @returns {Promise<Object>} - API response with list of Process IC certificate numbers
+   */
+  getProcessIcCertificatesByMultipleRmCertificates: async (rmCertificateNos) => {
+    try {
+      const params = rmCertificateNos.map(cert => `rmCertificateNos=${encodeURIComponent(cert)}`).join('&');
+      const response = await httpClient.get(
+        `/final-material/process-ic-by-multiple-rm?${params}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching Process IC certificates by multiple RM certificates:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Lot numbers for multiple RM IC and Process IC certificates (MULTI-SELECT)
+   * @param {Array<string>} rmCertificateNos - Array of RM IC certificate numbers
+   * @param {Array<string>} processCertificateNos - Array of Process IC certificate numbers
+   * @returns {Promise<Object>} - API response with list of lot numbers
+   */
+  getLotNumbersByMultipleCertificates: async (rmCertificateNos, processCertificateNos) => {
+    try {
+      const rmParams = rmCertificateNos.map(cert => `rmCertificateNos=${encodeURIComponent(cert)}`).join('&');
+      const processParams = processCertificateNos.map(cert => `processCertificateNos=${encodeURIComponent(cert)}`).join('&');
+      const response = await httpClient.get(
+        `/final-material/lot-numbers-by-multiple-certificates?${rmParams}&${processParams}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching lot numbers by multiple certificates:', error);
+      throw error;
+    }
+  },
 };
 
 export default inspectionCallService;
