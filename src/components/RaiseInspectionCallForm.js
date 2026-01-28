@@ -1209,73 +1209,8 @@ export const RaiseInspectionCallForm = ({
 
   // ========== FINAL STAGE HANDLERS ==========
 
-  // Handle Lot selection for Final stage - auto-fetch manufacturer-heat and unit details
-  const handleFinalLotSelection = (selectedLotNumbers) => {
-    // Get unique manufacturer-heat numbers from selected lots
-    const manufacturerHeats = new Set();
-
-    selectedLotNumbers.forEach(lotNumber => {
-      const processIc = PROCESS_INSPECTION_CALLS.find(ic => ic.lotNumber === lotNumber);
-      if (processIc) {
-        manufacturerHeats.add(processIc.manufacturerHeat);
-      }
-    });
-
-    // Auto-fill manufacturer-heat (join if multiple)
-    const manufacturerHeat = Array.from(manufacturerHeats).join(', ');
-
-    // Auto-fill unit details from first Process IC (assuming same unit for all lots)
-    const firstProcessIc = PROCESS_INSPECTION_CALLS.find(ic => ic.lotNumber === selectedLotNumbers[0]);
-
-    setFormData(prev => ({
-      ...prev,
-      final_lot_numbers: selectedLotNumbers,
-      final_manufacturer_heat: manufacturerHeat,
-      final_unit_id: firstProcessIc?.unitId || '',
-      final_unit_name: firstProcessIc?.unitName || '',
-      final_unit_address: firstProcessIc?.unitAddress || ''
-    }));
-  };
-
-  // Handle Process IC selection for Final stage - calculate total accepted qty
-  const handleFinalProcessIcSelection = (selectedIcNumbers) => {
-    console.log('🔄 handleFinalProcessIcSelection called with:', selectedIcNumbers);
-
-    // Calculate total accepted quantity from selected Process ICs
-    const totalAccepted = selectedIcNumbers.reduce((sum, icNumber) => {
-      const ic = PROCESS_INSPECTION_CALLS.find(ic => ic.icNumber === icNumber);
-      return sum + (ic?.qtyAccepted || 0);
-    }, 0);
-
-    // Get unit details from first selected Process IC
-    const firstProcessIc = selectedIcNumbers.length > 0
-      ? PROCESS_INSPECTION_CALLS.find(ic => ic.icNumber === selectedIcNumbers[0])
-      : null;
-
-    console.log('📍 First Process IC found:', firstProcessIc);
-    console.log('📍 Unit details from Process IC:', {
-      unitId: firstProcessIc?.unitId,
-      unitName: firstProcessIc?.unitName,
-      unitAddress: firstProcessIc?.unitAddress,
-      companyId: firstProcessIc?.companyId,
-      companyName: firstProcessIc?.companyName
-    });
-
-    setFormData(prev => ({
-      ...prev,
-      final_process_ic_numbers: selectedIcNumbers,
-      final_total_accepted_qty_process: totalAccepted,
-      // Auto-fill unit details from first Process IC
-      final_unit_id: firstProcessIc?.unitId || prev.final_unit_id || '',
-      final_unit_name: firstProcessIc?.unitName || prev.final_unit_name || '',
-      final_unit_address: firstProcessIc?.unitAddress || prev.final_unit_address || '',
-      // Also populate company details if available
-      company_id: firstProcessIc?.companyId || prev.company_id || '',
-      company_name: firstProcessIc?.companyName || prev.company_name || ''
-    }));
-
-    console.log('✅ Form data updated with unit details');
-  };
+  // Note: handleFinalLotSelection and handleFinalProcessIcSelection were removed
+  // as they were unused. The form directly updates formData in onChange handlers.
 
   // Auto-calculate Total Qty for Final stage
   useEffect(() => {
@@ -1744,7 +1679,7 @@ export const RaiseInspectionCallForm = ({
       const errorCount = Object.keys(newErrors).length;
       const errorMessages = Object.entries(newErrors)
         .slice(0, 5) // Show first 5 errors
-        .map(([field, message]) => `• ${message}`)
+        .map(([, message]) => `• ${message}`)
         .join('\n');
 
       const additionalErrors = errorCount > 5 ? `\n... and ${errorCount - 5} more errors` : '';
