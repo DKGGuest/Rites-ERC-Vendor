@@ -9,7 +9,7 @@ import {
   HEAT_TC_MAPPING,
   CHEMICAL_ANALYSIS_HISTORY,
   RM_INSPECTION_CALLS,
-  PROCESS_INSPECTION_CALLS,
+  // PROCESS_INSPECTION_CALLS, // Removed unused import
   // LOT_NUMBERS, // Removed unused import
   // ERC_CONVERSION_FACTORS, // Removed - using direct calculation instead
   PO_SERIAL_DETAILS,
@@ -631,6 +631,77 @@ export const RaiseInspectionCallForm = ({
     };
 
     fetchHeatNumbers();
+  }, [formData.type_of_call, formData.process_rm_ic_numbers]);
+
+  // Fetch company and unit details from the first selected RM IC for Process inspection
+  useEffect(() => {
+    const fetchCompanyAndUnitFromRmIc = async () => {
+      if (formData.type_of_call === 'Process' &&
+          formData.process_rm_ic_numbers &&
+          formData.process_rm_ic_numbers.length > 0) {
+        try {
+          console.log('🏢 Fetching company and unit details from first RM IC');
+          console.log('🏢 Selected RM IC certificates:', formData.process_rm_ic_numbers);
+
+          // Get the first selected RM IC certificate number
+          const firstCertificateNo = formData.process_rm_ic_numbers[0];
+          console.log('🏢 First certificate:', firstCertificateNo);
+
+          // Extract call number from certificate number
+          // Certificate format: "N/ER-01080001/RAJK" → Call number: "ER-01080001"
+          const callNoMatch = firstCertificateNo.match(/N\/([^/]+)\//);
+          const callNo = callNoMatch ? callNoMatch[1] : firstCertificateNo;
+
+          console.log(`  📋 Extracted call number: ${callNo}`);
+          console.log(`  📋 Fetching details for IC: ${callNo}`);
+
+          // Fetch full RM IC details
+          const response = await inspectionCallService.getRMInspectionCallByICNumber(callNo);
+
+          console.log('  📦 Full RM IC response:', response);
+
+          if (response && response.data) {
+            const rmIcData = response.data;
+            console.log('  ✅ RM IC data fetched:', rmIcData);
+            console.log('  📍 Company ID from RM IC:', rmIcData.companyId, 'Type:', typeof rmIcData.companyId);
+            console.log('  📍 Unit ID from RM IC:', rmIcData.unitId, 'Type:', typeof rmIcData.unitId);
+
+            // Update form data with company and unit details from RM IC
+            setFormData(prev => {
+              const updated = {
+                ...prev,
+                company_id: rmIcData.companyId || null,
+                company_name: rmIcData.companyName || '',
+                unit_id: rmIcData.unitId || null,
+                unit_name: rmIcData.unitName || '',
+                unit_address: rmIcData.unitAddress || ''
+              };
+              console.log('  🔄 Updating formData with:', {
+                company_id: updated.company_id,
+                company_name: updated.company_name,
+                unit_id: updated.unit_id,
+                unit_name: updated.unit_name
+              });
+              return updated;
+            });
+
+            console.log('  ✅ Form update completed');
+          } else {
+            console.warn('  ⚠️ No data in RM IC response');
+          }
+        } catch (error) {
+          console.error('❌ Error fetching RM IC details:', error);
+          console.error('❌ Error stack:', error.stack);
+        }
+      } else {
+        console.log('🏢 Skipping company/unit fetch - conditions not met:', {
+          type_of_call: formData.type_of_call,
+          has_rm_ic_numbers: formData.process_rm_ic_numbers && formData.process_rm_ic_numbers.length > 0
+        });
+      }
+    };
+
+    fetchCompanyAndUnitFromRmIc();
   }, [formData.type_of_call, formData.process_rm_ic_numbers]);
 
   // ==================== FINAL INSPECTION CALL DROPDOWN EFFECTS (NEW REVERSED FLOW) ====================
@@ -1606,6 +1677,16 @@ export const RaiseInspectionCallForm = ({
         newErrors.process_rm_ic_numbers = 'At least one RM IC Number (ER Number) is required';
       }
 
+      // Check if company_id and unit_id are populated (should be auto-fetched from RM IC)
+      if (!formData.company_id) {
+        newErrors.company_id = 'Company ID is required. Please wait for RM IC details to load or reselect RM IC.';
+        console.error('❌ Validation failed: company_id is missing:', formData.company_id);
+      }
+      if (!formData.unit_id) {
+        newErrors.unit_id = 'Unit ID is required. Please wait for RM IC details to load or reselect RM IC.';
+        console.error('❌ Validation failed: unit_id is missing:', formData.unit_id);
+      }
+
       // Check if lot-heat mappings are provided
       const hasLotHeatData = formData.process_lot_heat_mapping.some(item =>
         item.lotNumber || item.manufacturerHeat || item.offeredQty
@@ -1695,6 +1776,16 @@ export const RaiseInspectionCallForm = ({
     console.log('🔍 DEBUG: formData.type_of_erc =', formData.type_of_erc);
 
     // Filter data based on inspection type - send only relevant fields
+    // Convert company_id and unit_id to proper types (null or integer)
+    const companyId = formData.company_id ? (typeof formData.company_id === 'number' ? formData.company_id : parseInt(formData.company_id)) : null;
+    const unitId = formData.unit_id ? (typeof formData.unit_id === 'number' ? formData.unit_id : parseInt(formData.unit_id)) : null;
+
+    console.log('🔍 Type conversion check:');
+    console.log('  formData.company_id:', formData.company_id, 'Type:', typeof formData.company_id);
+    console.log('  Converted companyId:', companyId, 'Type:', typeof companyId);
+    console.log('  formData.unit_id:', formData.unit_id, 'Type:', typeof formData.unit_id);
+    console.log('  Converted unitId:', unitId, 'Type:', typeof unitId);
+
     let filteredData = {
       // Common fields for all inspection types
       po_no: formData.po_no,
@@ -1706,9 +1797,9 @@ export const RaiseInspectionCallForm = ({
       type_of_call: formData.type_of_call,
       type_of_erc: formData.type_of_erc,
       desired_inspection_date: formData.desired_inspection_date,
-      company_id: null, // Set to null since we're using POI API (backend expects Integer)
+      company_id: companyId, // Use converted value (fetched from RM IC for Process)
       company_name: formData.company_name,
-      unit_id: null, // Set to null since we're using POI API (backend expects Integer)
+      unit_id: unitId, // Use converted value (fetched from RM IC for Process)
       unit_name: formData.unit_name,
       unit_address: formData.unit_address,
       placeOfInspection: poiCode, // POI code from API
@@ -1772,8 +1863,12 @@ export const RaiseInspectionCallForm = ({
 
     console.log('📤 Calling onSubmit with filtered data:', filteredData);
     console.log('🏢 POI Code being sent:', poiCode);
-    console.log('🏭 Company Name:', formData.company_name);
-    console.log('🏗️ Unit Name:', formData.unit_name);
+    console.log('🏭 Company ID:', filteredData.company_id);
+    console.log('🏭 Company Name:', filteredData.company_name);
+    console.log('🏗️ Unit ID:', filteredData.unit_id);
+    console.log('🏗️ Unit Name:', filteredData.unit_name);
+    console.log('📍 Full formData.company_id:', formData.company_id);
+    console.log('📍 Full formData.unit_id:', formData.unit_id);
     onSubmit(filteredData);
   };
 

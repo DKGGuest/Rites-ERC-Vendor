@@ -169,7 +169,7 @@ const inspectionCallService = {
   getRMInspectionCallByICNumber: async (icNumber) => {
     try {
       const response = await httpClient.get(
-        `/inspection-calls/raw-material/${encodeURIComponent(icNumber)}`
+        `/raw-material/calls/ic-number/${encodeURIComponent(icNumber)}`
       );
       return response;
     } catch (error) {
