@@ -239,6 +239,8 @@ const getInitialFormState = (selectedPO = null) => {
         maxQty: '',
         unit: '',
         isLoading: false,
+        isLoadingChemical: false, // Loading state for chemical analysis auto-fetch
+        chemicalAutoFetched: false, // Flag to indicate if chemical data was auto-fetched
         // Chemical Analysis - Now per heat number
         chemical_carbon: '',
         chemical_manganese: '',
@@ -1565,6 +1567,8 @@ export const RaiseInspectionCallForm = ({
           maxQty: '',
           unit: '',
           isLoading: false,
+          isLoadingChemical: false,
+          chemicalAutoFetched: false,
           // Chemical Analysis - Now per heat number
           chemical_carbon: '',
           chemical_manganese: '',
@@ -1585,15 +1589,85 @@ export const RaiseInspectionCallForm = ({
   };
 
   // Handle heat number selection for a specific section
-  const handleHeatNumberChange = (id, heatNumber, supplierName = '', compositeKey = '') => {
+  const handleHeatNumberChange = async (id, heatNumber, supplierName = '', compositeKey = '') => {
+    // First, update the heat number and reset other fields
     setFormData(prev => ({
       ...prev,
       rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
         heat.id === id
-          ? { ...heat, heatNumber, supplierName, compositeKey, tcNumber: '', tcDate: '', manufacturer: '', invoiceNo: '', invoiceDate: '', subPoNumber: '', subPoDate: '', subPoQty: '', subPoTotalValue: '', tcQty: '', tcQtyRemaining: '', maxQty: '', unit: '' }
+          ? {
+              ...heat,
+              heatNumber,
+              supplierName,
+              compositeKey,
+              tcNumber: '',
+              tcDate: '',
+              manufacturer: '',
+              invoiceNo: '',
+              invoiceDate: '',
+              subPoNumber: '',
+              subPoDate: '',
+              subPoQty: '',
+              subPoTotalValue: '',
+              tcQty: '',
+              tcQtyRemaining: '',
+              maxQty: '',
+              unit: '',
+              isLoadingChemical: true // Add loading state for chemical analysis
+            }
           : heat
       )
     }));
+
+    // Auto-fetch chemical analysis from backend if heat number is provided
+    if (heatNumber) {
+      try {
+        console.log(`🔬 Auto-fetching chemical analysis for heat number: ${heatNumber}`);
+        const response = await inspectionCallService.getChemicalAnalysisByHeatNumber(heatNumber);
+
+        if (response && response.data) {
+          const analysis = response.data;
+          console.log('✅ Chemical analysis found:', analysis);
+
+          // Update the specific heat mapping with fetched chemical analysis
+          setFormData(prev => ({
+            ...prev,
+            rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+              heat.id === id
+                ? {
+                    ...heat,
+                    chemical_carbon: analysis.carbon || '',
+                    chemical_manganese: analysis.manganese || '',
+                    chemical_silicon: analysis.silicon || '',
+                    chemical_sulphur: analysis.sulphur || '',
+                    chemical_phosphorus: analysis.phosphorus || '',
+                    isLoadingChemical: false,
+                    chemicalAutoFetched: true // Flag to show visual indicator
+                  }
+                : heat
+            )
+          }));
+        } else {
+          console.log('ℹ️ No previous chemical analysis found for this heat number');
+          // Clear loading state
+          setFormData(prev => ({
+            ...prev,
+            rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+              heat.id === id ? { ...heat, isLoadingChemical: false, chemicalAutoFetched: false } : heat
+            )
+          }));
+        }
+      } catch (error) {
+        console.error('❌ Error fetching chemical analysis:', error);
+        // Clear loading state on error
+        setFormData(prev => ({
+          ...prev,
+          rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+            heat.id === id ? { ...heat, isLoadingChemical: false, chemicalAutoFetched: false } : heat
+          )
+        }));
+      }
+    }
   };
 
   // Handle TC number selection and auto-fetch details
@@ -2635,6 +2709,41 @@ export const RaiseInspectionCallForm = ({
                       title={`Chemical Analysis of TC - Heat #${index + 1}`}
                       subtitle={`Enter chemical composition percentages for ${heatMapping.heatNumber || 'this heat'}`}
                     />
+
+                    {/* Loading indicator for chemical analysis */}
+                    {heatMapping.isLoadingChemical && (
+                      <div style={{
+                        marginBottom: '16px',
+                        padding: '12px',
+                        backgroundColor: '#e3f2fd',
+                        borderLeft: '4px solid #2196f3',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        color: '#1976d2'
+                      }}>
+                        🔬 Fetching chemical analysis from previous inspection calls...
+                      </div>
+                    )}
+
+                    {/* Auto-fetched indicator */}
+                    {heatMapping.chemicalAutoFetched && !heatMapping.isLoadingChemical && (
+                      <div style={{
+                        marginBottom: '16px',
+                        padding: '12px',
+                        backgroundColor: '#e8f5e9',
+                        borderLeft: '4px solid #4caf50',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        color: '#2e7d32',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <span>✅</span>
+                        <span><strong>Auto-fetched from previous IC:</strong> Chemical analysis data has been automatically populated from the most recent inspection call for this heat number. You can edit these values if needed.</span>
+                      </div>
+                    )}
+
                     <div className="ric-form-grid">
                       <FormField label="Carbon (C) %" name={`heat_${index}_chemical_carbon`} required hint="Range: 0.5 - 0.6" errors={errors}>
                         <input

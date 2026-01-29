@@ -250,6 +250,24 @@ const inspectionCallService = {
     }
   },
 
+  /**
+   * Get chemical analysis by heat number
+   * Fetches the most recent chemical analysis data for a given heat number from previous inspection calls
+   * @param {string} heatNumber - Heat number to search for
+   * @returns {Promise<Object>} - API response with chemical analysis data or null if not found
+   */
+  getChemicalAnalysisByHeatNumber: async (heatNumber) => {
+    try {
+      const response = await httpClient.get(
+        `/raw-material/chemical-analysis/heat/${encodeURIComponent(heatNumber)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching chemical analysis by heat number:', error);
+      throw error;
+    }
+  },
+
   // ============================================================
   // PROCESS INSPECTION CALLS
   // ============================================================
