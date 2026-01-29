@@ -870,10 +870,21 @@ const VendorDashboardPage = ({ onBack }) => {
       }
 
       if (response.success) {
+        // Handle different response formats:
+        // - RM/Process IC returns: InspectionCall entity with camelCase properties { id, icNumber }
+        // - Final IC returns: Custom response object with snake_case { inspection_call_id, ic_number }
+        // Priority: Check camelCase first (RM/Process), then snake_case (Final)
+        const icId = response.data.id || response.data.inspection_call_id;
+        const icNumber = response.data.icNumber || response.data.ic_number;
+
+        console.log('🔍 DEBUG: Response data structure:', response.data);
+        console.log('🔍 DEBUG: Extracted IC ID:', icId);
+        console.log('🔍 DEBUG: Extracted IC Number:', icNumber);
+
         savedInspectionCall = {
           ...data,
-          icId: response.data.inspection_call_id,
-          icNumber: response.data.ic_number,
+          icId: icId,
+          icNumber: icNumber,
           vendorId: currentUser.id,
           createdBy: currentUser.id,
           createdAt: new Date().toISOString()
