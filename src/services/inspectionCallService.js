@@ -219,10 +219,10 @@ const inspectionCallService = {
    * @param {string} poNo - Purchase Order Number (optional)
    * @returns {Promise<Object>} - API response with list of completed RM IC certificate numbers
    */
-  getCompletedRmIcNumbers: async (poNo = null) => {
+  getCompletedRmIcNumbers: async (poSerialNo = null) => {
     try {
-      const endpoint = poNo
-        ? `/raw-material/completed-rm-ics?poNo=${encodeURIComponent(poNo)}`
+      const endpoint = poSerialNo
+        ? `/raw-material/completed-rm-ics?poSerialNo=${encodeURIComponent(poSerialNo)}`
         : '/raw-material/completed-rm-ics';
       const response = await httpClient.get(endpoint);
       return response;
@@ -719,6 +719,27 @@ const inspectionCallService = {
       return response;
     } catch (error) {
       console.error('Error fetching heat summary data:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get previously offered quantities for a specific heat number and PO series
+   * Returns the total quantity offered in previous Process Inspection Calls
+   * @param {string} heatNo - Heat number
+   * @param {string} poSerialNo - PO Serial Number
+   * @returns {Promise<Object>} - API response with previously offered quantity
+   */
+  getPreviouslyOfferedQuantity: async (heatNo, poSerialNo) => {
+    try {
+      console.log(`📊 Fetching previously offered quantity for Heat: ${heatNo}, PO Serial: ${poSerialNo}`);
+
+      const response = await httpClient.get(
+        `/process-material/offered-qty/${encodeURIComponent(heatNo)}/${encodeURIComponent(poSerialNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching previously offered quantity:', error);
       throw error;
     }
   },

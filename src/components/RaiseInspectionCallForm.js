@@ -410,8 +410,8 @@ export const RaiseInspectionCallForm = ({
         setLoadingRMICs(true);
 
         try {
-          console.log('🔍 Fetching completed RM ICs (certificate numbers) for PO:', formData.po_no);
-          const response = await inspectionCallService.getCompletedRmIcNumbers(formData.po_no);
+          console.log('🔍 Fetching completed RM ICs (certificate numbers) for PO Serial No:', formData.po_serial_no);
+          const response = await inspectionCallService.getCompletedRmIcNumbers(formData.po_serial_no);
           console.log('📦 Completed certificate numbers response:', response);
 
           if (response && response.data) {
@@ -452,7 +452,7 @@ export const RaiseInspectionCallForm = ({
     };
 
     fetchCompletedRMICs();
-  }, [formData.type_of_call, formData.po_no]);
+  }, [formData.type_of_call, formData.po_serial_no]);
 
   // Fetch companies for POI dropdown on component mount
   useEffect(() => {
@@ -1307,8 +1307,12 @@ export const RaiseInspectionCallForm = ({
                   if (summaryResponse && summaryResponse.data) {
                     const heatData = summaryResponse.data;
 
-                    // Calculate Future Balance = Max ERC - Manufactured
-                    const futureBalance = (heatData.rmAcceptedQty || 0) - (heatData.manufaturedQty || 0);
+                    // Get offeredEarlier from API response (now calculated by backend)
+                    const offeredEarlier = heatData.offeredEarlier || 0;
+                    console.log(`    📊 Offered Earlier for ${heatNo}: ${offeredEarlier}`);
+
+                    // Calculate Future Balance = Max ERC - Manufactured - Offered Earlier
+                    const futureBalance = (heatData.rmAcceptedQty || 0) - (heatData.manufaturedQty || 0) - offeredEarlier;
 
                     // Determine status based on future balance
                     let status = 'Good';
@@ -1323,6 +1327,7 @@ export const RaiseInspectionCallForm = ({
                       acceptedMt: heatData.weightAcceptedMt || 0,
                       maxErc: heatData.rmAcceptedQty || 0,
                       manufactured: heatData.manufaturedQty || 0,
+                      offeredEarlier: offeredEarlier,
                       offeredNow: 0, // Will be updated when user enters lot details
                       futureBalance: futureBalance,
                       status: status,
@@ -1334,6 +1339,7 @@ export const RaiseInspectionCallForm = ({
                       heatNo: heatData.heatNo || heatNo,
                       maxErc: heatData.rmAcceptedQty,
                       manufactured: heatData.manufaturedQty,
+                      offeredEarlier: offeredEarlier,
                       futureBalance: futureBalance,
                       status: status
                     });
@@ -1455,8 +1461,16 @@ export const RaiseInspectionCallForm = ({
       setHeatSummaryData(prev =>
         prev.map(heat => {
           if (heat.heatNo === lotHeatEntry.heatNumber) {
-            // Calculate new future balance: Max ERC - Manufactured - Offered Now
-            const newFutureBalance = heat.maxErc - heat.manufactured - newOfferedQty;
+            // Calculate total offered quantity for this heat across ALL lots (excluding current lot)
+            const totalOfferedForHeat = formData.process_lot_heat_mapping
+              .filter(lot => lot.heatNumber === lotHeatEntry.heatNumber && lot.id !== id)
+              .reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
+
+            // Add the new offered quantity for the current lot
+            const totalOfferedIncludingCurrent = totalOfferedForHeat + newOfferedQty;
+
+            // Calculate new future balance: Max ERC - Manufactured - Offered Earlier - Total Offered (all lots)
+            const newFutureBalance = heat.maxErc - heat.manufactured - (heat.offeredEarlier || 0) - totalOfferedIncludingCurrent;
 
             // Determine new status based on future balance
             let newStatus = 'Good';
@@ -1467,14 +1481,21 @@ export const RaiseInspectionCallForm = ({
             }
 
             console.log(`📊 Updating heat summary for ${heat.heatNo}:`, {
-              offeredNow: newOfferedQty,
+              offeredNow: totalOfferedIncludingCurrent,
               futureBalance: newFutureBalance,
-              status: newStatus
+              status: newStatus,
+              breakdown: {
+                maxErc: heat.maxErc,
+                manufactured: heat.manufactured,
+                totalOfferedOtherLots: totalOfferedForHeat,
+                currentLotOffered: newOfferedQty,
+                totalOffered: totalOfferedIncludingCurrent
+              }
             });
 
             return {
               ...heat,
-              offeredNow: newOfferedQty,
+              offeredNow: totalOfferedIncludingCurrent,
               futureBalance: newFutureBalance,
               status: newStatus
             };
@@ -1935,9 +1956,19 @@ export const RaiseInspectionCallForm = ({
               const offeredQty = parseInt(item.offeredQty) || 0;
               const heatSummary = heatSummaryData.find(h => h.heatNo === item.heatNumber);
 
-              if (heatSummary && offeredQty > heatSummary.futureBalance) {
-                newErrors[`process_lot_${index}_offeredQty`] =
-                  `Offered Quantity (${offeredQty}) exceeds available Future Balance (${heatSummary.futureBalance}) for Heat ${item.heatNumber}`;
+              if (heatSummary) {
+                // Calculate available balance for THIS lot
+                // Available = Max ERC - Manufactured - Offered Earlier - (Total offered by OTHER lots using same heat)
+                const otherLotsOffered = formData.process_lot_heat_mapping
+                  .filter((lot, lotIndex) => lot.heatNumber === item.heatNumber && lotIndex !== index)
+                  .reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
+
+                const availableBalance = heatSummary.maxErc - heatSummary.manufactured - (heatSummary.offeredEarlier || 0) - otherLotsOffered;
+
+                if (offeredQty > availableBalance) {
+                  newErrors[`process_lot_${index}_offeredQty`] =
+                    `Offered Quantity (${offeredQty}) exceeds available Future Balance (${availableBalance}) for Heat ${item.heatNumber}`;
+                }
               }
             }
           }
@@ -2794,6 +2825,7 @@ export const RaiseInspectionCallForm = ({
                   <HeatSummaryTable
                     data={heatSummaryData}
                     loading={loadingHeatSummary}
+                    poSerialNo={formData.po_serial_no}
                   />
                 </div>
               )}
@@ -2934,15 +2966,28 @@ export const RaiseInspectionCallForm = ({
                       {(() => {
                         const heatSummary = lotHeat.heatNumber ? heatSummaryData.find(h => h.heatNo === lotHeat.heatNumber) : null;
                         const offeredQty = parseInt(lotHeat.offeredQty) || 0;
-                        const exceedsBalance = heatSummary && offeredQty > heatSummary.futureBalance;
+
+                        // Calculate available balance for THIS lot
+                        // Available = Max ERC - Manufactured - Offered Earlier - (Total offered by OTHER lots using same heat)
+                        let availableBalance = 0;
+                        if (heatSummary) {
+                          // Calculate total offered by OTHER lots using the same heat number
+                          const otherLotsOffered = formData.process_lot_heat_mapping
+                            .filter(lot => lot.heatNumber === lotHeat.heatNumber && lot.id !== lotHeat.id)
+                            .reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
+
+                          availableBalance = heatSummary.maxErc - heatSummary.manufactured - (heatSummary.offeredEarlier || 0) - otherLotsOffered;
+                        }
+
+                        const exceedsBalance = heatSummary && offeredQty > availableBalance;
 
                         return (
                           <FormField
                             label="Decalred Quantity of Lot in Nos."
                             name={`process_offered_qty_${lotHeat.id}`}
                             required
-                            hint={heatSummary ? `Available Future Balance: ${heatSummary.futureBalance} ERCs` : "Select heat number first"}
-                            errors={exceedsBalance ? { [`process_offered_qty_${lotHeat.id}`]: `Exceeds available balance by ${offeredQty - heatSummary.futureBalance} ERCs` } : {}}
+                            hint={heatSummary ? `Available Future Balance: ${availableBalance} ERCs` : "Select heat number first"}
+                            errors={exceedsBalance ? { [`process_offered_qty_${lotHeat.id}`]: `Exceeds available balance by ${offeredQty - availableBalance} ERCs` } : {}}
                           >
                             <input
                               type="number"
@@ -2950,7 +2995,7 @@ export const RaiseInspectionCallForm = ({
                               value={lotHeat.offeredQty}
                               onChange={(e) => handleProcessOfferedQtyChange(lotHeat.id, e.target.value)}
                               min="0"
-                              max={heatSummary ? heatSummary.futureBalance : (lotHeat.maxQty || undefined)}
+                              max={heatSummary ? availableBalance : (lotHeat.maxQty || undefined)}
                               placeholder="Enter quantity in Number"
                               disabled={!lotHeat.heatNumber}
                               style={exceedsBalance ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}

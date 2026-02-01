@@ -5,7 +5,7 @@
 import React from 'react';
 import '../styles/heatSummaryTable.css';
 
-const HeatSummaryTable = ({ data = [], loading = false }) => {
+const HeatSummaryTable = ({ data = [], loading = false, poSerialNo = '' }) => {
   if (loading) {
     return (
       <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
@@ -21,19 +21,6 @@ const HeatSummaryTable = ({ data = [], loading = false }) => {
       </div>
     );
   }
-
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'Critical':
-        return '#ef4444'; // Red
-      case 'Good':
-        return '#10b981'; // Green
-      case 'Exhausted':
-        return '#f59e0b'; // Amber
-      default:
-        return '#6b7280'; // Gray
-    }
-  };
 
   // Helper function to format numeric values as integers (no decimals)
   const formatAsInteger = (value) => {
@@ -58,40 +45,31 @@ const HeatSummaryTable = ({ data = [], loading = false }) => {
               <th>Accepted (MT)</th>
               <th>Max ERC</th>
               <th>Manufactured</th>
+              <th>Offered Earlier</th>
               <th>Offered Now</th>
               <th>Future Balance</th>
-              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((row, index) => (
-              <tr key={index}>
-                <td className="heat-no-cell">{row.heatNo}</td>
-                <td className="numeric-cell">{formatAsInteger(row.acceptedMt)}</td>
-                <td className="numeric-cell">{formatAsInteger(row.maxErc)}</td>
-                <td className="numeric-cell">{formatAsInteger(row.manufactured)}</td>
-                <td className="numeric-cell">{formatAsInteger(row.offeredNow)}</td>
-                <td className={`numeric-cell ${row.futureBalance < 0 ? 'negative' : ''}`}>
-                  {formatAsInteger(row.futureBalance)}
-                </td>
-                <td className="status-cell">
-                  <span
-                    className="status-badge"
-                    style={{
-                      backgroundColor: getStatusBadgeColor(row.status),
-                      color: 'white',
-                      padding: '4px 12px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      display: 'inline-block'
-                    }}
-                  >
-                    {row.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {data.map((row, index) => {
+              // Display 0 if future balance is negative
+              const displayFutureBalance = row.futureBalance < 0 ? 0 : row.futureBalance;
+              const offeredEarlier = row.offeredEarlier || 0;
+
+              return (
+                <tr key={index}>
+                  <td className="heat-no-cell">{row.heatNo}</td>
+                  <td className="numeric-cell">{formatAsInteger(row.acceptedMt)}</td>
+                  <td className="numeric-cell">{formatAsInteger(row.maxErc)}</td>
+                  <td className="numeric-cell">{formatAsInteger(row.manufactured)}</td>
+                  <td className="numeric-cell">{formatAsInteger(offeredEarlier)}</td>
+                  <td className="numeric-cell">{formatAsInteger(row.offeredNow)}</td>
+                  <td className={`numeric-cell ${row.futureBalance < 0 ? 'negative' : ''}`}>
+                    {formatAsInteger(displayFutureBalance)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
