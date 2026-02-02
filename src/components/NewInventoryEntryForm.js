@@ -1,7 +1,7 @@
 // src/components/NewInventoryEntryForm.js
 import { useState, useEffect, useMemo } from 'react';
 import '../styles/forms.css';
-import { COMPANY_UNIT_MASTER, RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
+import {  RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
 import inventoryService from '../services/inventoryService';
 
 const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmit, isLoading = false }) => {
