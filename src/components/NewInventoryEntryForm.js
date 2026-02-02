@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import '../styles/forms.css';
 import { COMPANY_UNIT_MASTER, RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
+import inventoryService from '../services/inventoryService';
 
 const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmit, isLoading = false }) => {
   const initialFormState = {
@@ -33,28 +34,72 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
+  const [suppliers, setSuppliers] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+  const [loadingUnits, setLoadingUnits] = useState(false);
 
-  // Get available units based on selected supplier
-  const availableUnits = useMemo(() => {
-    if (!formData.supplierName) return [];
+  // Fetch suppliers when raw material is selected
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      if (!formData.rawMaterial) {
+        setSuppliers([]);
+        return;
+      }
 
-    // Map supplier names to company names
-    const supplierToCompanyMap = {
-      'Jayaswal Neco': 'ABC Industries Pvt Ltd',
-      'Tata Steel': 'XYZ Steel Mills Ltd',
-      'JSPL': 'JSPL',
-      'RINL': 'ABC Industries Pvt Ltd',
-      'ABC Suppliers Pvt Ltd': 'ABC Industries Pvt Ltd',
-      'XYZ Materials Co.': 'XYZ Steel Mills Ltd',
-      'Steel India Ltd': 'XYZ Steel Mills Ltd',
-      'National Cement Corp': 'ABC Industries Pvt Ltd'
+      setLoadingSuppliers(true);
+      try {
+        const response = await inventoryService.getSuppliersByProduct(formData.rawMaterial);
+        if (response.success) {
+          setSuppliers(response.data || []);
+        } else {
+          console.error('Failed to fetch suppliers:', response.error);
+          setSuppliers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching suppliers:', error);
+        setSuppliers([]);
+      } finally {
+        setLoadingSuppliers(false);
+      }
     };
 
-    const companyName = supplierToCompanyMap[formData.supplierName];
-    if (!companyName) return [];
+    fetchSuppliers();
+  }, [formData.rawMaterial]);
 
-    const company = COMPANY_UNIT_MASTER.find(c => c.companyName === companyName);
-    return company?.units || [];
+  // Fetch units when supplier is selected
+  useEffect(() => {
+    const fetchUnits = async () => {
+      if (!formData.supplierName) {
+        setUnits([]);
+        return;
+      }
+
+      setLoadingUnits(true);
+      try {
+        const response = await inventoryService.getUnitsByCompany(formData.supplierName);
+        if (response.success) {
+          setUnits(response.data || []);
+          // Auto-fill supplier address if available
+          if (response.data && response.data.length > 0 && response.data[0].address) {
+            setFormData(prev => ({
+              ...prev,
+              supplierAddress: response.data[0].address
+            }));
+          }
+        } else {
+          console.error('Failed to fetch units:', response.error);
+          setUnits([]);
+        }
+      } catch (error) {
+        console.error('Error fetching units:', error);
+        setUnits([]);
+      } finally {
+        setLoadingUnits(false);
+      }
+    };
+
+    fetchUnits();
   }, [formData.supplierName]);
 
   // Get available grades based on selected raw material
@@ -74,7 +119,7 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 
   // Default master data options
   const defaultMasterData = {
-    rawMaterials: ['Spring Steel Round Bars'],
+    rawMaterials: ['Spring Steel Rounds'],
     suppliers: [
       'Jayaswal Neco',
       'Tata Steel',
@@ -86,27 +131,16 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
       'National Cement Corp'
     ],
     grades: ['Grade A', 'Grade B', 'Grade C', 'IS 2062', 'IS 1786', 'OPC 53', 'PPC'],
-    units: [ 'MT']
+    units: ['MT']
   };
 
   const data = { ...defaultMasterData, ...masterData };
 
-  // Auto-fetch supplier address when supplier is selected and reset unit fields
+  // Reset unit fields when supplier changes (address is now handled in fetchUnits)
   useEffect(() => {
     if (formData.supplierName) {
-      const supplierAddresses = {
-        'ABC Suppliers Pvt Ltd': 'Plot No. 45, Industrial Area, Phase II, New Delhi - 110020',
-        'XYZ Materials Co.': '123, MIDC Industrial Estate, Pune - 411018',
-        'Steel India Ltd': 'Sector 18, Gurugram, Haryana - 122015',
-        'National Cement Corp': 'NH-8, Bhiwadi, Rajasthan - 301019',
-        'Jayaswal Neco': 'Industrial Area, Raipur, Chhattisgarh - 492001',
-        'Tata Steel': 'Jamshedpur, Jharkhand - 831001',
-        'JSPL': 'Jindal Steel Complex, Angul, Odisha - 759122',
-        'RINL': 'Visakhapatnam Steel Plant, Andhra Pradesh - 530031'
-      };
       setFormData(prev => ({
         ...prev,
-        supplierAddress: supplierAddresses[formData.supplierName] || '',
         // Reset unit fields when supplier changes
         unitId: '',
         unitName: ''
@@ -162,30 +196,16 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 
   // Handle unit selection
   const handleUnitChange = (e) => {
-    const unitId = e.target.value;
+    const unitName = e.target.value;
 
-    // Map supplier names to company names
-    const supplierToCompanyMap = {
-      'Jayaswal Neco': 'ABC Industries Pvt Ltd',
-      'Tata Steel': 'XYZ Steel Mills Ltd',
-      'JSPL': 'JSPL',
-      'RINL': 'ABC Industries Pvt Ltd',
-      'ABC Suppliers Pvt Ltd': 'ABC Industries Pvt Ltd',
-      'XYZ Materials Co.': 'XYZ Steel Mills Ltd',
-      'Steel India Ltd': 'XYZ Steel Mills Ltd',
-      'National Cement Corp': 'ABC Industries Pvt Ltd'
-    };
-
-    const companyName = supplierToCompanyMap[formData.supplierName];
-    const company = COMPANY_UNIT_MASTER.find(c => c.companyName === companyName);
-    const unit = company?.units.find(u => u.id === parseInt(unitId));
+    // Find the selected unit from the units array
+    const selectedUnit = units.find(u => u.unitName === unitName);
 
     setFormData(prev => ({
       ...prev,
-      companyId: company?.id || '',
-      companyName: company?.companyName || '',
-      unitId: unitId,
-      unitName: unit?.unitName || ''
+      unitId: unitName, // Using unitName as the ID for now
+      unitName: unitName,
+      supplierAddress: selectedUnit?.address || prev.supplierAddress
     }));
 
     // Clear unit error
@@ -197,16 +217,20 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // If raw material changes, reset grade specification
+    // If raw material changes, reset grade specification and supplier-related fields
     if (name === 'rawMaterial') {
       setFormData(prev => ({
         ...prev,
         [name]: value,
-        gradeSpecification: '' // Reset grade when raw material changes
+        gradeSpecification: '', // Reset grade when raw material changes
+        supplierName: '', // Reset supplier
+        unitId: '', // Reset unit
+        unitName: '',
+        supplierAddress: ''
       }));
-      // Clear both errors
-      if (errors[name] || errors.gradeSpecification) {
-        setErrors(prev => ({ ...prev, [name]: '', gradeSpecification: '' }));
+      // Clear errors
+      if (errors[name] || errors.gradeSpecification || errors.supplierName || errors.unitId) {
+        setErrors(prev => ({ ...prev, [name]: '', gradeSpecification: '', supplierName: '', unitId: '' }));
       }
     }
     // If supplier name changes, reset unit fields (handled by useEffect)
@@ -251,122 +275,122 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
   //   return Object.keys(newErrors).length === 0;
   // };
   const validateForm = () => {
-  const newErrors = {};
+    const newErrors = {};
 
-  /* ---------- REQUIRED FIELD VALIDATION ---------- */
-  const requiredFields = [
-    'unitId', // companyId is derived
-    'rawMaterial',
-    'supplierName',
-    'gradeSpecification',
-    'heatNumber',
-    'tcNumber',
-    'tcDate',
-    'invoiceNumber',
-    'invoiceDate',
-    'subPoNumber',
-    'subPoDate',
-    'subPoQty',
-    // 'rateOfMaterial',  // COMMENTED OUT - Pricing section disabled
-    // 'rateOfGst',       // COMMENTED OUT - Pricing section disabled
-    'declaredQuantity',
-    'numberOfBundles',
-    'unitOfMeasurement',
-    'lengthOfBars'
-  ];
+    /* ---------- REQUIRED FIELD VALIDATION ---------- */
+    const requiredFields = [
+      'unitId', // companyId is derived
+      'rawMaterial',
+      'supplierName',
+      'gradeSpecification',
+      'heatNumber',
+      'tcNumber',
+      'tcDate',
+      'invoiceNumber',
+      'invoiceDate',
+      'subPoNumber',
+      'subPoDate',
+      'subPoQty',
+      // 'rateOfMaterial',  // COMMENTED OUT - Pricing section disabled
+      // 'rateOfGst',       // COMMENTED OUT - Pricing section disabled
+      'declaredQuantity',
+      'numberOfBundles',
+      'unitOfMeasurement',
+      'lengthOfBars'
+    ];
 
-  requiredFields.forEach(field => {
+    requiredFields.forEach(field => {
+      if (
+        formData[field] === '' ||
+        formData[field] === null ||
+        formData[field] === undefined
+      ) {
+        newErrors[field] = 'This field is required';
+      }
+    });
+
+    /* ---------- NUMERIC FIELD VALIDATION ---------- */
+    const numericFields = [
+      'subPoQty',
+      // 'rateOfMaterial',  // COMMENTED OUT - Pricing section disabled
+      // 'rateOfGst',       // COMMENTED OUT - Pricing section disabled
+      'declaredQuantity'
+    ];
+
+    numericFields.forEach(field => {
+      if (
+        formData[field] !== '' &&
+        (isNaN(Number(formData[field])) || Number(formData[field]) < 0)
+      ) {
+        newErrors[field] = 'Must be a valid non-negative number';
+      }
+    });
+
+    /* ---------- BUSINESS RULE VALIDATION ---------- */
+
+    const tcQty = Number(formData.declaredQuantity);
+    const subPoQty = Number(formData.subPoQty);
+
+    const tcDate = formData.tcDate ? new Date(formData.tcDate) : null;
+    const subPoDate = formData.subPoDate ? new Date(formData.subPoDate) : null;
+    const invoiceDate = formData.invoiceDate ? new Date(formData.invoiceDate) : null;
+
+    /* Rule 1: Sub PO Qty >= TC Qty */
     if (
-      formData[field] === '' ||
-      formData[field] === null ||
-      formData[field] === undefined
+      !newErrors.subPoQty &&
+      !newErrors.declaredQuantity &&
+      tcQty > 0 &&
+      subPoQty > 0 &&
+      subPoQty < tcQty
     ) {
-      newErrors[field] = 'This field is required';
+      newErrors.subPoQty =
+        'Sub PO Quantity should not be less than TC Quantity';
     }
-  });
 
-  /* ---------- NUMERIC FIELD VALIDATION ---------- */
-  const numericFields = [
-    'subPoQty',
-    // 'rateOfMaterial',  // COMMENTED OUT - Pricing section disabled
-    // 'rateOfGst',       // COMMENTED OUT - Pricing section disabled
-    'declaredQuantity'
-  ];
-
-  numericFields.forEach(field => {
+    /* Rule 2: Sub PO Date <= TC Date */
     if (
-      formData[field] !== '' &&
-      (isNaN(Number(formData[field])) || Number(formData[field]) < 0)
+      !newErrors.subPoDate &&
+      tcDate &&
+      subPoDate &&
+      subPoDate > tcDate
     ) {
-      newErrors[field] = 'Must be a valid non-negative number';
+      newErrors.subPoDate =
+        'Sub PO Date should not be later than TC Date';
     }
-  });
 
-  /* ---------- BUSINESS RULE VALIDATION ---------- */
-
-  const tcQty = Number(formData.declaredQuantity);
-  const subPoQty = Number(formData.subPoQty);
-
-  const tcDate = formData.tcDate ? new Date(formData.tcDate) : null;
-  const subPoDate = formData.subPoDate ? new Date(formData.subPoDate) : null;
-  const invoiceDate = formData.invoiceDate ? new Date(formData.invoiceDate) : null;
-
-  /* Rule 1: Sub PO Qty >= TC Qty */
-  if (
-    !newErrors.subPoQty &&
-    !newErrors.declaredQuantity &&
-    tcQty > 0 &&
-    subPoQty > 0 &&
-    subPoQty < tcQty
-  ) {
-    newErrors.subPoQty =
-      'Sub PO Quantity should not be less than TC Quantity';
-  }
-
-  /* Rule 2: Sub PO Date <= TC Date */
-  if (
-    !newErrors.subPoDate &&
-    tcDate &&
-    subPoDate &&
-    subPoDate > tcDate
-  ) {
-    newErrors.subPoDate =
-      'Sub PO Date should not be later than TC Date';
-  }
-
-  /* Rule 3: Sub PO Date <= Invoice Date */
-  if (
-    !newErrors.subPoDate &&
-    invoiceDate &&
-    subPoDate &&
-    subPoDate > invoiceDate
-  ) {
-    newErrors.subPoDate =
-      'Sub PO Date should not be later than Invoice Date';
-  }
-
-  /* Rule 4: TC Number must be unique for this vendor */
-  if (
-    formData.tcNumber &&
-    formData.supplierName &&
-    !newErrors.tcNumber
-  ) {
-    const duplicateEntry = inventoryEntries.find(
-      entry =>
-        entry.tcNumber === formData.tcNumber &&
-        entry.supplierName === formData.supplierName
-    );
-
-    if (duplicateEntry) {
-      newErrors.tcNumber =
-        'Entry with TC Number already present in the inventory database of this particular vendor is not allowed';
+    /* Rule 3: Sub PO Date <= Invoice Date */
+    if (
+      !newErrors.subPoDate &&
+      invoiceDate &&
+      subPoDate &&
+      subPoDate > invoiceDate
+    ) {
+      newErrors.subPoDate =
+        'Sub PO Date should not be later than Invoice Date';
     }
-  }
 
-  /* ---------- FINALIZE ---------- */
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    /* Rule 4: TC Number must be unique for this vendor */
+    if (
+      formData.tcNumber &&
+      formData.supplierName &&
+      !newErrors.tcNumber
+    ) {
+      const duplicateEntry = inventoryEntries.find(
+        entry =>
+          entry.tcNumber === formData.tcNumber &&
+          entry.supplierName === formData.supplierName
+      );
+
+      if (duplicateEntry) {
+        newErrors.tcNumber =
+          'Entry with TC Number already present in the inventory database of this particular vendor is not allowed';
+      }
+    }
+
+    /* ---------- FINALIZE ---------- */
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
 
   const handleSubmit = (e) => {
@@ -445,25 +469,25 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 
 
             <div className="form-group">
-  <label className="form-label">
-    Length of Bars <span className="required">*</span>
-  </label>
+              <label className="form-label">
+                Length of Bars <span className="required">*</span>
+              </label>
 
-  <select
-    name="lengthOfBars"
-    value={formData.lengthOfBars}
-    onChange={handleChange}
-    className={`form-input ${errors.lengthOfBars ? 'error' : ''}`}
-  >
-    <option value="">Select Length</option>
-    <option value="6">6 m</option>
-    <option value="12">12 m</option>
-  </select>
+              <select
+                name="lengthOfBars"
+                value={formData.lengthOfBars}
+                onChange={handleChange}
+                className={`form-input ${errors.lengthOfBars ? 'error' : ''}`}
+              >
+                <option value="">Select Length</option>
+                <option value="6">6 m</option>
+                <option value="12">12 m</option>
+              </select>
 
-  {errors.lengthOfBars && (
-    <span className="error-text">{errors.lengthOfBars}</span>
-  )}
-</div>
+              {errors.lengthOfBars && (
+                <span className="error-text">{errors.lengthOfBars}</span>
+              )}
+            </div>
 
             {/* <div className="form-group">
               <label className="form-label">
@@ -490,13 +514,21 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
                 value={formData.supplierName}
                 onChange={handleChange}
                 className={`form-input ${errors.supplierName ? 'error' : ''}`}
+                disabled={!formData.rawMaterial || loadingSuppliers}
               >
-                <option value="">-- Select Supplier --</option>
-                {data.suppliers.map(item => (
+                <option value="">
+                  {!formData.rawMaterial ? '-- Select Raw Material First --' : loadingSuppliers ? 'Loading suppliers...' : '-- Select Supplier --'}
+                </option>
+                {suppliers.map(item => (
                   <option key={item} value={item}>{item}</option>
                 ))}
               </select>
               {errors.supplierName && <span className="error-text">{errors.supplierName}</span>}
+              {!formData.rawMaterial && (
+                <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
+                  Please select a raw material first to see available suppliers
+                </div>
+              )}
             </div>
 
             <div className="form-group">
@@ -508,13 +540,13 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
                 value={formData.unitId}
                 onChange={handleUnitChange}
                 className={`form-input ${errors.unitId ? 'error' : ''}`}
-                disabled={!formData.supplierName || availableUnits.length === 0}
+                disabled={!formData.supplierName || loadingUnits}
               >
                 <option value="">
-                  {!formData.supplierName ? '-- Select Supplier First --' : '-- Select Unit --'}
+                  {!formData.supplierName ? '-- Select Supplier First --' : loadingUnits ? 'Loading units...' : '-- Select Unit --'}
                 </option>
-                {availableUnits.map(unit => (
-                  <option key={unit.id} value={unit.id}>
+                {units.map((unit, index) => (
+                  <option key={index} value={unit.unitName}>
                     {unit.unitName}
                   </option>
                 ))}
@@ -582,7 +614,7 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
             </div> */}
 
 
-            
+
           </div>
         </div>
 
@@ -655,127 +687,127 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
                 <h4 className="form-section-title">📋 Test Certificate & Batch Information</h4>
               </div>
               <div className="form-grid">
-            <div className="form-group">
-              <label className="form-label">
-                {getHeatNumberLabel()} <span className="required">*</span>
-              </label>
-              <input
-                type="text"
-                name="heatNumber"
-                value={formData.heatNumber}
-                onChange={handleChange}
-                className={`form-input ${errors.heatNumber ? 'error' : ''}`}
-                placeholder={`Enter ${getHeatNumberLabel()}`}
-              />
-              {errors.heatNumber && <span className="error-text">{errors.heatNumber}</span>}
+                <div className="form-group">
+                  <label className="form-label">
+                    {getHeatNumberLabel()} <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="heatNumber"
+                    value={formData.heatNumber}
+                    onChange={handleChange}
+                    className={`form-input ${errors.heatNumber ? 'error' : ''}`}
+                    placeholder={`Enter ${getHeatNumberLabel()}`}
+                  />
+                  {errors.heatNumber && <span className="error-text">{errors.heatNumber}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    TC Number <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="tcNumber"
+                    value={formData.tcNumber}
+                    onChange={handleChange}
+                    className={`form-input ${errors.tcNumber ? 'error' : ''}`}
+                    placeholder="Enter TC Number"
+                  />
+                  {errors.tcNumber && <span className="error-text">{errors.tcNumber}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    TC Date <span className="required">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="tcDate"
+                    value={formData.tcDate}
+                    onChange={handleChange}
+                    className={`form-input ${errors.tcDate ? 'error' : ''}`}
+                  />
+                  {errors.tcDate && <span className="error-text">{errors.tcDate}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Unit of Measurement <span className="required">*</span>
+                  </label>
+                  <select
+                    name="unitOfMeasurement"
+                    value={formData.unitOfMeasurement}
+                    onChange={handleChange}
+                    className={`form-input ${errors.unitOfMeasurement ? 'error' : ''}`}
+                  >
+                    <option value="">-- Select Unit --</option>
+                    {data.units.map(item => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
+                  {errors.unitOfMeasurement && <span className="error-text">{errors.unitOfMeasurement}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    TC Quantity in MT <span className="required">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="declaredQuantity"
+                    value={formData.declaredQuantity}
+                    onChange={handleChange}
+                    className={`form-input ${errors.declaredQuantity ? 'error' : ''}`}
+                    placeholder="Enter TC Qty"
+                  />
+                  {errors.declaredQuantity && <span className="error-text">{errors.declaredQuantity}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    No. of Bundles <span className="required">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    name="numberOfBundles"
+                    value={formData.numberOfBundles}
+                    onChange={handleChange}
+                    className={`form-input ${errors.numberOfBundles ? 'error' : ''}`}
+                    placeholder="Enter number of bundles"
+                  />
+                  {errors.numberOfBundles && <span className="error-text">{errors.numberOfBundles}</span>}
+                </div>
+
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                TC Number <span className="required">*</span>
-              </label>
-              <input
-                type="text"
-                name="tcNumber"
-                value={formData.tcNumber}
-                onChange={handleChange}
-                className={`form-input ${errors.tcNumber ? 'error' : ''}`}
-                placeholder="Enter TC Number"
-              />
-              {errors.tcNumber && <span className="error-text">{errors.tcNumber}</span>}
-            </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                TC Date <span className="required">*</span>
-              </label>
-              <input
-                type="date"
-                name="tcDate"
-                value={formData.tcDate}
-                onChange={handleChange}
-                className={`form-input ${errors.tcDate ? 'error' : ''}`}
-              />
-              {errors.tcDate && <span className="error-text">{errors.tcDate}</span>}
-            </div>
+            {/* Invoice & Purchase Order Information Section */}
+            <div className="form-section">
+              <div className="form-section-header">
+                <h4 className="form-section-title">🧾 Invoice & Purchase Order Details</h4>
+              </div>
+              <div className="form-grid">
 
-            <div className="form-group">
-              <label className="form-label">
-                Unit of Measurement <span className="required">*</span>
-              </label>
-              <select
-                name="unitOfMeasurement"
-                value={formData.unitOfMeasurement}
-                onChange={handleChange}
-                className={`form-input ${errors.unitOfMeasurement ? 'error' : ''}`}
-              >
-                <option value="">-- Select Unit --</option>
-                {data.units.map(item => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </select>
-              {errors.unitOfMeasurement && <span className="error-text">{errors.unitOfMeasurement}</span>}
-            </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Sub PO Number <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="subPoNumber"
+                    value={formData.subPoNumber}
+                    onChange={handleChange}
+                    className={`form-input ${errors.subPoNumber ? 'error' : ''}`}
+                    placeholder="Enter Sub PO Number"
+                  />
+                  {errors.subPoNumber && <span className="error-text">{errors.subPoNumber}</span>}
+                </div>
 
-            <div className="form-group">
-              <label className="form-label">
-                TC Quantity in MT <span className="required">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                name="declaredQuantity"
-                value={formData.declaredQuantity}
-                onChange={handleChange}
-                className={`form-input ${errors.declaredQuantity ? 'error' : ''}`}
-                placeholder="Enter TC Qty"
-              />
-              {errors.declaredQuantity && <span className="error-text">{errors.declaredQuantity}</span>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                No. of Bundles <span className="required">*</span>
-              </label>
-              <input
-                type="number"
-                step="1"
-                name="numberOfBundles"
-                value={formData.numberOfBundles}
-                onChange={handleChange}
-                className={`form-input ${errors.numberOfBundles ? 'error' : ''}`}
-                placeholder="Enter number of bundles"
-              />
-              {errors.numberOfBundles && <span className="error-text">{errors.numberOfBundles}</span>}
-            </div>
-
-          </div>
-        </div>
-
-
-        {/* Invoice & Purchase Order Information Section */}
-        <div className="form-section">
-          <div className="form-section-header">
-            <h4 className="form-section-title">🧾 Invoice & Purchase Order Details</h4>
-          </div>
-          <div className="form-grid">
-
-            <div className="form-group">
-              <label className="form-label">
-                Sub PO Number <span className="required">*</span>
-              </label>
-              <input
-                type="text"
-                name="subPoNumber"
-                value={formData.subPoNumber}
-                onChange={handleChange}
-                className={`form-input ${errors.subPoNumber ? 'error' : ''}`}
-                placeholder="Enter Sub PO Number"
-              />
-              {errors.subPoNumber && <span className="error-text">{errors.subPoNumber}</span>}
-            </div>
-
-            {/* <div className="form-group">
+                {/* <div className="form-group">
               <label className="form-label">
                 Sub PO Date <span className="required">*</span>
               </label>
@@ -788,86 +820,86 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
               />
               {errors.subPoDate && <span className="error-text">{errors.subPoDate}</span>}
             </div> */}
-            <div className="form-group">
-  <label className="form-label">
-    Sub PO Date <span className="required">*</span>
-  </label>
+                <div className="form-group">
+                  <label className="form-label">
+                    Sub PO Date <span className="required">*</span>
+                  </label>
 
-  <input
-    type="date"
-    name="subPoDate"
-    value={formData.subPoDate}
-    onChange={handleChange}
-    max={
-      formData.tcDate && formData.invoiceDate
-        ? (formData.tcDate < formData.invoiceDate
-            ? formData.tcDate
-            : formData.invoiceDate)
-        : formData.tcDate || formData.invoiceDate || undefined
-    }
-    className={`form-input ${errors.subPoDate ? 'error' : ''}`}
-  />
+                  <input
+                    type="date"
+                    name="subPoDate"
+                    value={formData.subPoDate}
+                    onChange={handleChange}
+                    max={
+                      formData.tcDate && formData.invoiceDate
+                        ? (formData.tcDate < formData.invoiceDate
+                          ? formData.tcDate
+                          : formData.invoiceDate)
+                        : formData.tcDate || formData.invoiceDate || undefined
+                    }
+                    className={`form-input ${errors.subPoDate ? 'error' : ''}`}
+                  />
 
-  {errors.subPoDate && (
-    <span className="error-text">{errors.subPoDate}</span>
-  )}
-</div>
+                  {errors.subPoDate && (
+                    <span className="error-text">{errors.subPoDate}</span>
+                  )}
+                </div>
 
 
-            <div className="form-group">
-              <label className="form-label">
-                Sub PO Qty <span className="required">*</span>
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                name="subPoQty"
-                value={formData.subPoQty}
-                onChange={handleChange}
-                className={`form-input ${errors.subPoQty ? 'error' : ''}`}
-                placeholder="Enter Quantity"
-              />
-              {errors.subPoQty && <span className="error-text">{errors.subPoQty}</span>}
+                <div className="form-group">
+                  <label className="form-label">
+                    Sub PO Qty <span className="required">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="subPoQty"
+                    value={formData.subPoQty}
+                    onChange={handleChange}
+                    className={`form-input ${errors.subPoQty ? 'error' : ''}`}
+                    placeholder="Enter Quantity"
+                  />
+                  {errors.subPoQty && <span className="error-text">{errors.subPoQty}</span>}
+                </div>
+
+
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Invoice Number <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="invoiceNumber"
+                    value={formData.invoiceNumber}
+                    onChange={handleChange}
+                    className={`form-input ${errors.invoiceNumber ? 'error' : ''}`}
+                    placeholder="Enter Invoice Number"
+                  />
+                  {errors.invoiceNumber && <span className="error-text">{errors.invoiceNumber}</span>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Invoice Date <span className="required">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="invoiceDate"
+                    value={formData.invoiceDate}
+                    onChange={handleChange}
+                    className={`form-input ${errors.invoiceDate ? 'error' : ''}`}
+                  />
+                  {errors.invoiceDate && <span className="error-text">{errors.invoiceDate}</span>}
+                </div>
+
+
+              </div>
             </div>
 
 
-
-            <div className="form-group">
-              <label className="form-label">
-                Invoice Number <span className="required">*</span>
-              </label>
-              <input
-                type="text"
-                name="invoiceNumber"
-                value={formData.invoiceNumber}
-                onChange={handleChange}
-                className={`form-input ${errors.invoiceNumber ? 'error' : ''}`}
-                placeholder="Enter Invoice Number"
-              />
-              {errors.invoiceNumber && <span className="error-text">{errors.invoiceNumber}</span>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                Invoice Date <span className="required">*</span>
-              </label>
-              <input
-                type="date"
-                name="invoiceDate"
-                value={formData.invoiceDate}
-                onChange={handleChange}
-                className={`form-input ${errors.invoiceDate ? 'error' : ''}`}
-              />
-              {errors.invoiceDate && <span className="error-text">{errors.invoiceDate}</span>}
-            </div>
-
-            
-          </div>
-        </div>
-
-
-        {/* Pricing & Quantity Information Section - COMMENTED OUT */}
-        {/* <div className="form-section">
+            {/* Pricing & Quantity Information Section - COMMENTED OUT */}
+            {/* <div className="form-section">
           <div className="form-section-header">
             <h4 className="form-section-title">💰 Pricing & Quantity Details</h4>
           </div>

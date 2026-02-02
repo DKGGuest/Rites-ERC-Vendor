@@ -257,7 +257,7 @@ export const PRODUCT_OPTIONS = [
 export const SUB_PRODUCT_OPTIONS = {
   'ERC': [
     { value: '', label: 'Select Sub Product' },
-    { value: 'Spring Steel Round Bars', label: 'Spring Steel Round Bars' }
+    { value: 'Spring Steel Rounds', label: 'Spring Steel Rounds' }
   ],
   'Sleeper': [
     { value: '', label: 'Select Sub Product' },
@@ -907,7 +907,7 @@ export const MANUFACTURER_MASTER = [
 
 // Raw Material to Grade/Specification Mapping
 export const RAW_MATERIAL_GRADE_MAPPING = {
-  'Spring Steel Round Bars': [
+  'Spring Steel Rounds': [
     '55Si7 20.64MM',
     '55Si7 23MM'
   ],
