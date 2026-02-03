@@ -14,7 +14,7 @@ import { getStoredUser } from '../services/authService';
  * Provides methods for creating and fetching inventory entries
  */
 const inventoryService = {
-  
+
   /**
    * Create a new inventory entry
    * @param {Object} inventoryData - Inventory entry data from form
@@ -291,6 +291,76 @@ const inventoryService = {
         success: false,
         error: error.message || 'Failed to delete inventory entry',
         details: error.response?.data || error
+      };
+    }
+  },
+
+  /**
+   * Get suppliers by raw material/product
+   * @param {String} product - Raw material name
+   * @returns {Promise<Object>} - API response with list of supplier names
+   */
+  getSuppliersByProduct: async (product) => {
+    try {
+      console.log('📥 Fetching suppliers for product:', product);
+
+      // Make API call to backend
+      const response = await httpClient.get(`/suppliers/by-product/${encodeURIComponent(product)}`);
+
+      console.log('✅ Backend response (suppliers):', response);
+
+      if (response && response.success) {
+        return {
+          success: true,
+          data: response.data || [],
+          message: 'Suppliers fetched successfully'
+        };
+      } else {
+        throw new Error('Unexpected response format from backend');
+      }
+
+    } catch (error) {
+      console.error('❌ Error fetching suppliers:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch suppliers',
+        details: error.response?.data || error,
+        data: []
+      };
+    }
+  },
+
+  /**
+   * Get units and addresses by company name
+   * @param {String} companyName - Company name
+   * @returns {Promise<Object>} - API response with list of units and addresses
+   */
+  getUnitsByCompany: async (companyName) => {
+    try {
+      console.log('📥 Fetching units for company:', companyName);
+
+      // Make API call to backend
+      const response = await httpClient.get(`/suppliers/by-company?companyName=${encodeURIComponent(companyName)}`);
+
+      console.log('✅ Backend response (units):', response);
+
+      if (response && response.success) {
+        return {
+          success: true,
+          data: response.data || [],
+          message: 'Units fetched successfully'
+        };
+      } else {
+        throw new Error('Unexpected response format from backend');
+      }
+
+    } catch (error) {
+      console.error('❌ Error fetching units:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to fetch units',
+        details: error.response?.data || error,
+        data: []
       };
     }
   }

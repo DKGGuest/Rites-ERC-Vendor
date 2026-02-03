@@ -219,10 +219,10 @@ const inspectionCallService = {
    * @param {string} poNo - Purchase Order Number (optional)
    * @returns {Promise<Object>} - API response with list of completed RM IC certificate numbers
    */
-  getCompletedRmIcNumbers: async (poNo = null) => {
+  getCompletedRmIcNumbers: async (poSerialNo = null) => {
     try {
-      const endpoint = poNo
-        ? `/raw-material/completed-rm-ics?poNo=${encodeURIComponent(poNo)}`
+      const endpoint = poSerialNo
+        ? `/raw-material/completed-rm-ics?poSerialNo=${encodeURIComponent(poSerialNo)}`
         : '/raw-material/completed-rm-ics';
       const response = await httpClient.get(endpoint);
       return response;
@@ -689,6 +689,126 @@ const inspectionCallService = {
       return response;
     } catch (error) {
       console.error('Error fetching lot numbers by multiple certificates:', error);
+      throw error;
+    }
+  },
+
+  // ==================== HEAT SUMMARY APIs ====================
+
+  /**
+   * Get PO Number by RM IC Call ID
+   * Extracts the middle part of RM IC number (e.g., "N/ER-01150001/RAJK" → "ER-01150001")
+   * @param {string} rmIcNumber - Full RM IC number
+   * @returns {Promise<Object>} - API response with PO number
+   */
+  getPoNumberByRmIc: async (rmIcNumber) => {
+    try {
+      // Extract call number from RM IC number
+      // Format: "N/ER-01150001/RAJK" → "ER-01150001"
+      const callNoMatch = rmIcNumber.match(/N\/([^/]+)\//);
+      const callNo = callNoMatch ? callNoMatch[1] : rmIcNumber;
+
+      console.log(`📋 Fetching PO number for RM IC: ${rmIcNumber}, Call No: ${callNo}`);
+
+      const response = await httpClient.get(
+        `/processIe/getPoNumnerByCallId/${callNo}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching PO number by RM IC:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Heat Summary Data for a specific Heat Number and PO Number
+   * Returns manufactured quantity, accepted quantity, and other heat details
+   * @param {string} heatNo - Heat number
+   * @param {string} poNo - PO number
+   * @returns {Promise<Object>} - API response with heat summary data
+   */
+  getHeatSummaryData: async (heatNo, poNo) => {
+    try {
+      console.log(`📊 Fetching heat summary for Heat: ${heatNo}, PO: ${poNo}`);
+
+      const response = await httpClient.get(
+        `/processIe/getManufaturedQtyOfPo/${heatNo}/${poNo}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching heat summary data:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get previously offered quantities for a specific heat number and PO series
+   * Returns the total quantity offered in previous Process Inspection Calls
+   * @param {string} heatNo - Heat number
+   * @param {string} poSerialNo - PO Serial Number
+   * @returns {Promise<Object>} - API response with previously offered quantity
+   */
+  getPreviouslyOfferedQuantity: async (heatNo, poSerialNo) => {
+    try {
+      console.log(`📊 Fetching previously offered quantity for Heat: ${heatNo}, PO Serial: ${poSerialNo}`);
+
+      const response = await httpClient.get(
+        `/process-material/offered-qty/${encodeURIComponent(heatNo)}/${encodeURIComponent(poSerialNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching previously offered quantity:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get RM IC details by Certificate Number
+   * First fetches the IC number from inspection_complete_details using certificate number
+   * Then fetches the inspection call details using the IC number
+   * @param {string} certificateNo - RM IC certificate number (e.g., "N/ER-0118005/RAJK")
+   * @returns {Promise<Object>} - API response with RM IC details including company_id, unit_id
+   */
+  getRmIcDetailsByCertificateNo: async (certificateNo) => {
+    try {
+      console.log(`📋 Fetching RM IC details for Certificate Number: ${certificateNo}`);
+
+      // First, get the IC number from the certificate number
+      // The certificate number is stored in inspection_complete_details.CERTIFICATE_NO
+      // and the IC number is in inspection_complete_details.CALL_NO
+      const response = await httpClient.get(
+        `/raw-material/ic-by-certificate/${encodeURIComponent(certificateNo)}`
+      );
+
+      console.log(`✅ Successfully fetched RM IC details:`, response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error fetching RM IC details by certificate:', error);
+      console.error('   Error message:', error.message);
+      console.error('   Error status:', error.status);
+      throw error;
+    }
+  },
+
+  /**
+   * Get RM IC details by IC Number (to fetch company_id, unit_id, etc.)
+   * Uses the /raw-material/calls/ic-number endpoint which returns InspectionCallDto
+   * with companyId, unitId, companyName, unitName, unitAddress fields
+   * @param {string} icNumber - RM IC number
+   * @returns {Promise<Object>} - API response with RM IC details
+   */
+  getRmIcDetailsByIcNumber: async (icNumber) => {
+    try {
+      console.log(`📋 Fetching RM IC details for IC Number: ${icNumber}`);
+      const response = await httpClient.get(
+        `/raw-material/calls/ic-number/${encodeURIComponent(icNumber)}`
+      );
+      console.log(`✅ Successfully fetched RM IC details:`, response);
+      return response;
+    } catch (error) {
+      console.error('❌ Error fetching RM IC details:', error);
+      console.error('   Error message:', error.message);
+      console.error('   Error status:', error.status);
       throw error;
     }
   },

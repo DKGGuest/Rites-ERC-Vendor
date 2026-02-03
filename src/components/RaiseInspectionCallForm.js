@@ -18,6 +18,7 @@ import {
 } from '../data/vendorMockData';
 import inspectionCallService from '../services/inspectionCallService';
 import poiMappingService from '../services/poiMappingService';
+import HeatSummaryTable from './HeatSummaryTable';
 import '../styles/raiseInspectionCall.css';
 
 // Multi-Select Dropdown Component
@@ -344,6 +345,10 @@ export const RaiseInspectionCallForm = ({
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [loadingUnitDetails, setLoadingUnitDetails] = useState(false);
 
+  // Heat Summary states
+  const [heatSummaryData, setHeatSummaryData] = useState([]);
+  const [loadingHeatSummary, setLoadingHeatSummary] = useState(false);
+
   // Handle PO Serial selection
   const handlePoSerialChange = useCallback((serialNo, itemData = null) => {
     const poSerial = PO_SERIAL_DETAILS.find(p => p.serialNo === serialNo);
@@ -407,8 +412,8 @@ export const RaiseInspectionCallForm = ({
         setLoadingRMICs(true);
 
         try {
-          console.log('🔍 Fetching completed RM ICs (certificate numbers) for PO:', formData.po_no);
-          const response = await inspectionCallService.getCompletedRmIcNumbers(formData.po_no);
+          console.log('🔍 Fetching completed RM ICs (certificate numbers) for PO Serial No:', formData.po_serial_no);
+          const response = await inspectionCallService.getCompletedRmIcNumbers(formData.po_serial_no);
           console.log('📦 Completed certificate numbers response:', response);
 
           if (response && response.data) {
@@ -449,7 +454,7 @@ export const RaiseInspectionCallForm = ({
     };
 
     fetchCompletedRMICs();
-  }, [formData.type_of_call, formData.po_no]);
+  }, [formData.type_of_call, formData.po_serial_no]);
 
   // Fetch companies for POI dropdown on component mount
   useEffect(() => {
@@ -1172,7 +1177,7 @@ export const RaiseInspectionCallForm = ({
   // };
 
   // Handle RM IC selection for Process stage
-  const handleRmIcSelection = (selectedIcNumbers) => {
+  const handleRmIcSelection = async (selectedIcNumbers) => {
     // Get book/set numbers for selected ICs
     const bookSetNos = selectedIcNumbers.map(icNumber => {
       const ic = RM_INSPECTION_CALLS.find(ic => ic.icNumber === icNumber);
@@ -1185,12 +1190,190 @@ export const RaiseInspectionCallForm = ({
       return sum + (ic?.qtyAccepted || 0);
     }, 0);
 
+    // Fetch company_id and unit_id from the first selected RM IC
+    let companyId = '';
+    let unitId = '';
+    let companyName = '';
+    let unitName = '';
+    let unitAddress = '';
+
+    if (selectedIcNumbers.length > 0) {
+      try {
+        const certificateNo = selectedIcNumbers[0];
+        console.log(`📋 Fetching company and unit details from first RM IC Certificate: ${certificateNo}`);
+
+        // Use the certificate number to fetch RM IC details
+        const rmIcDetails = await inspectionCallService.getRmIcDetailsByCertificateNo(certificateNo);
+
+        console.log(`📊 Full API Response:`, rmIcDetails);
+
+        if (rmIcDetails && rmIcDetails.data) {
+          const details = rmIcDetails.data;
+          console.log(`📋 Extracted details object:`, details);
+
+          // Try both camelCase and snake_case field names
+          companyId = details.companyId || details.company_id || '';
+          unitId = details.unitId || details.unit_id || '';
+          companyName = details.companyName || details.company_name || '';
+          unitName = details.unitName || details.unit_name || '';
+          unitAddress = details.unitAddress || details.unit_address || '';
+
+          console.log(`✅ Fetched company and unit details:`, {
+            companyId,
+            unitId,
+            companyName,
+            unitName,
+            unitAddress
+          });
+
+          // If company_id or unit_id is NULL, we need to look them up from company/unit master
+          if (!companyId || !unitId) {
+            console.warn(`⚠️ WARNING: companyId or unitId is NULL in RM IC record!`);
+            console.warn(`   This RM IC uses POI code instead of company/unit IDs`);
+            console.warn(`   Company Name: ${companyName}, Unit Name: ${unitName}`);
+            console.log(`📍 Will fetch company/unit IDs from master table using company name and unit name`);
+          }
+        } else {
+          console.error(`❌ No data in API response:`, rmIcDetails);
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching RM IC details:`, error);
+        console.error(`   Error message: ${error.message}`);
+        console.error(`   Error status: ${error.status}`);
+        console.error(`   Full error object:`, error);
+        if (error.response) {
+          console.error(`   Response status: ${error.response.status}`);
+          console.error(`   Response data:`, error.response.data);
+        }
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
       process_rm_ic_numbers: selectedIcNumbers,
       process_book_set_nos: bookSetNos,
-      process_total_accepted_qty_rm: totalAccepted
+      process_total_accepted_qty_rm: totalAccepted,
+      company_id: companyId,
+      unit_id: unitId,
+      company_name: companyName,
+      unit_name: unitName,
+      unit_address: unitAddress
     }));
+
+    // Fetch heat summary data for selected RM ICs
+    if (selectedIcNumbers.length > 0) {
+      await fetchHeatSummaryData(selectedIcNumbers);
+    } else {
+      setHeatSummaryData([]);
+    }
+  };
+
+  // Fetch heat summary data for selected RM IC numbers
+  const fetchHeatSummaryData = async (selectedRmIcNumbers) => {
+    setLoadingHeatSummary(true);
+    try {
+      console.log('📊 Fetching heat summary for RM ICs:', selectedRmIcNumbers);
+
+      const summaryData = [];
+
+      // For each selected RM IC, fetch PO number and then heat summary
+      for (const rmIcNumber of selectedRmIcNumbers) {
+        try {
+          // Step 1: Get PO number from RM IC
+          console.log(`  📋 Getting PO number for RM IC: ${rmIcNumber}`);
+          const poResponse = await inspectionCallService.getPoNumberByRmIc(rmIcNumber);
+
+          if (poResponse && poResponse.data) {
+            const poNo = poResponse.data;
+            console.log(`  ✅ Got PO number: ${poNo}`);
+
+            // Step 2: Get heat numbers from the selected RM IC
+            // Extract call number from RM IC number for API call
+            const callNoMatch = rmIcNumber.match(/N\/([^/]+)\//);
+            const callNo = callNoMatch ? callNoMatch[1] : rmIcNumber;
+
+            const heatResponse = await inspectionCallService.getHeatNumbersByRmIcNumber(callNo);
+
+            if (heatResponse && heatResponse.data && Array.isArray(heatResponse.data)) {
+              const heatNumbers = heatResponse.data;
+              console.log(`  ✅ Got ${heatNumbers.length} heat numbers for RM IC: ${rmIcNumber}`);
+
+              // Step 3: For each heat number, fetch the summary data
+              for (const heat of heatNumbers) {
+                try {
+                  const heatNo = heat.heatNumber;
+                  console.log(`    🔥 Fetching summary for Heat: ${heatNo}, PO: ${poNo}`);
+
+                  const summaryResponse = await inspectionCallService.getHeatSummaryData(heatNo, poNo);
+
+                  if (summaryResponse && summaryResponse.data) {
+                    const heatData = summaryResponse.data;
+
+                    // Get offeredEarlier from API response (now calculated by backend)
+                    const offeredEarlier = heatData.offeredEarlier || 0;
+                    console.log(`    📊 Offered Earlier for ${heatNo}: ${offeredEarlier}`);
+
+                    // Calculate Future Balance = Max ERC - Manufactured - Offered Earlier
+                    const futureBalance = (heatData.rmAcceptedQty || 0) - (heatData.manufaturedQty || 0) - offeredEarlier;
+
+                    // Determine status based on future balance
+                    let status = 'Good';
+                    if (futureBalance < 0) {
+                      status = 'Critical';
+                    } else if (futureBalance === 0) {
+                      status = 'Exhausted';
+                    }
+
+                    summaryData.push({
+                      heatNo: heatData.heatNo || heatNo,
+                      acceptedMt: heatData.weightAcceptedMt || 0,
+                      maxErc: heatData.rmAcceptedQty || 0,
+                      manufactured: heatData.manufaturedQty || 0,
+                      offeredEarlier: offeredEarlier,
+                      offeredNow: 0, // Will be updated when user enters lot details
+                      futureBalance: futureBalance,
+                      status: status,
+                      rmIcNumber: rmIcNumber,
+                      poNo: poNo
+                    });
+
+                    console.log(`    ✅ Heat summary fetched:`, {
+                      heatNo: heatData.heatNo || heatNo,
+                      maxErc: heatData.rmAcceptedQty,
+                      manufactured: heatData.manufaturedQty,
+                      offeredEarlier: offeredEarlier,
+                      futureBalance: futureBalance,
+                      status: status
+                    });
+                  }
+                } catch (error) {
+                  console.error(`    ❌ Error fetching summary for heat ${heat.heatNumber}:`, error);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`  ❌ Error processing RM IC ${rmIcNumber}:`, error);
+        }
+      }
+
+      // Remove duplicates based on heat number
+      const uniqueSummaryData = summaryData.reduce((acc, current) => {
+        const exists = acc.find(item => item.heatNo === current.heatNo);
+        if (!exists) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+
+      console.log('📊 Final heat summary data:', uniqueSummaryData);
+      setHeatSummaryData(uniqueSummaryData);
+    } catch (error) {
+      console.error('❌ Error fetching heat summary data:', error);
+      setHeatSummaryData([]);
+    } finally {
+      setLoadingHeatSummary(false);
+    }
   };
 
   // ========== PROCESS STAGE: LOT-HEAT MAPPING HANDLERS ==========
@@ -1262,12 +1445,67 @@ export const RaiseInspectionCallForm = ({
 
   // Handle offered quantity change for process lot-heat
   const handleProcessOfferedQtyChange = (id, offeredQty) => {
+    // Update form data with new offered quantity
     setFormData(prev => ({
       ...prev,
       process_lot_heat_mapping: prev.process_lot_heat_mapping.map(item =>
-        item.id === id ? { ...item, offeredQty } : item
+        item.id === id ? { ...item, offeredQty: parseInt(offeredQty) || 0 } : item
       )
     }));
+
+    // Update heat summary data with new offered quantity
+    // Find the lot-heat entry to get the heat number
+    const lotHeatEntry = formData.process_lot_heat_mapping.find(item => item.id === id);
+    if (lotHeatEntry && lotHeatEntry.heatNumber) {
+      const newOfferedQty = parseInt(offeredQty) || 0;
+
+      // Update the heat summary data
+      setHeatSummaryData(prev =>
+        prev.map(heat => {
+          if (heat.heatNo === lotHeatEntry.heatNumber) {
+            // Calculate total offered quantity for this heat across ALL lots (excluding current lot)
+            const totalOfferedForHeat = formData.process_lot_heat_mapping
+              .filter(lot => lot.heatNumber === lotHeatEntry.heatNumber && lot.id !== id)
+              .reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
+
+            // Add the new offered quantity for the current lot
+            const totalOfferedIncludingCurrent = totalOfferedForHeat + newOfferedQty;
+
+            // Calculate new future balance: Max ERC - Manufactured - Offered Earlier - Total Offered (all lots)
+            const newFutureBalance = heat.maxErc - heat.manufactured - (heat.offeredEarlier || 0) - totalOfferedIncludingCurrent;
+
+            // Determine new status based on future balance
+            let newStatus = 'Good';
+            if (newFutureBalance < 0) {
+              newStatus = 'Critical';
+            } else if (newFutureBalance === 0) {
+              newStatus = 'Exhausted';
+            }
+
+            console.log(`📊 Updating heat summary for ${heat.heatNo}:`, {
+              offeredNow: totalOfferedIncludingCurrent,
+              futureBalance: newFutureBalance,
+              status: newStatus,
+              breakdown: {
+                maxErc: heat.maxErc,
+                manufactured: heat.manufactured,
+                totalOfferedOtherLots: totalOfferedForHeat,
+                currentLotOffered: newOfferedQty,
+                totalOffered: totalOfferedIncludingCurrent
+              }
+            });
+
+            return {
+              ...heat,
+              offeredNow: totalOfferedIncludingCurrent,
+              futureBalance: newFutureBalance,
+              status: newStatus
+            };
+          }
+          return heat;
+        })
+      );
+    }
   };
 
   // Handle tentative start date change
@@ -1751,14 +1989,18 @@ export const RaiseInspectionCallForm = ({
         newErrors.process_rm_ic_numbers = 'At least one RM IC Number (ER Number) is required';
       }
 
-      // Check if company_id and unit_id are populated (should be auto-fetched from RM IC)
-      if (!formData.company_id) {
-        newErrors.company_id = 'Company ID is required. Please wait for RM IC details to load or reselect RM IC.';
-        console.error('❌ Validation failed: company_id is missing:', formData.company_id);
+      // Note: company_id and unit_id can be NULL if the RM IC uses POI code instead
+      // The database migration V8 made these fields nullable to support POI code-based lookups
+      // So we don't validate these fields - they are optional
+      if (formData.company_id) {
+        console.log('✅ Company ID is populated:', formData.company_id);
+      } else {
+        console.log('ℹ️ Company ID is NULL - this RM IC uses POI code instead');
       }
-      if (!formData.unit_id) {
-        newErrors.unit_id = 'Unit ID is required. Please wait for RM IC details to load or reselect RM IC.';
-        console.error('❌ Validation failed: unit_id is missing:', formData.unit_id);
+      if (formData.unit_id) {
+        console.log('✅ Unit ID is populated:', formData.unit_id);
+      } else {
+        console.log('ℹ️ Unit ID is NULL - this RM IC uses POI code instead');
       }
 
       // Check if lot-heat mappings are provided
@@ -1781,6 +2023,27 @@ export const RaiseInspectionCallForm = ({
             }
             if (!item.tentativeStartDate) {
               newErrors[`process_lot_${index}_tentativeStartDate`] = `Tentative Start Date is required for entry ${index + 1}`;
+            }
+
+            // Validate that offered quantity doesn't exceed future balance
+            if (item.offeredQty && item.heatNumber) {
+              const offeredQty = parseInt(item.offeredQty) || 0;
+              const heatSummary = heatSummaryData.find(h => h.heatNo === item.heatNumber);
+
+              if (heatSummary) {
+                // Calculate available balance for THIS lot
+                // Available = Max ERC - Manufactured - Offered Earlier - (Total offered by OTHER lots using same heat)
+                const otherLotsOffered = formData.process_lot_heat_mapping
+                  .filter((lot, lotIndex) => lot.heatNumber === item.heatNumber && lotIndex !== index)
+                  .reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
+
+                const availableBalance = heatSummary.maxErc - heatSummary.manufactured - (heatSummary.offeredEarlier || 0) - otherLotsOffered;
+
+                if (offeredQty > availableBalance) {
+                  newErrors[`process_lot_${index}_offeredQty`] =
+                    `Offered Quantity (${offeredQty}) exceeds available Future Balance (${availableBalance}) for Heat ${item.heatNumber}`;
+                }
+              }
             }
           }
         });
@@ -2665,6 +2928,17 @@ export const RaiseInspectionCallForm = ({
                 )}
               </div>
 
+              {/* ========== HEAT SUMMARY SECTION ========== */}
+              {formData.process_rm_ic_numbers.length > 0 && (
+                <div style={{ gridColumn: '1 / -1', marginTop: '24px' }}>
+                  <HeatSummaryTable
+                    data={heatSummaryData}
+                    loading={loadingHeatSummary}
+                    poSerialNo={formData.po_serial_no}
+                  />
+                </div>
+              )}
+
               {/* ========== LOT-HEAT MAPPING SECTION ========== */}
               <div style={{ gridColumn: '1 / -1', marginTop: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -2798,23 +3072,46 @@ export const RaiseInspectionCallForm = ({
                       </FormField>
 
                       {/* Offered Quantity */}
-                      <FormField
-                        label="Decalred Quantity of Lot in Nos."
-                        name={`process_offered_qty_${lotHeat.id}`}
-                        required
-                        hint={lotHeat.heatNumber && lotHeat.maxQty ? `Max: ${lotHeat.maxQty} ERCs (from RM IC)` : "Select heat number first"}
-                      >
-                        <input
-                          type="number"
-                          className="ric-form-input"
-                          value={lotHeat.offeredQty}
-                          onChange={(e) => handleProcessOfferedQtyChange(lotHeat.id, e.target.value)}
-                          min="0"
-                          max={lotHeat.maxQty || undefined}
-                          placeholder="Enter quantity in Number"
-                          disabled={!lotHeat.heatNumber}
-                        />
-                      </FormField>
+                      {(() => {
+                        const heatSummary = lotHeat.heatNumber ? heatSummaryData.find(h => h.heatNo === lotHeat.heatNumber) : null;
+                        const offeredQty = parseInt(lotHeat.offeredQty) || 0;
+
+                        // Calculate available balance for THIS lot
+                        // Available = Max ERC - Manufactured - Offered Earlier - (Total offered by OTHER lots using same heat)
+                        let availableBalance = 0;
+                        if (heatSummary) {
+                          // Calculate total offered by OTHER lots using the same heat number
+                          const otherLotsOffered = formData.process_lot_heat_mapping
+                            .filter(lot => lot.heatNumber === lotHeat.heatNumber && lot.id !== lotHeat.id)
+                            .reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
+
+                          availableBalance = heatSummary.maxErc - heatSummary.manufactured - (heatSummary.offeredEarlier || 0) - otherLotsOffered;
+                        }
+
+                        const exceedsBalance = heatSummary && offeredQty > availableBalance;
+
+                        return (
+                          <FormField
+                            label="Decalred Quantity of Lot in Nos."
+                            name={`process_offered_qty_${lotHeat.id}`}
+                            required
+                            hint={heatSummary ? `Available Future Balance: ${availableBalance} ERCs` : "Select heat number first"}
+                            errors={exceedsBalance ? { [`process_offered_qty_${lotHeat.id}`]: `Exceeds available balance by ${offeredQty - availableBalance} ERCs` } : {}}
+                          >
+                            <input
+                              type="number"
+                              className={`ric-form-input ${exceedsBalance ? 'ric-form-input--error' : ''}`}
+                              value={lotHeat.offeredQty}
+                              onChange={(e) => handleProcessOfferedQtyChange(lotHeat.id, e.target.value)}
+                              min="0"
+                              max={heatSummary ? availableBalance : (lotHeat.maxQty || undefined)}
+                              placeholder="Enter quantity in Number"
+                              disabled={!lotHeat.heatNumber}
+                              style={exceedsBalance ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}
+                            />
+                          </FormField>
+                        );
+                      })()}
 
                       {/* Tentative Start Date */}
                       <FormField
