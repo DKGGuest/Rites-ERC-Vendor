@@ -363,6 +363,27 @@ const inventoryService = {
         data: []
       };
     }
+  },
+  /**
+   * Check if a TC number already exists in inventory for a vendor
+   * @param {String} tcNumber - TC number to check
+   * @param {String} vendorCode - Vendor code
+   * @returns {Promise<Object>} - API response with boolean (true if exists, false if unique)
+   */
+  checkTcUniqueness: async (tcNumber, vendorCode) => {
+    try {
+      const response = await httpClient.get(`/vendor/inventory/check-tc-uniqueness?tcNumber=${encodeURIComponent(tcNumber)}&vendorCode=${encodeURIComponent(vendorCode)}`);
+      if (response && response.success) {
+        return {
+          success: true,
+          exists: response.data === true
+        };
+      }
+      return { success: false, exists: false };
+    } catch (error) {
+      console.error('❌ Error checking TC uniqueness:', error);
+      return { success: false, exists: false };
+    }
   }
 };
 

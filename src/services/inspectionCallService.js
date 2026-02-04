@@ -53,7 +53,7 @@ const inspectionCallService = {
           unitName: rmInspectionData.unit_name,
           unitAddress: rmInspectionData.unit_address,
           remarks: rmInspectionData.remarks || '',
-          createdBy:"3"// Default numeric user ID (backend expects Integer, not String)
+          createdBy: "3"// Default numeric user ID (backend expects Integer, not String)
         },
         rmInspectionDetails: {
           // Required fields - use defaults if not provided (for testing without inventory)
@@ -809,6 +809,25 @@ const inspectionCallService = {
       console.error('❌ Error fetching RM IC details:', error);
       console.error('   Error message:', error.message);
       console.error('   Error status:', error.status);
+      throw error;
+    }
+  },
+
+  /**
+   * Get accepted quantity for a specific lot and request ID
+   * @param {string} requestId - Process IC Request ID (filtered middle part)
+   * @param {string} lotNumber - Lot Number
+   * @param {string} heatNo - Heat Number
+   * @returns {Promise<Object>} - API response with accepted quantity
+   */
+  getAcceptedQtyForLot: async (requestId, lotNumber, heatNo) => {
+    try {
+      const response = await httpClient.get(
+        `/processIe/accepted-qty-for-lot?requestId=${encodeURIComponent(requestId)}&lotNumber=${encodeURIComponent(lotNumber)}&heatNo=${encodeURIComponent(heatNo)}`
+      );
+      return response;
+    } catch (error) {
+      console.error('Error fetching accepted quantity for lot:', error);
       throw error;
     }
   },

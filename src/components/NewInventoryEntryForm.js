@@ -1,8 +1,9 @@
 // src/components/NewInventoryEntryForm.js
 import { useState, useEffect, useMemo } from 'react';
 import '../styles/forms.css';
-import {  RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
+import { RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
 import inventoryService from '../services/inventoryService';
+import { getStoredUser } from '../services/authService';
 
 const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmit, isLoading = false }) => {
   const initialFormState = {
@@ -38,6 +39,41 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
   const [units, setUnits] = useState([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [isCheckingTC, setIsCheckingTC] = useState(false);
+
+  // Debounced TC Number uniqueness check
+  useEffect(() => {
+    const checkUniqueness = async () => {
+      // Only check if it's not empty and at least 3 chars to avoid too many calls
+      if (formData.tcNumber && formData.tcNumber.length >= 3) {
+        setIsCheckingTC(true);
+        try {
+          const user = getStoredUser();
+          const vendorCode = user?.userName;
+
+          if (vendorCode) {
+            const response = await inventoryService.checkTcUniqueness(formData.tcNumber, vendorCode);
+            if (response.success && response.exists) {
+              setErrors(prev => ({
+                ...prev,
+                tcNumber: 'This TC Number already exists in your inventory.'
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Error checking TC uniqueness:', error);
+        } finally {
+          setIsCheckingTC(false);
+        }
+      }
+    };
+
+    const timer = setTimeout(() => {
+      checkUniqueness();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [formData.tcNumber]);
 
   // Fetch suppliers when raw material is selected
   useEffect(() => {
@@ -370,20 +406,20 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
     }
 
     /* Rule 4: TC Number must be unique for this vendor */
-    if (
-      formData.tcNumber &&
-      formData.supplierName &&
-      !newErrors.tcNumber
-    ) {
-      const duplicateEntry = inventoryEntries.find(
-        entry =>
-          entry.tcNumber === formData.tcNumber &&
-          entry.supplierName === formData.supplierName
-      );
+    if (!newErrors.tcNumber) {
+      if (errors.tcNumber && errors.tcNumber.includes('already exists')) {
+        newErrors.tcNumber = errors.tcNumber;
+      } else if (formData.tcNumber && formData.supplierName) {
+        const duplicateEntry = inventoryEntries.find(
+          entry =>
+            entry.tcNumber === formData.tcNumber &&
+            entry.supplierName === formData.supplierName
+        );
 
-      if (duplicateEntry) {
-        newErrors.tcNumber =
-          'Entry with TC Number already present in the inventory database of this particular vendor is not allowed';
+        if (duplicateEntry) {
+          newErrors.tcNumber =
+            'Entry with TC Number already present in the inventory database of this particular vendor is not allowed';
+        }
       }
     }
 
@@ -393,10 +429,16 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
   };
 
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isCheckingTC) {
+      alert('Please wait while we verify the TC Number uniqueness...');
+      return;
+    }
+
     if (validateForm()) {
-      const result = onSubmit?.(formData);
+      const result = await onSubmit?.(formData);
       // Reset form if submission was successful (parent returns true)
       if (result) {
         handleReset();
@@ -706,15 +748,35 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
                   <label className="form-label">
                     TC Number <span className="required">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="tcNumber"
-                    value={formData.tcNumber}
-                    onChange={handleChange}
-                    className={`form-input ${errors.tcNumber ? 'error' : ''}`}
-                    placeholder="Enter TC Number"
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      name="tcNumber"
+                      value={formData.tcNumber}
+                      onChange={handleChange}
+                      className={`form-input ${errors.tcNumber ? 'error' : ''}`}
+                      placeholder="Enter TC Number"
+                      style={{ paddingRight: isCheckingTC ? '40px' : '10px' }}
+                    />
+                    {isCheckingTC && (
+                      <div style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: '12px',
+                        color: '#6366f1'
+                      }}>
+                        Checking...
+                      </div>
+                    )}
+                  </div>
                   {errors.tcNumber && <span className="error-text">{errors.tcNumber}</span>}
+                  {isCheckingTC && (
+                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#6366f1' }}>
+                      🔍 Verifying TC Number uniqueness in inventory...
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">

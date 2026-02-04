@@ -285,6 +285,7 @@ const getInitialFormState = (selectedPO = null) => {
     final_unit_id: '', // Auto-filled from Process IC
     final_unit_name: '', // Auto-filled from Process IC
     final_unit_address: '', // Auto-filled from Process IC
+    final_lots_data: [], // Array of { lotNumber, heatNo, acceptedQtyProcess, offeredQty, noOfBags }
 
     // === PLACE OF INSPECTION ===
     company_id: '', // User selects from dropdown
@@ -866,6 +867,55 @@ export const RaiseInspectionCallForm = ({
 
     fetchHeatNumbersForLots();
   }, [formData.type_of_call, formData.final_lot_numbers, formData.final_rm_ic_numbers]);
+
+  // Step 5: Sync final_lots_data and fetch acceptedProcessQty
+  useEffect(() => {
+    const syncFinalLotsData = async () => {
+      if (formData.type_of_call === 'Final' &&
+        formData.final_lot_numbers && formData.final_lot_numbers.length > 0 &&
+        formData.final_process_ic_numbers && formData.final_process_ic_numbers.length > 0) {
+
+        // Extract Request ID from the first Process IC number
+        const processCert = formData.final_process_ic_numbers[0];
+        const callNoMatch = processCert.match(/N\/([^/]+)\//);
+        const requestId = callNoMatch ? callNoMatch[1] : processCert;
+
+        const updatedLotsData = await Promise.all(formData.final_lot_numbers.map(async (lotNumber) => {
+          const existing = formData.final_lots_data.find(l => l.lotNumber === lotNumber);
+          const heatNo = lotHeatMapping[lotNumber] || '';
+
+          let acceptedQtyProcess = existing?.acceptedQtyProcess || 0;
+
+          // Fetch acceptedQtyProcess if heatNo is available and we don't have it yet or lot/heat changed
+          if (heatNo && requestId) {
+            try {
+              const response = await inspectionCallService.getAcceptedQtyForLot(requestId, lotNumber, heatNo);
+              if (response && response.success) {
+                acceptedQtyProcess = response.data || 0;
+              }
+            } catch (error) {
+              console.error(`Error fetching accepted qty for lot ${lotNumber}:`, error);
+            }
+          }
+
+          return {
+            lotNumber,
+            heatNo,
+            acceptedQtyProcess,
+            offeredQty: existing?.offeredQty || '',
+            noOfBags: existing?.noOfBags || ''
+          };
+        }));
+
+        setFormData(prev => ({ ...prev, final_lots_data: updatedLotsData }));
+      } else {
+        setFormData(prev => ({ ...prev, final_lots_data: [] }));
+      }
+    };
+
+    syncFinalLotsData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.type_of_call, formData.final_lot_numbers, formData.final_process_ic_numbers, lotHeatMapping]);
 
   // Get available RM ICs for Process stage
   // const availableRmIcs = useMemo(() => {
@@ -1527,21 +1577,51 @@ export const RaiseInspectionCallForm = ({
   // Note: handleFinalLotSelection and handleFinalProcessIcSelection were removed
   // as they were unused. The form directly updates formData in onChange handlers.
 
-  // Auto-calculate Total Qty for Final stage
+  // Auto-calculate Total Qty and Total Bags for Final stage
   useEffect(() => {
-    if (formData.final_erc_qty && formData.final_hdpe_bags) {
-      const totalQty = parseInt(formData.final_erc_qty) * parseInt(formData.final_hdpe_bags);
+    if (formData.type_of_call === 'Final' && formData.final_lots_data.length > 0) {
+      const totalQty = formData.final_lots_data.reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
+      const totalBags = formData.final_lots_data.reduce((sum, lot) => sum + (parseInt(lot.noOfBags) || 0), 0);
+
       setFormData(prev => ({
         ...prev,
-        final_total_qty: totalQty.toString()
+        final_erc_qty: totalQty,
+        final_total_qty: totalQty.toString(),
+        final_hdpe_bags: totalBags
       }));
-    } else {
+    } else if (formData.type_of_call === 'Final') {
       setFormData(prev => ({
         ...prev,
-        final_total_qty: ''
+        final_erc_qty: '',
+        final_total_qty: '',
+        final_hdpe_bags: ''
       }));
     }
-  }, [formData.final_erc_qty, formData.final_hdpe_bags]);
+  }, [formData.type_of_call, formData.final_lots_data]);
+
+  // Handle final lot data change
+  const handleFinalLotDataChange = (lotNumber, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      final_lots_data: prev.final_lots_data.map(l => {
+        if (l.lotNumber === lotNumber) {
+          const updatedLot = { ...l, [field]: value };
+
+          // Logic: No. of Bags >= (Qty of that Lot / 50)
+          // Auto-calculate suggested bags when Qty is changed
+          if (field === 'offeredQty') {
+            const minBags = Math.ceil((value || 0) / 50);
+            // If current bags are 0 or less than the new minimum, auto-update them
+            if (!l.noOfBags || l.noOfBags < minBags) {
+              updatedLot.noOfBags = minBags;
+            }
+          }
+          return updatedLot;
+        }
+        return l;
+      })
+    }));
+  };
 
   // === NEW: Heat-TC Mapping Handlers ===
 
@@ -3151,13 +3231,12 @@ export const RaiseInspectionCallForm = ({
               />
 
               <div className="ric-form-grid">
-                {/* STEP 1: RM IC Numbers - First Dropdown (Single Selection) */}
+                {/* STEP 1: RM IC Numbers - First Dropdown (Multi-Select) */}
                 <FormField
                   label="RM IC Numbers"
                   name="final_rm_ic_numbers"
                   required
                   hint="Certificate numbers from completed RM ICs (ER prefix)"
-                  fullWidth
                 >
                   {loadingRmIcsForFinal ? (
                     <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
@@ -3188,13 +3267,12 @@ export const RaiseInspectionCallForm = ({
                   )}
                 </FormField>
 
-                {/* STEP 2: Process IC Numbers - Second Dropdown (Single Selection) */}
+                {/* STEP 2: Process IC Numbers - Second Dropdown (Multi-Select) */}
                 <FormField
                   label="Process IC Numbers"
                   name="final_process_ic_numbers"
                   required
                   hint="Certificate numbers from completed Process ICs (EP prefix)"
-                  fullWidth
                 >
                   {loadingProcessIcs ? (
                     <div style={{ padding: '12px', color: '#666', fontStyle: 'italic' }}>
@@ -3265,8 +3343,8 @@ export const RaiseInspectionCallForm = ({
                 </FormField>
               </div>
 
-              {/* STEP 4: Display separate sections for each selected lot with auto-filled heat numbers */}
-              {formData.final_lot_numbers.length > 0 && (
+              {/* STEP 4: Lot Details Table */}
+              {formData.final_lots_data.length > 0 && (
                 <div style={{ marginTop: '24px' }}>
                   <div style={{
                     fontSize: '16px',
@@ -3276,157 +3354,137 @@ export const RaiseInspectionCallForm = ({
                     borderBottom: '2px solid #e5e7eb',
                     paddingBottom: '8px'
                   }}>
-                    Lot Details ({formData.final_lot_numbers.length} lot{formData.final_lot_numbers.length > 1 ? 's' : ''} selected)
+                    Lot Details ({formData.final_lots_data.length} lot{formData.final_lots_data.length > 1 ? 's' : ''} selected)
                   </div>
 
-                  {formData.final_lot_numbers.map((lotNumber, index) => (
-                    <div
-                      key={lotNumber}
-                      style={{
-                        marginBottom: '16px',
-                        padding: '16px',
-                        backgroundColor: '#f9fafb',
-                        borderRadius: '8px',
-                        border: '1px solid #e5e7eb'
-                      }}
-                    >
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '12px'
-                      }}>
-                        <div style={{ fontSize: '15px', fontWeight: '600', color: '#374151' }}>
-                          Lot #{index + 1}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newLots = formData.final_lot_numbers.filter(lot => lot !== lotNumber);
-                            setFormData(prev => ({ ...prev, final_lot_numbers: newLots }));
-                          }}
-                          style={{
-                            padding: '4px 12px',
-                            backgroundColor: '#ef4444',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '13px',
-                            fontWeight: '500'
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="ric-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#f3f4f6' }}>
+                          <th style={{ padding: '12px', border: '1px solid #e5e7eb', textAlign: 'left' }}>Lot No.</th>
+                          <th style={{ padding: '12px', border: '1px solid #e5e7eb', textAlign: 'left' }}>Heat No.</th>
+                          <th style={{ padding: '12px', border: '1px solid #e5e7eb', textAlign: 'left' }}>Qty Accepted in Process (Auto)</th>
+                          <th style={{ padding: '12px', border: '1px solid #e5e7eb', textAlign: 'left' }}>Qty Offered for Inspection</th>
+                          <th style={{ padding: '12px', border: '1px solid #e5e7eb', textAlign: 'left' }}>No. of Bags</th>
+                          <th style={{ padding: '12px', border: '1px solid #e5e7eb', textAlign: 'center' }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.final_lots_data.map((lot) => {
+                          const isQtyInvalid = lot.offeredQty > lot.acceptedQtyProcess;
+                          const minBagsRequired = Math.ceil((lot.offeredQty || 0) / 50);
+                          const isBagsInvalid = lot.noOfBags > 0 && lot.noOfBags < minBagsRequired;
 
-                      <div className="ric-form-grid">
-                        {/* Lot Number - Auto-filled */}
-                        <FormField
-                          label="Lot No."
-                          name={`lot_number_${index}`}
-                          hint="Auto-filled from selection"
-                        >
-                          <input
-                            type="text"
-                            className="ric-form-input ric-form-input--disabled"
-                            value={lotNumber}
-                            disabled
-                            style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
-                          />
-                        </FormField>
-
-                        {/* Heat Number - Auto-filled */}
-                        <FormField
-                          label="Heat No."
-                          name={`heat_number_${index}`}
-                          hint="Auto-filled based on lot number"
-                        >
-                          <input
-                            type="text"
-                            className="ric-form-input ric-form-input--disabled"
-                            value={lotHeatMapping[lotNumber] || 'Loading...'}
-                            disabled
-                            style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
-                          />
-                        </FormField>
-                      </div>
-                    </div>
-                  ))}
+                          return (
+                            <tr key={lot.lotNumber}>
+                              <td style={{ padding: '12px', border: '1px solid #e5e7eb' }}>{lot.lotNumber}</td>
+                              <td style={{ padding: '12px', border: '1px solid #e5e7eb' }}>{lot.heatNo}</td>
+                              <td style={{ padding: '12px', border: '1px solid #e5e7eb' }}>{lot.acceptedQtyProcess}</td>
+                              <td style={{ padding: '12px', border: '1px solid #e5e7eb' }}>
+                                <input
+                                  type="number"
+                                  className={`ric-form-input ${isQtyInvalid ? 'error' : ''}`}
+                                  value={lot.offeredQty}
+                                  onChange={(e) => handleFinalLotDataChange(lot.lotNumber, 'offeredQty', parseInt(e.target.value) || 0)}
+                                  placeholder="Quantity"
+                                  style={isQtyInvalid ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}
+                                />
+                                {isQtyInvalid && (
+                                  <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>
+                                    Cannot exceed accepted qty ({lot.acceptedQtyProcess})
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ padding: '12px', border: '1px solid #e5e7eb' }}>
+                                <input
+                                  type="number"
+                                  className={`ric-form-input ${isBagsInvalid ? 'error' : ''}`}
+                                  value={lot.noOfBags}
+                                  onChange={(e) => handleFinalLotDataChange(lot.lotNumber, 'noOfBags', parseInt(e.target.value) || 0)}
+                                  placeholder="Bags"
+                                  style={isBagsInvalid ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}
+                                />
+                                {isBagsInvalid && (
+                                  <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>
+                                    Min {minBagsRequired} bags required (Qty/50)
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ padding: '12px', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newLots = formData.final_lot_numbers.filter(l => l !== lot.lotNumber);
+                                    setFormData(prev => ({ ...prev, final_lot_numbers: newLots }));
+                                  }}
+                                  style={{
+                                    padding: '4px 8px',
+                                    backgroundColor: '#fee2e2',
+                                    color: '#ef4444',
+                                    border: '1px solid #fecaca',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px'
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
               <div className="ric-form-grid">
-
-                {/* Qunantity (No. of ERC) - Free Text */}
                 <FormField
                   label="Qunantity (No. of ERC)"
                   name="final_erc_qty"
-                  required
-                // hint="Free Text - Integer"
+                  hint="Sum of offered quantity from all lots"
                 >
                   <input
                     type="number"
                     name="final_erc_qty"
-                    className="ric-form-input"
+                    className="ric-form-input ric-form-input--disabled"
                     value={formData.final_erc_qty}
-                    onChange={handleChange}
-                    min="0"
-                    step="1"
-                    placeholder="Enter quantity (integer)"
+                    disabled
+                    style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
                   />
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#d32f2f', fontWeight: '500' }}>
-                    {/* Final Inspection call can only be placed if: Offered Qty = Corresponding Value for Each Lot */}
-                  </div>
-                  {formData.final_total_accepted_qty_process > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                      Total Accepted Material in Process IC: <strong>{formData.final_total_accepted_qty_process}</strong>
-                    </div>
-                  )}
                 </FormField>
 
-                {/* Total Qty - Auto Calculate */}
                 <FormField
                   label="Total Qty"
                   name="final_total_qty"
-                // hint="Auto calculate: Quantity × No. of HDPE Bags"
+                  hint="Auto-calculated from Lot Details"
                 >
                   <input
                     type="text"
                     className="ric-form-input ric-form-input--disabled"
                     value={formData.final_total_qty}
                     disabled
+                    style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
                     placeholder="Auto-calculated"
                   />
                 </FormField>
 
-                {/* No of HDPE Bags - Free Text */}
                 <FormField
                   label="No of HDPE Bags"
                   name="final_hdpe_bags"
-                  required
-                // hint="Free Text - Integer. Validation: Total Qty / No. of HDPE Bags <= 50"
+                  hint="Sum of bags from all lots"
                 >
                   <input
                     type="number"
                     name="final_hdpe_bags"
-                    className="ric-form-input"
+                    className="ric-form-input ric-form-input--disabled"
                     value={formData.final_hdpe_bags}
-                    onChange={handleChange}
-                    min="1"
-                    step="1"
-                    placeholder="Enter number of bags (integer)"
+                    disabled
+                    style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                    placeholder="Auto-calculated"
                   />
-                  {formData.final_total_qty && formData.final_hdpe_bags && (
-                    <div style={{ marginTop: '8px', fontSize: '14px', color: '#666' }}>
-                      Qty per bag: <strong>{Math.ceil(parseInt(formData.final_total_qty) / parseInt(formData.final_hdpe_bags))}</strong>
-                      {Math.ceil(parseInt(formData.final_total_qty) / parseInt(formData.final_hdpe_bags)) > 50 && (
-                        <span style={{ color: '#d32f2f', marginLeft: '8px' }}>(Exceeds limit of 50!)</span>
-                      )}
-                    </div>
-                  )}
                 </FormField>
-
               </div>
             </>
           )}
@@ -3445,11 +3503,9 @@ export const RaiseInspectionCallForm = ({
                   setFormData(prev => ({
                     ...prev,
                     company_name: selectedCompanyName,
-                    // Reset unit when company changes
                     unit_name: '',
                     unit_address: ''
                   }));
-                  // Reset POI code when company changes
                   setPoiCode('');
                 }}
                 disabled={loadingCompanies}
@@ -3464,16 +3520,6 @@ export const RaiseInspectionCallForm = ({
                 ))}
               </select>
             </FormField>
-
-            {/* CIN - Auto Fetch from master data */}
-            {/* <FormField label="place of Inspection - CIN" name="cin" hint="Auto Fetch from master data">
-              <input
-                type="text"
-                className="ric-form-input ric-form-input--disabled"
-                value={formData.cin}
-                disabled
-              />
-            </FormField> */}
 
             {/* Unit Name - Dropdown for all call types */}
             <FormField
@@ -3490,10 +3536,8 @@ export const RaiseInspectionCallForm = ({
                   setFormData(prev => ({
                     ...prev,
                     unit_name: selectedUnitName,
-                    // Address will be auto-filled by useEffect
                     unit_address: ''
                   }));
-                  // POI code will be fetched by useEffect
                   setPoiCode('');
                 }}
                 disabled={loadingUnits || !formData.company_name}
@@ -3522,54 +3566,6 @@ export const RaiseInspectionCallForm = ({
             </FormField>
           </div>
 
-          {/* Company Details Table - Show for non-Final stages when unit is selected, or for Final when lots are selected */}
-          {/* {((formData.type_of_call !== 'Final' && formData.unit_id) || (formData.type_of_call === 'Final' && formData.final_unit_name)) && (
-            <div style={{ marginTop: '24px', marginBottom: '24px' }}>
-              <h4 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: '#333' }}>
-                Company Details Table
-              </h4>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  border: '1px solid #ddd',
-                  fontSize: '14px'
-                }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f5f5f5' }}>
-                      <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left', fontWeight: '600' }}>Name</th>
-                      <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left', fontWeight: '600' }}>CIN</th>
-                      <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left', fontWeight: '600' }}>Unit Name</th>
-                      <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left', fontWeight: '600' }}>Unit Address</th>
-                      <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left', fontWeight: '600' }}>GSTIN</th>
-                      <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left', fontWeight: '600' }}>Name of Contact Person</th>
-                      <th style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'left', fontWeight: '600' }}>Role of Unit (ERC Manufacturer, Steel Round Supplier (ERC), Sleeper Manufacturer, Cement Supplier)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{formData.company_name}</td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{formData.cin}</td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                        {formData.type_of_call === 'Final' ? formData.final_unit_name : formData.unit_name}
-                      </td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>
-                        {formData.type_of_call === 'Final' ? formData.final_unit_address : formData.unit_address}
-                      </td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{formData.unit_gstin}</td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{formData.unit_contact_person}</td>
-                      <td style={{ padding: '12px', border: '1px solid #ddd' }}>{formData.unit_role}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div style={{ marginTop: '12px', fontSize: '12px', color: '#666', fontStyle: 'italic' }}>
-                Note: Entries created by Admin or created by Vendor (approved by Admin)
-              </div>
-            </div>
-          )} */}
-
-          {/* ============ REMARKS ============ */}
           <SectionHeader title="Additional Information" />
 
           <div className="ric-form-grid">
@@ -3585,7 +3581,6 @@ export const RaiseInspectionCallForm = ({
             </FormField>
           </div>
 
-          {/* ============ FORM ACTIONS ============ */}
           <div className="ric-form-actions">
             <button
               type="button"
