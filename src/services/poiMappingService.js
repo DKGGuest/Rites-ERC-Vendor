@@ -12,9 +12,9 @@ const poiMappingService = {
    * Get all companies for POI dropdown
    * @returns {Promise} API response with list of company names
    */
-  getCompanies: async () => {
+  getCompanies: async (vendorCode) => {
     try {
-      const response = await httpClient.get('/poiMapping/companies');
+      const response = await httpClient.get(`/poiMapping/companies?vendorCode=${vendorCode}`);
       return response; // Return full response object with success and data
     } catch (error) {
       console.error('Error fetching companies:', error);
