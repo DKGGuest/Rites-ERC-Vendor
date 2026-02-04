@@ -11,6 +11,18 @@ import { API_ENDPOINTS } from './apiConfig';
 import { getStoredUser } from '../services/authService';
 
 
+ const normalizeIc = (ic) => {
+  if (!ic) return ic;
+
+  const parts = ic.split('/');
+
+  // E/ER-02040020/RAHIV → ER-02040020
+  if (parts.length >= 2) {
+    return parts[1];
+  }
+
+  return ic; // already ER-xxxx
+};
 /**
  * Inspection Call Service
  * Provides methods for creating and fetching inspection calls
@@ -27,6 +39,8 @@ const inspectionCallService = {
    * @param {Object} rmInspectionData - RM inspection call data
    * @returns {Promise<Object>} - API response with created IC details including auto-generated IC number
    */
+
+  
   createRMInspectionCall: async (rmInspectionData) => {
 
     const user = getStoredUser();
@@ -238,10 +252,13 @@ const inspectionCallService = {
    * @param {string} rmIcNumber - RM IC Number (call_no from inspection_complete_details)
    * @returns {Promise<Object>} - API response with heat numbers and details
    */
+ 
+
   getHeatNumbersByRmIcNumber: async (rmIcNumber) => {
     try {
+      const callNo = normalizeIc(rmIcNumber);
       const response = await httpClient.get(
-        `/raw-material/heats-by-rm-ic/${encodeURIComponent(rmIcNumber)}`
+        `/raw-material/heats-by-rm-ic/${encodeURIComponent(callNo)}`
       );
       return response;
     } catch (error) {
@@ -705,7 +722,8 @@ const inspectionCallService = {
     try {
       // Extract call number from RM IC number
       // Format: "N/ER-01150001/RAJK" → "ER-01150001"
-      const callNoMatch = rmIcNumber.match(/N\/([^/]+)\//);
+      /*const callNoMatch = rmIcNumber.match(/N\/([^/]+)\//);*/
+      const callNoMatch = rmIcNumber.match(/^[NSWEC]\/([^/]+)\//);
       const callNo = callNoMatch ? callNoMatch[1] : rmIcNumber;
 
       console.log(`📋 Fetching PO number for RM IC: ${rmIcNumber}, Call No: ${callNo}`);
