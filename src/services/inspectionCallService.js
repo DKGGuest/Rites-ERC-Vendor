@@ -255,10 +255,7 @@ const inspectionCallService = {
     try {
       const callNo = normalizeIc(rmIcNumber);
       const response = await httpClient.get(
-      //  /raw-material/heats-by-rm-ic/${encodeURIComponent(rmIcNumber)}
-        /raw-material/heats-by-rm-ic/${encodeURIComponent(callNo)}
-    //  const response = await httpClient.get(
-     //   `/raw-material/heats-by-rm-ic/${encodeURIComponent(rmIcNumber)}`
+        `/raw-material/heats-by-rm-ic/${encodeURIComponent(callNo)}`
       );
       return response;
     } catch (error) {
