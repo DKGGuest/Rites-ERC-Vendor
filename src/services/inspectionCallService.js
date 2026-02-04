@@ -15,6 +15,19 @@ import { getStoredUser } from '../services/authService';
  * Inspection Call Service
  * Provides methods for creating and fetching inspection calls
  */
+
+const normalizeIc = (ic) => {
+  if (!ic) return ic;
+
+  const parts = ic.split('/');
+
+  // E/ER-02040020/RAHIV → ER-02040020
+  if (parts.length >= 2) {
+    return parts[1];
+  }
+
+  return ic; // already ER-xxxx
+};
 const inspectionCallService = {
 
 
@@ -240,8 +253,12 @@ const inspectionCallService = {
    */
   getHeatNumbersByRmIcNumber: async (rmIcNumber) => {
     try {
+      const callNo = normalizeIc(rmIcNumber);
       const response = await httpClient.get(
-        `/raw-material/heats-by-rm-ic/${encodeURIComponent(rmIcNumber)}`
+      //  /raw-material/heats-by-rm-ic/${encodeURIComponent(rmIcNumber)}
+        /raw-material/heats-by-rm-ic/${encodeURIComponent(callNo)}
+    //  const response = await httpClient.get(
+     //   `/raw-material/heats-by-rm-ic/${encodeURIComponent(rmIcNumber)}`
       );
       return response;
     } catch (error) {
@@ -705,7 +722,8 @@ const inspectionCallService = {
     try {
       // Extract call number from RM IC number
       // Format: "N/ER-01150001/RAJK" → "ER-01150001"
-      const callNoMatch = rmIcNumber.match(/N\/([^/]+)\//);
+     // const callNoMatch = rmIcNumber.match(/N\/([^/]+)\//);
+      const callNoMatch = rmIcNumber.match(/^[NSWEC]\/([^/]+)\//);
       const callNo = callNoMatch ? callNoMatch[1] : rmIcNumber;
 
       console.log(`📋 Fetching PO number for RM IC: ${rmIcNumber}, Call No: ${callNo}`);
