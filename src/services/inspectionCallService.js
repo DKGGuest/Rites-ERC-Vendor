@@ -718,9 +718,8 @@ const inspectionCallService = {
   getPoNumberByRmIc: async (rmIcNumber) => {
     try {
       // Extract call number from RM IC number
-      // Format: "N/ER-01150001/RAJK" → "ER-01150001"
-     // const callNoMatch = rmIcNumber.match(/N\/([^/]+)\//);
-      const callNoMatch = rmIcNumber.match(/^[NSWEC]\/([^/]+)\//);
+      // Format: "ANYPART/ER-01150001/ANYPART" → "ER-01150001"
+      const callNoMatch = rmIcNumber.match(/[^/]+\/([^/]+)\//);
       const callNo = callNoMatch ? callNoMatch[1] : rmIcNumber;
 
       console.log(`📋 Fetching PO number for RM IC: ${rmIcNumber}, Call No: ${callNo}`);

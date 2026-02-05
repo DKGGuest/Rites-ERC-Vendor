@@ -585,8 +585,8 @@ export const RaiseInspectionCallForm = ({
               console.log(`  📋 Processing certificate: ${certificateNo}`);
 
               // Extract call number from certificate number for API call
-              // Certificate format: "N/ER-01080001/RAJK" → Call number: "ER-01080001"
-              const callNoMatch = certificateNo.match(/N\/([^/]+)\//);
+              // Certificate format: "ANYPART/ER-01080001/ANYPART" → Call number: "ER-01080001"
+              const callNoMatch = certificateNo.match(/[^/]+\/([^/]+)\//);
               const callNo = callNoMatch ? callNoMatch[1] : certificateNo;
               console.log(`  ✂️ Extracted call number: ${callNo}`);
 
@@ -660,8 +660,8 @@ export const RaiseInspectionCallForm = ({
           console.log('🏢 First certificate:', firstCertificateNo);
 
           // Extract call number from certificate number
-          // Certificate format: "N/ER-01080001/RAJK" → Call number: "ER-01080001"
-          const callNoMatch = firstCertificateNo.match(/N\/([^/]+)\//);
+          // Certificate format: "ANYPART/ER-01080001/ANYPART" → Call number: "ER-01080001"
+          const callNoMatch = firstCertificateNo.match(/[^/]+\/([^/]+)\//);
           const callNo = callNoMatch ? callNoMatch[1] : firstCertificateNo;
 
           console.log(`  📋 Extracted call number: ${callNo}`);
@@ -877,7 +877,7 @@ export const RaiseInspectionCallForm = ({
 
         // Extract Request ID from the first Process IC number
         const processCert = formData.final_process_ic_numbers[0];
-        const callNoMatch = processCert.match(/N\/([^/]+)\//);
+        const callNoMatch = processCert.match(/[^/]+\/([^/]+)\//);
         const requestId = callNoMatch ? callNoMatch[1] : processCert;
 
         const updatedLotsData = await Promise.all(formData.final_lot_numbers.map(async (lotNumber) => {
@@ -1343,7 +1343,7 @@ export const RaiseInspectionCallForm = ({
 
             // Step 2: Get heat numbers from the selected RM IC
             // Extract call number from RM IC number for API call
-            const callNoMatch = rmIcNumber.match(/N\/([^/]+)\//);
+            const callNoMatch = rmIcNumber.match(/[^/]+\/([^/]+)\//);
             const callNo = callNoMatch ? callNoMatch[1] : rmIcNumber;
 
             const heatResponse = await inspectionCallService.getHeatNumbersByRmIcNumber(callNo);
