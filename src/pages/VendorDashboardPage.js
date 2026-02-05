@@ -36,6 +36,8 @@ import poAssignedService from '../services/poAssignedService';
 import inventoryService from '../services/inventoryService';
 import '../styles/vendorDashboard.css';
 import { getStoredUser } from '../services/authService';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
 
 const VendorDashboardPage = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState('po-assigned');
@@ -110,6 +112,7 @@ const VendorDashboardPage = ({ onBack }) => {
   const [isViewInventoryModalOpen, setIsViewInventoryModalOpen] = useState(false);
   const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
   const [selectedInventoryEntry, setSelectedInventoryEntry] = useState(null);
+  const [editingInventoryEntry, setEditingInventoryEntry] = useState(null);
   const [isDeletingEntry, setIsDeletingEntry] = useState(false);
 
 
@@ -143,7 +146,7 @@ const VendorDashboardPage = ({ onBack }) => {
   const [requestedCallsSortColumn, setRequestedCallsSortColumn] = useState(null);
   const [requestedCallsSortDirection, setRequestedCallsSortDirection] = useState('asc');
 
-    const user = getStoredUser();
+  const user = getStoredUser();
 
   // ============ VENDOR WORKFLOW API INTEGRATION ============
   // Initialize the workflow hook for API calls
@@ -943,19 +946,19 @@ const VendorDashboardPage = ({ onBack }) => {
 
         // Check for inventory validation errors
         if (errorMessage.includes('Inventory validation failed') ||
-            errorMessage.includes('exceeds available quantity')) {
+          errorMessage.includes('exceeds available quantity')) {
           errorDetails += '\n\n⚠️ Inventory Issue:\nThe offered quantity exceeds the available quantity in inventory.\nPlease check the heat numbers and reduce the offered quantities.';
         }
       }
 
       // Show user-friendly error message
       alert(`❌ Failed to Submit Inspection Request\n\n${errorMessage}${errorDetails}\n\n` +
-            `Please check:\n` +
-            `1. All required fields are filled correctly\n` +
-            `2. Offered quantities do not exceed available inventory\n` +
-            `3. API server is running (http://localhost:8080)\n` +
-            `4. Database connection is working\n\n` +
-            `Your form data has been preserved. Please fix the errors and try again.`);
+        `Please check:\n` +
+        `1. All required fields are filled correctly\n` +
+        `2. Offered quantities do not exceed available inventory\n` +
+        `3. API server is running (http://localhost:8080)\n` +
+        `4. Database connection is working\n\n` +
+        `Your form data has been preserved. Please fix the errors and try again.`);
     } finally {
       setIsLoading(false);
     }
@@ -982,18 +985,20 @@ const VendorDashboardPage = ({ onBack }) => {
       const inventoryData = {
         ...data,
         // vendorCode: '13104', // TODO: Get from auth context
-         vendorCode: user.userName, 
+        vendorCode: user.userName,
         vendorName: 'Vendor Name' // TODO: Get from auth context
       };
 
       // Call backend API to save inventory entry
-      const response = await inventoryService.createInventoryEntry(inventoryData);
+      const response = editingInventoryEntry
+        ? await inventoryService.updateInventoryEntry(editingInventoryEntry.id, inventoryData)
+        : await inventoryService.createInventoryEntry(inventoryData);
 
       if (response.success) {
-        console.log('✅ Inventory entry saved to database:', response.data);
+        console.log(`✅ Inventory entry ${editingInventoryEntry ? 'updated' : 'saved'} in database:`, response.data);
 
         // Transform backend response to match frontend structure
-        const newEntry = {
+        const savedEntry = {
           id: response.data.id,
           rawMaterial: response.data.rawMaterial,
           supplierName: response.data.supplierName,
@@ -1010,8 +1015,8 @@ const VendorDashboardPage = ({ onBack }) => {
           rateOfMaterial: response.data.rateOfMaterial,
           rateOfGst: response.data.rateOfGst,
           declaredQuantity: response.data.tcQuantity,
-          qtyOfferedForInspection: 0, // Initially 0, will be updated when inspection is raised
-          qtyLeftForInspection: response.data.tcQuantity, // Initially same as declared quantity
+          qtyOfferedForInspection: response.data.offeredQuantity || 0,
+          qtyLeftForInspection: response.data.qtyLeftForInspection !== undefined ? response.data.qtyLeftForInspection : response.data.tcQuantity,
           unitOfMeasurement: response.data.unitOfMeasurement,
           baseValuePO: response.data.baseValuePo,
           totalPO: response.data.totalPo,
@@ -1019,21 +1024,27 @@ const VendorDashboardPage = ({ onBack }) => {
           status: response.data.status === 'FRESH_PO' ? 'Fresh' : response.data.status,
           companyId: response.data.companyId,
           companyName: response.data.companyName,
-          unitId: data.unitId,
+          unitId: data.unitId || response.data.unitName,
           unitName: response.data.unitName,
           createdAt: response.data.createdAt
         };
 
-        // Add to inventory entries state
-        setInventoryEntries(prev => [newEntry, ...prev]);
-
-        // Show success message
-        alert(`✅ Inventory entry saved successfully!\n\nMaterial: ${data.rawMaterial}\nSupplier: ${data.supplierName}\nQuantity: ${data.declaredQuantity} ${data.unitOfMeasurement}\n\nThe entry has been saved to the database.`);
+        if (editingInventoryEntry) {
+          // Update in local state
+          setInventoryEntries(prev => prev.map(entry => entry.id === editingInventoryEntry.id ? savedEntry : entry));
+          setEditingInventoryEntry(null);
+          alert(`✅ Inventory entry updated successfully!\n\nMaterial: ${data.rawMaterial}\nHeat Number: ${data.heatNumber}`);
+        } else {
+          // Add to inventory entries state
+          setInventoryEntries(prev => [savedEntry, ...prev]);
+          // Show success message
+          alert(`✅ Inventory entry saved successfully!\n\nMaterial: ${data.rawMaterial}\nSupplier: ${data.supplierName}\nQuantity: ${data.declaredQuantity} ${data.unitOfMeasurement}`);
+        }
 
         // Return true to signal form to reset
         return true;
       } else {
-        throw new Error(response.error || 'Failed to save inventory entry');
+        throw new Error(response.error || `Failed to ${editingInventoryEntry ? 'update' : 'save'} inventory entry`);
       }
 
     } catch (error) {
@@ -1057,13 +1068,19 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   const handleEditInventoryEntry = (entry) => {
-    // Close view modal
+    // Close view modal if it's open
     setIsViewInventoryModalOpen(false);
 
-    // TODO: Implement edit functionality
-    // For now, just show an alert
-    alert(`Edit functionality for entry ${entry.heatNumber} will be implemented soon.\n\nThis will open a form pre-filled with the entry data for editing.`);
-    console.log('Edit entry:', entry);
+    // Set the entry to be edited
+    setEditingInventoryEntry(entry);
+
+    // Scroll to the inventory form section
+    setTimeout(() => {
+      const formSection = document.querySelector('.inventory-form-section');
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
   };
 
   const handleDeleteInventoryEntry = (entry) => {
@@ -1863,16 +1880,55 @@ const VendorDashboardPage = ({ onBack }) => {
       key: 'actions',
       label: 'Actions',
       render: (value, row) => (
-        <button
-          className="btn btn-sm btn-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleViewInventoryEntry(row);
-          }}
-          title="View Details"
-        >
-          👁️ View
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleViewInventoryEntry(row);
+            }}
+            title="View Details"
+            style={{
+              width: '90px',
+              height: '32px',
+              padding: '0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              fontSize: '13px'
+            }}
+          >
+            <VisibilityIcon sx={{ fontSize: '16px' }} />
+            View
+          </button>
+          {(row.status === 'Fresh' || row.status === 'FRESH_PO') && (
+            <button
+              className="btn btn-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditInventoryEntry(row);
+              }}
+              title="Edit Entry"
+              style={{
+                backgroundColor: '#f59e0b',
+                color: 'white',
+                width: '90px',
+                height: '32px',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                border: 'none',
+                fontSize: '13px'
+              }}
+            >
+              <EditIcon sx={{ fontSize: '16px' }} />
+              Edit
+            </button>
+          )}
+        </div>
       )
     }
   ];
@@ -1954,95 +2010,95 @@ const VendorDashboardPage = ({ onBack }) => {
               {/* Custom Expandable PO Table */}
               {!loadingPOData && (
                 <>
-                <div className="data-table-wrapper">
-                  {/* Search Bar and Page Size Selector */}
-                  <div className="table-controls">
-                    <input
-                      type="text"
-                      className="form-control search-box"
-                      placeholder="Search..."
-                      value={poAssignedSearchTerm}
-                      onChange={(e) => {
-                        setPoAssignedSearchTerm(e.target.value);
-                        setPoAssignedCurrentPage(1); // Reset to first page on search
-                      }}
-                    />
-                    <select
-                      className="form-control"
-                      style={{ width: '120px' }}
-                      value={poAssignedPageSize}
-                      onChange={(e) => {
-                        setPoAssignedPageSize(Number(e.target.value));
-                        setPoAssignedCurrentPage(1); // Reset to first page on page size change
-                      }}
-                    >
-                      <option value={10}>10 / page</option>
-                      <option value={25}>25 / page</option>
-                      <option value={50}>50 / page</option>
-                      <option value={100}>100 / page</option>
-                    </select>
-                  </div>
-                  <div className="data-table-container">
-                    <table className="data-table expandable-po-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '50px' }}></th>
-                          {poColumns.map(col => (
-                            <th
-                              key={col.key}
-                              onClick={() => handlePOAssignedSort(col.key)}
-                              style={{ cursor: 'pointer', userSelect: 'none' }}
-                            >
-                              {col.label} {poAssignedSortColumn === col.key && (poAssignedSortDirection === 'asc' ? '↑' : '↓')}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedPOAssigned.length === 0 ? (
+                  <div className="data-table-wrapper">
+                    {/* Search Bar and Page Size Selector */}
+                    <div className="table-controls">
+                      <input
+                        type="text"
+                        className="form-control search-box"
+                        placeholder="Search..."
+                        value={poAssignedSearchTerm}
+                        onChange={(e) => {
+                          setPoAssignedSearchTerm(e.target.value);
+                          setPoAssignedCurrentPage(1); // Reset to first page on search
+                        }}
+                      />
+                      <select
+                        className="form-control"
+                        style={{ width: '120px' }}
+                        value={poAssignedPageSize}
+                        onChange={(e) => {
+                          setPoAssignedPageSize(Number(e.target.value));
+                          setPoAssignedCurrentPage(1); // Reset to first page on page size change
+                        }}
+                      >
+                        <option value={10}>10 / page</option>
+                        <option value={25}>25 / page</option>
+                        <option value={50}>50 / page</option>
+                        <option value={100}>100 / page</option>
+                      </select>
+                    </div>
+                    <div className="data-table-container">
+                      <table className="data-table expandable-po-table">
+                        <thead>
                           <tr>
-                            <td colSpan={poColumns.length + 1} style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
-                              No PO data available
-                            </td>
-                          </tr>
-                        ) : (
-                          paginatedPOAssigned.map((po) => (
-                        <React.Fragment key={po.id}>
-                          {/* PO Row */}
-                          <tr className={`po-row ${expandedPORows[po.id] ? 'expanded' : ''}`}>
-                            <td>
-                              <button
-                                className="po-expand-btn"
-                                onClick={() => togglePORow(po.id)}
-                                aria-label={expandedPORows[po.id] ? 'Collapse' : 'Expand'}
-                              >
-                                {expandedPORows[po.id] ? '−' : '+'}
-                              </button>
-                            </td>
+                            <th style={{ width: '50px' }}></th>
                             {poColumns.map(col => (
-                              <td key={col.key} data-label={col.label}>
-                                {col.render ? col.render(po[col.key], po) : po[col.key]}
-                              </td>
+                              <th
+                                key={col.key}
+                                onClick={() => handlePOAssignedSort(col.key)}
+                                style={{ cursor: 'pointer', userSelect: 'none' }}
+                              >
+                                {col.label} {poAssignedSortColumn === col.key && (poAssignedSortDirection === 'asc' ? '↑' : '↓')}
+                              </th>
                             ))}
                           </tr>
-                          {/* Expanded Items Row */}
-                          {expandedPORows[po.id] && (
-                            <tr className="po-items-row">
-                              <td colSpan={poColumns.length + 1}>
-                                <div className="po-items-container">
-                                  <div className="po-items-header">
-                                    <span className="po-items-title">Items in {po.po_no}</span>
-                                    {/* <button
+                        </thead>
+                        <tbody>
+                          {sortedPOAssigned.length === 0 ? (
+                            <tr>
+                              <td colSpan={poColumns.length + 1} style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
+                                No PO data available
+                              </td>
+                            </tr>
+                          ) : (
+                            paginatedPOAssigned.map((po) => (
+                              <React.Fragment key={po.id}>
+                                {/* PO Row */}
+                                <tr className={`po-row ${expandedPORows[po.id] ? 'expanded' : ''}`}>
+                                  <td>
+                                    <button
+                                      className="po-expand-btn"
+                                      onClick={() => togglePORow(po.id)}
+                                      aria-label={expandedPORows[po.id] ? 'Collapse' : 'Expand'}
+                                    >
+                                      {expandedPORows[po.id] ? '−' : '+'}
+                                    </button>
+                                  </td>
+                                  {poColumns.map(col => (
+                                    <td key={col.key} data-label={col.label}>
+                                      {col.render ? col.render(po[col.key], po) : po[col.key]}
+                                    </td>
+                                  ))}
+                                </tr>
+                                {/* Expanded Items Row */}
+                                {expandedPORows[po.id] && (
+                                  <tr className="po-items-row">
+                                    <td colSpan={poColumns.length + 1}>
+                                      <div className="po-items-container">
+                                        <div className="po-items-header">
+                                          <span className="po-items-title">Items in {po.po_no}</span>
+                                          {/* <button
                                       className="btn btn-sm btn-secondary"
                                       onClick={() => handleOpenAddSubPOModal(po, null)}
                                       style={{ whiteSpace: 'nowrap' }}
                                     >
                                       + Add Sub PO
                                     </button> */}
-                                  </div>
+                                        </div>
 
-                                  {/* Sub PO List Table */}
-                                  {/* {(() => {
+                                        {/* Sub PO List Table */}
+                                        {/* {(() => {
                                     const poSubPOs = subPOList.filter(subPO =>
                                       po.items?.some(item => item.id === subPO.po_item_id)
                                     );
@@ -2099,76 +2155,76 @@ const VendorDashboardPage = ({ onBack }) => {
                                     return null;
                                   })()} */}
 
-                                  {/* PO Items Table */}
-                                  <h4 className="po-items-section-title">PO Items</h4>
-                                  <table className="po-items-table">
-                                    <thead>
-                                      <tr>
-                                        <th
-                                          onClick={() => handlePOItemsSort(po.id, 'item_name')}
-                                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                                        >
-                                          Item Description {poItemsSortColumn[po.id] === 'item_name' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th
-                                          onClick={() => handlePOItemsSort(po.id, 'po_serial_no')}
-                                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                                        >
-                                          PO Serial No. {poItemsSortColumn[po.id] === 'po_serial_no' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th
-                                          onClick={() => handlePOItemsSort(po.id, 'consignee')}
-                                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                                        >
-                                          Consignee {poItemsSortColumn[po.id] === 'consignee' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th
-                                          onClick={() => handlePOItemsSort(po.id, 'item_qty')}
-                                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                                        >
-                                          Ordered Quantity {poItemsSortColumn[po.id] === 'item_qty' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th
-                                          onClick={() => handlePOItemsSort(po.id, 'delivery_period')}
-                                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                                        >
-                                          Delivery Period {poItemsSortColumn[po.id] === 'delivery_period' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th
-                                          onClick={() => handlePOItemsSort(po.id, 'item_status')}
-                                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                                        >
-                                          Status {poItemsSortColumn[po.id] === 'item_status' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th>Action</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {po.items && po.items.length > 0 ? (
-                                        (() => {
-                                          // Get all approved Sub POs for this PO (shared across all items,  selectedSubPOsByItem[item.id] || )
-                                          const approvedSubPOs = getApprovedSubPOsForPO(po);
+                                        {/* PO Items Table */}
+                                        <h4 className="po-items-section-title">PO Items</h4>
+                                        <table className="po-items-table">
+                                          <thead>
+                                            <tr>
+                                              <th
+                                                onClick={() => handlePOItemsSort(po.id, 'item_name')}
+                                                style={{ cursor: 'pointer', userSelect: 'none' }}
+                                              >
+                                                Item Description {poItemsSortColumn[po.id] === 'item_name' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                              </th>
+                                              <th
+                                                onClick={() => handlePOItemsSort(po.id, 'po_serial_no')}
+                                                style={{ cursor: 'pointer', userSelect: 'none' }}
+                                              >
+                                                PO Serial No. {poItemsSortColumn[po.id] === 'po_serial_no' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                              </th>
+                                              <th
+                                                onClick={() => handlePOItemsSort(po.id, 'consignee')}
+                                                style={{ cursor: 'pointer', userSelect: 'none' }}
+                                              >
+                                                Consignee {poItemsSortColumn[po.id] === 'consignee' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                              </th>
+                                              <th
+                                                onClick={() => handlePOItemsSort(po.id, 'item_qty')}
+                                                style={{ cursor: 'pointer', userSelect: 'none' }}
+                                              >
+                                                Ordered Quantity {poItemsSortColumn[po.id] === 'item_qty' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                              </th>
+                                              <th
+                                                onClick={() => handlePOItemsSort(po.id, 'delivery_period')}
+                                                style={{ cursor: 'pointer', userSelect: 'none' }}
+                                              >
+                                                Delivery Period {poItemsSortColumn[po.id] === 'delivery_period' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                              </th>
+                                              <th
+                                                onClick={() => handlePOItemsSort(po.id, 'item_status')}
+                                                style={{ cursor: 'pointer', userSelect: 'none' }}
+                                              >
+                                                Status {poItemsSortColumn[po.id] === 'item_status' && (poItemsSortDirection[po.id] === 'asc' ? '↑' : '↓')}
+                                              </th>
+                                              <th>Action</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {po.items && po.items.length > 0 ? (
+                                              (() => {
+                                                // Get all approved Sub POs for this PO (shared across all items,  selectedSubPOsByItem[item.id] || )
+                                                const approvedSubPOs = getApprovedSubPOsForPO(po);
 
-                                          // Sort the items based on current sort state
-                                          const sortedItems = getSortedPOItems(po.id, po.items);
+                                                // Sort the items based on current sort state
+                                                const sortedItems = getSortedPOItems(po.id, po.items);
 
-                                          return sortedItems.map((item) => {
-                                            const selectedSubPO = '';
+                                                return sortedItems.map((item) => {
+                                                  const selectedSubPO = '';
 
-                                            return (
-                                              <tr key={item.id}>
-                                                <td>{item.item_name}</td>
-                                                <td>{item.po_serial_no}</td>
-                                                <td>{item.consignee}</td>
-                                                <td>{item.item_qty} {item.item_unit}</td>
-                                                <td>{formatDate(item.delivery_period)}</td>
-                                                <td>
-                                                  <StatusBadge status={item.item_status} />
-                                                </td>
-                                                <td>
-                                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                    {/* Sub PO Dropdown - Always show for all items */}
-                                                    {/* <select
+                                                  return (
+                                                    <tr key={item.id}>
+                                                      <td>{item.item_name}</td>
+                                                      <td>{item.po_serial_no}</td>
+                                                      <td>{item.consignee}</td>
+                                                      <td>{item.item_qty} {item.item_unit}</td>
+                                                      <td>{formatDate(item.delivery_period)}</td>
+                                                      <td>
+                                                        <StatusBadge status={item.item_status} />
+                                                      </td>
+                                                      <td>
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                          {/* Sub PO Dropdown - Always show for all items */}
+                                                          {/* <select
                                                       className="ric-form-select"
                                                       value={selectedSubPO}
                                                       onChange={(e) => {
@@ -2187,37 +2243,37 @@ const VendorDashboardPage = ({ onBack }) => {
                                                       ))}
                                                     </select> */}
 
-                                                    {/* Raise Inspection Request Button */}
-                                                    <button
-                                                      className="btn btn-sm btn-primary"
-                                                      onClick={() => {
-                                                        const subPOData = selectedSubPO
-                                                          ? approvedSubPOs.find(sp => sp.id === parseInt(selectedSubPO))
-                                                          : null;
-                                                        handleOpenInspectionModal(po, item, subPOData);
-                                                      }}
-                                                      style={{ whiteSpace: 'nowrap' }}
-                                                    >
-                                                      Raise Inspection Request
-                                                    </button>
-                                                  </div>
+                                                          {/* Raise Inspection Request Button */}
+                                                          <button
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={() => {
+                                                              const subPOData = selectedSubPO
+                                                                ? approvedSubPOs.find(sp => sp.id === parseInt(selectedSubPO))
+                                                                : null;
+                                                              handleOpenInspectionModal(po, item, subPOData);
+                                                            }}
+                                                            style={{ whiteSpace: 'nowrap' }}
+                                                          >
+                                                            Raise Inspection Request
+                                                          </button>
+                                                        </div>
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                });
+                                              })()
+                                            ) : (
+                                              <tr>
+                                                <td colSpan={7} style={{ textAlign: 'center', color: '#6b7280' }}>
+                                                  No items found for this PO
                                                 </td>
                                               </tr>
-                                            );
-                                          });
-                                        })()
-                                      ) : (
-                                        <tr>
-                                          <td colSpan={7} style={{ textAlign: 'center', color: '#6b7280' }}>
-                                            No items found for this PO
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </table>
+                                            )}
+                                          </tbody>
+                                        </table>
 
-                                  {/* Approved RM Inspection Calls Section */}
-                                  {/* <div className="approved-rm-ics-section" style={{ marginTop: '24px' }}>
+                                        {/* Approved RM Inspection Calls Section */}
+                                        {/* <div className="approved-rm-ics-section" style={{ marginTop: '24px' }}>
                                     <h4 className="po-items-section-title">Approved Raw Material Inspection Calls</h4>
                                     <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px' }}>
                                       List of approved RM inspection calls for this PO. These can be used for Process Inspection.
@@ -2276,45 +2332,45 @@ const VendorDashboardPage = ({ onBack }) => {
                                       </tbody>
                                     </table>
                                   </div> */}
-                                </div>
-                              </td>
-                            </tr>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            ))
                           )}
-                        </React.Fragment>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
 
-                {/* Pagination Controls */}
-                {sortedPOAssigned.length > 0 && (
-                  <div className="pagination-controls" style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '14px', color: '#6b7280' }}>
-                      Showing {((poAssignedCurrentPage - 1) * poAssignedPageSize) + 1} to {Math.min(poAssignedCurrentPage * poAssignedPageSize, sortedPOAssigned.length)} of {sortedPOAssigned.length} POs
+                  {/* Pagination Controls */}
+                  {sortedPOAssigned.length > 0 && (
+                    <div className="pagination-controls" style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                        Showing {((poAssignedCurrentPage - 1) * poAssignedPageSize) + 1} to {Math.min(poAssignedCurrentPage * poAssignedPageSize, sortedPOAssigned.length)} of {sortedPOAssigned.length} POs
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => setPoAssignedCurrentPage(Math.max(1, poAssignedCurrentPage - 1))}
+                          disabled={poAssignedCurrentPage === 1}
+                        >
+                          ← Previous
+                        </button>
+                        <span style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', color: '#6b7280' }}>
+                          Page {poAssignedCurrentPage} of {Math.ceil(sortedPOAssigned.length / poAssignedPageSize)}
+                        </span>
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => setPoAssignedCurrentPage(Math.min(Math.ceil(sortedPOAssigned.length / poAssignedPageSize), poAssignedCurrentPage + 1))}
+                          disabled={poAssignedCurrentPage === Math.ceil(sortedPOAssigned.length / poAssignedPageSize)}
+                        >
+                          Next →
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => setPoAssignedCurrentPage(Math.max(1, poAssignedCurrentPage - 1))}
-                        disabled={poAssignedCurrentPage === 1}
-                      >
-                        ← Previous
-                      </button>
-                      <span style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', color: '#6b7280' }}>
-                        Page {poAssignedCurrentPage} of {Math.ceil(sortedPOAssigned.length / poAssignedPageSize)}
-                      </span>
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => setPoAssignedCurrentPage(Math.min(Math.ceil(sortedPOAssigned.length / poAssignedPageSize), poAssignedCurrentPage + 1))}
-                        disabled={poAssignedCurrentPage === Math.ceil(sortedPOAssigned.length / poAssignedPageSize)}
-                      >
-                        Next →
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  )}
                 </>
               )}
             </>
@@ -2608,8 +2664,8 @@ const VendorDashboardPage = ({ onBack }) => {
 
               {/* Full Calibration View with All Items */}
               <>
-                  {/* Overall Compliance Status Banner */}
-                  {/* <div className={`compliance-banner compliance-${overallCompliance.status.toLowerCase().replace(' ', '-')}`}>
+                {/* Overall Compliance Status Banner */}
+                {/* <div className={`compliance-banner compliance-${overallCompliance.status.toLowerCase().replace(' ', '-')}`}>
                     <div className="compliance-banner-content">
                       <div className="compliance-status-icon">
                         {overallCompliance.status === 'Compliant' && '✓'}
@@ -2637,62 +2693,139 @@ const VendorDashboardPage = ({ onBack }) => {
                     </div>
                   </div> */}
 
-                  {/* Expiry Reminders Section */}
-                  {overallCompliance.totalExpiring > 0 && (
-                    <div className="expiry-reminders-section">
-                      <h4 className="expiry-reminders-title">⏰ Upcoming Expiry Reminders</h4>
-                      <div className="expiry-reminders-list">
-                        {[
-                          ...instrumentItems.filter(i => {
-                            const days = getDaysUntilExpiry(i.calibration_due_date);
-                            return days >= 0 && days <= (i.notification_days || 30);
-                          }).map(i => ({ type: 'Instrument', name: i.instrument_name, serial: i.serial_number, dueDate: i.calibration_due_date })),
-                          ...approvalItems.filter(a => {
-                            const days = getDaysUntilExpiry(a.valid_till);
-                            return days >= 0 && days <= (a.notification_days || 30);
-                          }).map(a => ({ type: 'Approval', name: a.approval_document_name, serial: a.document_number, dueDate: a.valid_till })),
-                          ...gaugeItems.filter(g => {
-                            const days = getDaysUntilExpiry(g.calibration_due_date);
-                            return days >= 0 && days <= (g.notification_days || 30);
-                          }).map(g => ({ type: 'Gauge', name: g.gauge_description, serial: g.gauge_sr_no, dueDate: g.calibration_due_date }))
-                        ].map((item, idx) => (
-                          <div key={idx} className="expiry-reminder-item">
-                            <span className="expiry-reminder-type">{item.type}</span>
-                            <span className="expiry-reminder-name">{item.name} ({item.serial})</span>
-                            <span className="expiry-reminder-days">
-                              {getDaysUntilExpiry(item.dueDate)} days left
-                            </span>
-                            <span className="expiry-reminder-date">Due: {formatDate(item.dueDate)}</span>
-                          </div>
-                        ))}
-                      </div>
+                {/* Expiry Reminders Section */}
+                {overallCompliance.totalExpiring > 0 && (
+                  <div className="expiry-reminders-section">
+                    <h4 className="expiry-reminders-title">⏰ Upcoming Expiry Reminders</h4>
+                    <div className="expiry-reminders-list">
+                      {[
+                        ...instrumentItems.filter(i => {
+                          const days = getDaysUntilExpiry(i.calibration_due_date);
+                          return days >= 0 && days <= (i.notification_days || 30);
+                        }).map(i => ({ type: 'Instrument', name: i.instrument_name, serial: i.serial_number, dueDate: i.calibration_due_date })),
+                        ...approvalItems.filter(a => {
+                          const days = getDaysUntilExpiry(a.valid_till);
+                          return days >= 0 && days <= (a.notification_days || 30);
+                        }).map(a => ({ type: 'Approval', name: a.approval_document_name, serial: a.document_number, dueDate: a.valid_till })),
+                        ...gaugeItems.filter(g => {
+                          const days = getDaysUntilExpiry(g.calibration_due_date);
+                          return days >= 0 && days <= (g.notification_days || 30);
+                        }).map(g => ({ type: 'Gauge', name: g.gauge_description, serial: g.gauge_sr_no, dueDate: g.calibration_due_date }))
+                      ].map((item, idx) => (
+                        <div key={idx} className="expiry-reminder-item">
+                          <span className="expiry-reminder-type">{item.type}</span>
+                          <span className="expiry-reminder-name">{item.name} ({item.serial})</span>
+                          <span className="expiry-reminder-days">
+                            {getDaysUntilExpiry(item.dueDate)} days left
+                          </span>
+                          <span className="expiry-reminder-date">Due: {formatDate(item.dueDate)}</span>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Section Title */}
-                  <div className="calibration-section-title">
-                    {/* <h4>Required Documents & Equipment for {VENDOR_PRODUCT_TYPE}</h4> */}
-                    <p>All instruments, approvals, and gauges with calibration and validity details</p>
+                {/* Section Title */}
+                <div className="calibration-section-title">
+                  {/* <h4>Required Documents & Equipment for {VENDOR_PRODUCT_TYPE}</h4> */}
+                  <p>All instruments, approvals, and gauges with calibration and validity details</p>
+                </div>
+
+                {/* ========== INSTRUMENTS SECTION ========== */}
+                <div className="calibration-full-section">
+                  <div className="calibration-section-header">
+                    <div className="calibration-section-header-left">
+                      <h4 className="calibration-section-heading">📏 Calibration – Instruments</h4>
+                      <p className="calibration-section-subtitle">Instrument / Machine calibration details with validity tracking</p>
+                    </div>
+                    <div className="calibration-section-header-right">
+                      <span className="section-record-count">{instrumentItems.length} Total Records</span>
+                      <button className="btn btn-sm btn-primary" onClick={() => handleOpenInstrumentModal()}>
+                        + Add Instrument
+                      </button>
+                    </div>
                   </div>
 
-                  {/* ========== INSTRUMENTS SECTION ========== */}
+                  {/* Requirements Summary */}
+                  <div className="requirements-summary-row">
+                    {complianceStatus.instruments.map((cat, idx) => (
+                      <div key={idx} className={`requirement-chip ${cat.status.toLowerCase().replace(' ', '-')}`}>
+                        <span className="requirement-chip-name">
+                          {cat.category}{cat.mandatory && <span className="mandatory-badge">*</span>}
+                        </span>
+                        <span className="requirement-chip-count">{cat.validCount}/{cat.minRequired}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Full Items Table */}
+                  <DataTable
+                    columns={calibrationInstrumentColumns}
+                    data={instrumentItems}
+                    onRowClick={(row) => handleOpenInstrumentModal(row)}
+                    selectable={false}
+                    selectedRows={[]}
+                    onSelectionChange={() => { }}
+                  />
+                </div>
+
+                {/* ========== APPROVALS SECTION ========== */}
+                <div className="calibration-full-section">
+                  <div className="calibration-section-header">
+                    <div className="calibration-section-header-left">
+                      <h4 className="calibration-section-heading">📄 Calibration – Approvals</h4>
+                      <p className="calibration-section-subtitle">RDSO Approval, ISO Certificate & other mandatory documents</p>
+                    </div>
+                    <div className="calibration-section-header-right">
+                      <span className="section-record-count">{approvalItems.length} Total Records</span>
+                      <button className="btn btn-sm btn-primary" onClick={() => handleOpenApprovalModal()}>
+                        + Add Approval
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Requirements Summary */}
+                  <div className="requirements-summary-row">
+                    {complianceStatus.approvals.map((cat, idx) => (
+                      <div key={idx} className={`requirement-chip ${cat.status.toLowerCase().replace(' ', '-')}`}>
+                        <span className="requirement-chip-name">
+                          {cat.category}{cat.mandatory && <span className="mandatory-badge">*</span>}
+                        </span>
+                        <span className="requirement-chip-count">{cat.validCount}/{cat.minRequired}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Full Items Table */}
+                  <DataTable
+                    columns={approvalsColumns}
+                    data={approvalItems}
+                    onRowClick={(row) => handleOpenApprovalModal(row)}
+                    selectable={false}
+                    selectedRows={[]}
+                    onSelectionChange={() => { }}
+                  />
+                </div>
+
+                {/* ========== GAUGES SECTION ========== */}
+                {complianceStatus.gauges.length > 0 && (
                   <div className="calibration-full-section">
                     <div className="calibration-section-header">
                       <div className="calibration-section-header-left">
-                        <h4 className="calibration-section-heading">📏 Calibration – Instruments</h4>
-                        <p className="calibration-section-subtitle">Instrument / Machine calibration details with validity tracking</p>
+                        <h4 className="calibration-section-heading">🔧 Calibration – Gauges</h4>
+                        <p className="calibration-section-subtitle">Go/No-Go Gauges, Profile Gauges & calibration status</p>
                       </div>
                       <div className="calibration-section-header-right">
-                        <span className="section-record-count">{instrumentItems.length} Total Records</span>
-                        <button className="btn btn-sm btn-primary" onClick={() => handleOpenInstrumentModal()}>
-                          + Add Instrument
+                        <span className="section-record-count">{gaugeItems.length} Total Records</span>
+                        <button className="btn btn-sm btn-primary" onClick={() => handleOpenGaugeModal()}>
+                          + Add Gauge
                         </button>
                       </div>
                     </div>
 
                     {/* Requirements Summary */}
                     <div className="requirements-summary-row">
-                      {complianceStatus.instruments.map((cat, idx) => (
+                      {complianceStatus.gauges.map((cat, idx) => (
                         <div key={idx} className={`requirement-chip ${cat.status.toLowerCase().replace(' ', '-')}`}>
                           <span className="requirement-chip-name">
                             {cat.category}{cat.mandatory && <span className="mandatory-badge">*</span>}
@@ -2704,97 +2837,20 @@ const VendorDashboardPage = ({ onBack }) => {
 
                     {/* Full Items Table */}
                     <DataTable
-                      columns={calibrationInstrumentColumns}
-                      data={instrumentItems}
-                      onRowClick={(row) => handleOpenInstrumentModal(row)}
+                      columns={gaugesColumns}
+                      data={gaugeItems}
+                      onRowClick={(row) => handleOpenGaugeModal(row)}
                       selectable={false}
                       selectedRows={[]}
-                      onSelectionChange={() => {}}
+                      onSelectionChange={() => { }}
                     />
                   </div>
+                )}
 
-                  {/* ========== APPROVALS SECTION ========== */}
-                  <div className="calibration-full-section">
-                    <div className="calibration-section-header">
-                      <div className="calibration-section-header-left">
-                        <h4 className="calibration-section-heading">📄 Calibration – Approvals</h4>
-                        <p className="calibration-section-subtitle">RDSO Approval, ISO Certificate & other mandatory documents</p>
-                      </div>
-                      <div className="calibration-section-header-right">
-                        <span className="section-record-count">{approvalItems.length} Total Records</span>
-                        <button className="btn btn-sm btn-primary" onClick={() => handleOpenApprovalModal()}>
-                          + Add Approval
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Requirements Summary */}
-                    <div className="requirements-summary-row">
-                      {complianceStatus.approvals.map((cat, idx) => (
-                        <div key={idx} className={`requirement-chip ${cat.status.toLowerCase().replace(' ', '-')}`}>
-                          <span className="requirement-chip-name">
-                            {cat.category}{cat.mandatory && <span className="mandatory-badge">*</span>}
-                          </span>
-                          <span className="requirement-chip-count">{cat.validCount}/{cat.minRequired}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Full Items Table */}
-                    <DataTable
-                      columns={approvalsColumns}
-                      data={approvalItems}
-                      onRowClick={(row) => handleOpenApprovalModal(row)}
-                      selectable={false}
-                      selectedRows={[]}
-                      onSelectionChange={() => {}}
-                    />
-                  </div>
-
-                  {/* ========== GAUGES SECTION ========== */}
-                  {complianceStatus.gauges.length > 0 && (
-                    <div className="calibration-full-section">
-                      <div className="calibration-section-header">
-                        <div className="calibration-section-header-left">
-                          <h4 className="calibration-section-heading">🔧 Calibration – Gauges</h4>
-                          <p className="calibration-section-subtitle">Go/No-Go Gauges, Profile Gauges & calibration status</p>
-                        </div>
-                        <div className="calibration-section-header-right">
-                          <span className="section-record-count">{gaugeItems.length} Total Records</span>
-                          <button className="btn btn-sm btn-primary" onClick={() => handleOpenGaugeModal()}>
-                            + Add Gauge
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Requirements Summary */}
-                      <div className="requirements-summary-row">
-                        {complianceStatus.gauges.map((cat, idx) => (
-                          <div key={idx} className={`requirement-chip ${cat.status.toLowerCase().replace(' ', '-')}`}>
-                            <span className="requirement-chip-name">
-                              {cat.category}{cat.mandatory && <span className="mandatory-badge">*</span>}
-                            </span>
-                            <span className="requirement-chip-count">{cat.validCount}/{cat.minRequired}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Full Items Table */}
-                      <DataTable
-                        columns={gaugesColumns}
-                        data={gaugeItems}
-                        onRowClick={(row) => handleOpenGaugeModal(row)}
-                        selectable={false}
-                        selectedRows={[]}
-                        onSelectionChange={() => {}}
-                      />
-                    </div>
-                  )}
-
-                  <p className="mandatory-note">
-                    <span className="mandatory-badge">*</span> Mandatory categories must be complete with valid certificates to raise inspection calls.
-                  </p>
-                </>
+                <p className="mandatory-note">
+                  <span className="mandatory-badge">*</span> Mandatory categories must be complete with valid certificates to raise inspection calls.
+                </p>
+              </>
             </>
           )}
 
@@ -2897,7 +2953,7 @@ const VendorDashboardPage = ({ onBack }) => {
                 }}
                 selectable={false}
                 selectedRows={[]}
-                onSelectionChange={() => {}}
+                onSelectionChange={() => { }}
               />
 
               {/* Selected Payment Details */}
@@ -2974,18 +3030,27 @@ const VendorDashboardPage = ({ onBack }) => {
                 onRowClick={handleRowClick}
                 selectable={false}
                 selectedRows={[]}
-                onSelectionChange={() => {}}
+                onSelectionChange={() => { }}
               />
 
               {/* New Entry Form Section */}
               <div className="inventory-form-section">
                 <div className="inventory-form-header">
-                  <h4 className="inventory-form-title">Add New Inventory Entry</h4>
-                  <p className="inventory-form-subtitle">Fill in the details below to add a new material entry</p>
+                  <h4 className="inventory-form-title">
+                    {editingInventoryEntry ? 'Edit Inventory Entry' : 'Add New Inventory Entry'}
+                  </h4>
+                  <p className="inventory-form-subtitle">
+                    {editingInventoryEntry
+                      ? `Updating entry for Heat Number: ${editingInventoryEntry.heatNumber}`
+                      : 'Fill in the details below to add a new material entry'
+                    }
+                  </p>
                 </div>
 
                 <NewInventoryEntryForm
                   inventoryEntries={inventoryEntries}
+                  editData={editingInventoryEntry}
+                  onCancel={() => setEditingInventoryEntry(null)}
                   onSubmit={handleInventorySubmit}
                   isLoading={isLoading}
                 />
@@ -3036,7 +3101,7 @@ const VendorDashboardPage = ({ onBack }) => {
                     onRowClick={handleRowClick}
                     selectable={false}
                     selectedRows={[]}
-                    onSelectionChange={() => {}}
+                    onSelectionChange={() => { }}
                   />
                 </div>
               )}

@@ -74,7 +74,7 @@ const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder })
                 <input
                   type="checkbox"
                   checked={selectedValues.includes(option.value)}
-                  onChange={() => {}}
+                  onChange={() => { }}
                   className="ric-multiselect-checkbox"
                 />
                 <span>{option.label}</span>
@@ -160,12 +160,12 @@ const FormField = ({ label, name, required, hint, children, fullWidth = false, e
   // Clone children and add error class if there's an error
   const childrenWithError = hasError && children?.props?.className
     ? {
-        ...children,
-        props: {
-          ...children.props,
-          className: `${children.props.className} error`
-        }
+      ...children,
+      props: {
+        ...children.props,
+        className: `${children.props.className} error`
       }
+    }
     : children;
 
   return (
@@ -644,8 +644,8 @@ export const RaiseInspectionCallForm = ({
   useEffect(() => {
     const fetchCompanyAndUnitFromRmIc = async () => {
       if (formData.type_of_call === 'Process' &&
-          formData.process_rm_ic_numbers &&
-          formData.process_rm_ic_numbers.length > 0) {
+        formData.process_rm_ic_numbers &&
+        formData.process_rm_ic_numbers.length > 0) {
         try {
           console.log('🏢 Fetching company and unit details from first RM IC');
           console.log('🏢 Selected RM IC certificates:', formData.process_rm_ic_numbers);
@@ -785,8 +785,8 @@ export const RaiseInspectionCallForm = ({
   useEffect(() => {
     const fetchLotNumbers = async () => {
       if (formData.type_of_call === 'Final' &&
-          formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0 &&
-          formData.final_process_ic_numbers && formData.final_process_ic_numbers.length > 0) {
+        formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0 &&
+        formData.final_process_ic_numbers && formData.final_process_ic_numbers.length > 0) {
         setLoadingLotsForFinal(true);
         try {
           // Get lots based on ALL selected RM IC and Process IC certificates (MULTI-SELECT)
@@ -821,8 +821,8 @@ export const RaiseInspectionCallForm = ({
   useEffect(() => {
     const fetchHeatNumbersForLots = async () => {
       if (formData.type_of_call === 'Final' &&
-          formData.final_lot_numbers && formData.final_lot_numbers.length > 0 &&
-          formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0) {
+        formData.final_lot_numbers && formData.final_lot_numbers.length > 0 &&
+        formData.final_rm_ic_numbers && formData.final_rm_ic_numbers.length > 0) {
         try {
           const newLotHeatMapping = {};
 
@@ -1596,25 +1596,25 @@ export const RaiseInspectionCallForm = ({
       rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
         heat.id === id
           ? {
-              ...heat,
-              heatNumber,
-              supplierName,
-              compositeKey,
-              tcNumber: '',
-              tcDate: '',
-              manufacturer: '',
-              invoiceNo: '',
-              invoiceDate: '',
-              subPoNumber: '',
-              subPoDate: '',
-              subPoQty: '',
-              subPoTotalValue: '',
-              tcQty: '',
-              tcQtyRemaining: '',
-              maxQty: '',
-              unit: '',
-              isLoadingChemical: true // Add loading state for chemical analysis
-            }
+            ...heat,
+            heatNumber,
+            supplierName,
+            compositeKey,
+            tcNumber: '',
+            tcDate: '',
+            manufacturer: '',
+            invoiceNo: '',
+            invoiceDate: '',
+            subPoNumber: '',
+            subPoDate: '',
+            subPoQty: '',
+            subPoTotalValue: '',
+            tcQty: '',
+            tcQtyRemaining: '',
+            maxQty: '',
+            unit: '',
+            isLoadingChemical: true // Add loading state for chemical analysis
+          }
           : heat
       )
     }));
@@ -1635,15 +1635,15 @@ export const RaiseInspectionCallForm = ({
             rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
               heat.id === id
                 ? {
-                    ...heat,
-                    chemical_carbon: analysis.carbon || '',
-                    chemical_manganese: analysis.manganese || '',
-                    chemical_silicon: analysis.silicon || '',
-                    chemical_sulphur: analysis.sulphur || '',
-                    chemical_phosphorus: analysis.phosphorus || '',
-                    isLoadingChemical: false,
-                    chemicalAutoFetched: true // Flag to show visual indicator
-                  }
+                  ...heat,
+                  chemical_carbon: analysis.carbon || '',
+                  chemical_manganese: analysis.manganese || '',
+                  chemical_silicon: analysis.silicon || '',
+                  chemical_sulphur: analysis.sulphur || '',
+                  chemical_phosphorus: analysis.phosphorus || '',
+                  isLoadingChemical: false,
+                  chemicalAutoFetched: true // Flag to show visual indicator
+                }
                 : heat
             )
           }));
@@ -1707,22 +1707,22 @@ export const RaiseInspectionCallForm = ({
         rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
           heat.id === id
             ? {
-                ...heat,
-                tcNumber,
-                tcDate: inventoryEntry.tcDate || '',
-                manufacturer: inventoryEntry.supplierName || '',
-                invoiceNo: inventoryEntry.invoiceNumber || '',
-                invoiceDate: inventoryEntry.invoiceDate || '',
-                subPoNumber: inventoryEntry.subPoNumber || '',
-                subPoDate: inventoryEntry.subPoDate || '',
-                subPoQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
-                subPoTotalValue: `₹${totalValue}`,
-                tcQty: `${inventoryEntry.declaredQuantity} ${inventoryEntry.unitOfMeasurement}`,
-                tcQtyRemaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`,
-                maxQty: inventoryEntry.qtyLeftForInspection,
-                unit: inventoryEntry.unitOfMeasurement,
-                isLoading: false
-              }
+              ...heat,
+              tcNumber,
+              tcDate: inventoryEntry.tcDate || '',
+              manufacturer: inventoryEntry.supplierName || '',
+              invoiceNo: inventoryEntry.invoiceNumber || '',
+              invoiceDate: inventoryEntry.invoiceDate || '',
+              subPoNumber: inventoryEntry.subPoNumber || '',
+              subPoDate: inventoryEntry.subPoDate || '',
+              subPoQty: `${inventoryEntry.subPoQty} ${inventoryEntry.unitOfMeasurement}`,
+              subPoTotalValue: `₹${totalValue}`,
+              tcQty: `${inventoryEntry.declaredQuantity} ${inventoryEntry.unitOfMeasurement}`,
+              tcQtyRemaining: `${inventoryEntry.qtyLeftForInspection} ${inventoryEntry.unitOfMeasurement}`,
+              maxQty: inventoryEntry.qtyLeftForInspection,
+              unit: inventoryEntry.unitOfMeasurement,
+              isLoading: false
+            }
             : heat
         ),
         // Update chemical analysis if this is the first heat or if not already set
@@ -2083,7 +2083,7 @@ export const RaiseInspectionCallForm = ({
       // Scroll to the first error field
       const firstErrorField = Object.keys(newErrors)[0];
       const errorElement = document.querySelector(`[name="${firstErrorField}"]`) ||
-                          document.querySelector(`.ric-form-error`);
+        document.querySelector(`.ric-form-error`);
 
       if (errorElement) {
         errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2234,7 +2234,7 @@ export const RaiseInspectionCallForm = ({
                   className="ric-validation-summary__link"
                   onClick={() => {
                     const element = document.querySelector(`[name="${field}"]`) ||
-                                  document.querySelector(`.ric-form-error`);
+                      document.querySelector(`.ric-form-error`);
                     if (element) {
                       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                       if (element.tagName === 'INPUT' || element.tagName === 'SELECT') {
@@ -2324,16 +2324,16 @@ export const RaiseInspectionCallForm = ({
         </FormField>
 
         <FormField label="Desired Inspection Date" name="desired_inspection_date" required hint="Maximum 6 days from today" errors={errors}>
-              <input
-                type="date"
-                name="desired_inspection_date"
-                className="ric-form-input"
-                value={formData.desired_inspection_date}
-                onChange={handleChange}
-                min={getTodayDate()}
-                max={getMaxDate()}
-              />
-            </FormField>
+          <input
+            type="date"
+            name="desired_inspection_date"
+            className="ric-form-input"
+            value={formData.desired_inspection_date}
+            onChange={handleChange}
+            min={getTodayDate()}
+            max={getMaxDate()}
+          />
+        </FormField>
 
 
       </div>
@@ -2834,7 +2834,7 @@ export const RaiseInspectionCallForm = ({
                 <FormField
                   label="Total Offered Qty (MT)"
                   name="rm_total_offered_qty_mt"
-                  // hint={`Auto-calculated (Sum of all heats) | Max: ${remainingQty.rm} MT`}
+                // hint={`Auto-calculated (Sum of all heats) | Max: ${remainingQty.rm} MT`}
                 >
                   <input
                     type="text"
@@ -3247,8 +3247,8 @@ export const RaiseInspectionCallForm = ({
                         formData.final_rm_ic_numbers.length === 0
                           ? "Select RM IC first"
                           : formData.final_process_ic_numbers.length === 0
-                          ? "Select Process IC first"
-                          : "Select Lot Numbers"
+                            ? "Select Process IC first"
+                            : "Select Lot Numbers"
                       }
                       disabled={formData.final_rm_ic_numbers.length === 0 || formData.final_process_ic_numbers.length === 0}
                     />
@@ -3359,7 +3359,7 @@ export const RaiseInspectionCallForm = ({
                   label="Qunantity (No. of ERC)"
                   name="final_erc_qty"
                   required
-                  // hint="Free Text - Integer"
+                // hint="Free Text - Integer"
                 >
                   <input
                     type="number"
@@ -3385,7 +3385,7 @@ export const RaiseInspectionCallForm = ({
                 <FormField
                   label="Total Qty"
                   name="final_total_qty"
-                  // hint="Auto calculate: Quantity × No. of HDPE Bags"
+                // hint="Auto calculate: Quantity × No. of HDPE Bags"
                 >
                   <input
                     type="text"
@@ -3401,7 +3401,7 @@ export const RaiseInspectionCallForm = ({
                   label="No of HDPE Bags"
                   name="final_hdpe_bags"
                   required
-                  // hint="Free Text - Integer. Validation: Total Qty / No. of HDPE Bags <= 50"
+                // hint="Free Text - Integer. Validation: Total Qty / No. of HDPE Bags <= 50"
                 >
                   <input
                     type="number"
@@ -3496,8 +3496,8 @@ export const RaiseInspectionCallForm = ({
               >
                 <option value="">
                   {loadingUnits ? 'Loading units...' :
-                   !formData.company_name ? 'Select company first' :
-                   'Select Unit'}
+                    !formData.company_name ? 'Select company first' :
+                      'Select Unit'}
                 </option>
                 {units.map((unitName, index) => (
                   <option key={index} value={unitName}>

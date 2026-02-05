@@ -1,10 +1,10 @@
 // src/components/NewInventoryEntryForm.js
 import { useState, useEffect, useMemo } from 'react';
 import '../styles/forms.css';
-import {  RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
+import { RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
 import inventoryService from '../services/inventoryService';
 
-const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmit, isLoading = false }) => {
+const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmit, onCancel, editData = null, isLoading = false }) => {
   const initialFormState = {
     companyId: '',
     companyName: '',
@@ -38,6 +38,32 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
   const [units, setUnits] = useState([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
+
+  // Populating form data when editData changes
+  useEffect(() => {
+    if (editData) {
+      // Format dates to YYYY-MM-DD for input[type="date"]
+      const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return '';
+        return date.toISOString().split('T')[0];
+      };
+
+      setFormData({
+        ...initialFormState,
+        ...editData,
+        tcDate: formatDateForInput(editData.tcDate),
+        invoiceDate: formatDateForInput(editData.invoiceDate),
+        subPoDate: formatDateForInput(editData.subPoDate),
+        declaredQuantity: editData.declaredQuantity || editData.tcQuantity || '',
+        baseValuePO: editData.baseValuePO || editData.baseValuePo || '',
+        totalPO: editData.totalPO || editData.totalPo || ''
+      });
+    } else {
+      setFormData(initialFormState);
+    }
+  }, [editData]);
 
   // Fetch suppliers when raw material is selected
   useEffect(() => {
@@ -378,7 +404,8 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
       const duplicateEntry = inventoryEntries.find(
         entry =>
           entry.tcNumber === formData.tcNumber &&
-          entry.supplierName === formData.supplierName
+          entry.supplierName === formData.supplierName &&
+          (!editData || entry.id !== editData.id) // Skip self when editing
       );
 
       if (duplicateEntry) {
@@ -984,11 +1011,16 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
 
         {/* Form Actions */}
         <div className="form-actions">
-          <button type="button" className="btn-secondary" onClick={handleReset}>
+          <button type="button" className="btn-secondary" onClick={handleReset} disabled={isLoading}>
             🔄 Reset Form
           </button>
-          <button type="submit" className="btn-primary" disabled={isLoading}>
-            {isLoading ? '⏳ Submitting...' : '✓ Submit Entry'}
+          {editData && (
+            <button type="button" className="btn-secondary" onClick={onCancel} disabled={isLoading} style={{ marginLeft: '10px', backgroundColor: '#6b7280', color: 'white' }}>
+              ✕ Cancel Edit
+            </button>
+          )}
+          <button type="submit" className="btn-primary" disabled={isLoading} style={{ marginLeft: '10px' }}>
+            {isLoading ? '⏳ Submitting...' : (editData ? '✓ Update Entry' : '✓ Submit Entry')}
           </button>
         </div>
       </form>

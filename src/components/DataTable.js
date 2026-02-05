@@ -91,46 +91,46 @@ const DataTable = ({ columns, data, onRowClick, actions, selectable, selectedRow
 
       <div className="data-table-container">
         <table className="data-table">
-        <thead>
-          <tr>
-            {selectable && (
-              <th style={{ width: '50px' }}>
-                <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  onChange={handleSelectAll}
-                />
-              </th>
-            )}
-            {columns.map(col => (
-              <th key={col.key} onClick={() => handleSort(col.key)}>
-                {col.label} {sortColumn === col.key && (sortDirection === 'asc' ? '↑' : '↓')}
-              </th>
-            ))}
-            {actions && <th>Actions</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {paginatedData.map((row, idx) => (
-            <tr key={idx} onClick={() => onRowClick && onRowClick(row)}>
+          <thead>
+            <tr>
               {selectable && (
-                <td onClick={(e) => e.stopPropagation()}>
+                <th style={{ width: '50px' }}>
                   <input
                     type="checkbox"
-                    checked={selectedRows.includes(row.id)}
-                    onChange={() => handleSelectRow(row.id)}
+                    checked={isAllSelected}
+                    onChange={handleSelectAll}
                   />
-                </td>
+                </th>
               )}
               {columns.map(col => (
-                <td key={col.key} data-label={col.label}>
-                  {col.render ? col.render(row[col.key], row) : row[col.key]}
-                </td>
+                <th key={col.key} onClick={() => handleSort(col.key)}>
+                  {col.label} {sortColumn === col.key && (sortDirection === 'asc' ? '↑' : '↓')}
+                </th>
               ))}
-              {actions && <td data-label="Actions">{actions(row)}</td>}
+              {actions && <th>Actions</th>}
             </tr>
-          ))}
-        </tbody>
+          </thead>
+          <tbody>
+            {paginatedData.map((row, idx) => (
+              <tr key={idx} onClick={() => onRowClick && onRowClick(row)}>
+                {selectable && (
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.includes(row.id)}
+                      onChange={() => handleSelectRow(row.id)}
+                    />
+                  </td>
+                )}
+                {columns.map(col => (
+                  <td key={col.key} data-label={col.label}>
+                    {col.render ? col.render(row[col.key], row) : row[col.key]}
+                  </td>
+                ))}
+                {actions && <td data-label="Actions">{actions(row)}</td>}
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
 
