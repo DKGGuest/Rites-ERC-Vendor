@@ -6,7 +6,7 @@ import './LoginPage.css';
 const LoginPage = () => {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
-  const [loginType, setLoginType] = useState('Vendor');
+  const [loginType] = useState('Vendor');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -67,20 +67,6 @@ const LoginPage = () => {
                 {error}
               </div>
             )}
-
-            <div className="login-form-group">
-              <label className="login-label">
-                Login Type <span className="login-required">*</span>
-              </label>
-              <select
-                className="login-input"
-                value={loginType}
-                onChange={(e) => setLoginType(e.target.value)}
-                disabled={isLoading}
-              >
-                <option value="Vendor">Vendor</option>
-              </select>
-            </div>
 
             <div className="login-form-group">
               <label className="login-label">

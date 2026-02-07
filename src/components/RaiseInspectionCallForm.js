@@ -1367,8 +1367,8 @@ export const RaiseInspectionCallForm = ({
                     const offeredEarlier = heatData.offeredEarlier || 0;
                     console.log(`    📊 Offered Earlier for ${heatNo}: ${offeredEarlier}`);
 
-                    // Calculate Future Balance = Max ERC - Manufactured - Offered Earlier
-                    const futureBalance = (heatData.rmAcceptedQty || 0) - (heatData.manufaturedQty || 0) - offeredEarlier;
+                    // Calculate Future Balance = Max ERC - Offered Earlier
+                    const futureBalance = (heatData.rmAcceptedQty || 0) - offeredEarlier;
 
                     // Determine status based on future balance
                     let status = 'Good';
@@ -1525,8 +1525,8 @@ export const RaiseInspectionCallForm = ({
             // Add the new offered quantity for the current lot
             const totalOfferedIncludingCurrent = totalOfferedForHeat + newOfferedQty;
 
-            // Calculate new future balance: Max ERC - Manufactured - Offered Earlier - Total Offered (all lots)
-            const newFutureBalance = heat.maxErc - heat.manufactured - (heat.offeredEarlier || 0) - totalOfferedIncludingCurrent;
+            // Calculate new future balance: Max ERC - Offered Earlier - Total Offered (all lots)
+            const newFutureBalance = heat.maxErc - (heat.offeredEarlier || 0) - totalOfferedIncludingCurrent;
 
             // Determine new status based on future balance
             let newStatus = 'Good';
@@ -2116,12 +2116,12 @@ export const RaiseInspectionCallForm = ({
 
               if (heatSummary) {
                 // Calculate available balance for THIS lot
-                // Available = Max ERC - Manufactured - Offered Earlier - (Total offered by OTHER lots using same heat)
+                // Available = Max ERC - Offered Earlier - (Total offered by OTHER lots using same heat)
                 const otherLotsOffered = formData.process_lot_heat_mapping
                   .filter((lot, lotIndex) => lot.heatNumber === item.heatNumber && lotIndex !== index)
                   .reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
 
-                const availableBalance = heatSummary.maxErc - heatSummary.manufactured - (heatSummary.offeredEarlier || 0) - otherLotsOffered;
+                const availableBalance = heatSummary.maxErc - (heatSummary.offeredEarlier || 0) - otherLotsOffered;
 
                 if (offeredQty > availableBalance) {
                   newErrors[`process_lot_${index}_offeredQty`] =
@@ -3161,7 +3161,7 @@ export const RaiseInspectionCallForm = ({
                         const offeredQty = parseInt(lotHeat.offeredQty) || 0;
 
                         // Calculate available balance for THIS lot
-                        // Available = Max ERC - Manufactured - Offered Earlier - (Total offered by OTHER lots using same heat)
+                        // Available = Max ERC - Offered Earlier - (Total offered by OTHER lots using same heat)
                         let availableBalance = 0;
                         if (heatSummary) {
                           // Calculate total offered by OTHER lots using the same heat number
@@ -3169,7 +3169,7 @@ export const RaiseInspectionCallForm = ({
                             .filter(lot => lot.heatNumber === lotHeat.heatNumber && lot.id !== lotHeat.id)
                             .reduce((sum, lot) => sum + (parseInt(lot.offeredQty) || 0), 0);
 
-                          availableBalance = heatSummary.maxErc - heatSummary.manufactured - (heatSummary.offeredEarlier || 0) - otherLotsOffered;
+                          availableBalance = heatSummary.maxErc - (heatSummary.offeredEarlier || 0) - otherLotsOffered;
                         }
 
                         const exceedsBalance = heatSummary && offeredQty > availableBalance;
