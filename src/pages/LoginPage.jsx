@@ -6,6 +6,7 @@ import './LoginPage.css';
 const LoginPage = () => {
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
+  const [loginType, setLoginType] = useState('Vendor');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,18 +33,12 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const userData = await loginUser(userId, password);
+      const userData = await loginUser(userId, password, loginType);
 
-      //  Block non-Vendor users
-      if (userData.roleName !== 'Vendor') {
-        setError('Access denied. Vendor login only.');
-        return;
-      }
-
-      //  Store Vendor auth
+      // Store auth data
       storeAuthData(userData);
 
-      //  Reload so App.jsx shows Vendor Dashboard
+      // Reload so App.js shows appropriate Dashboard
       window.location.reload();
 
     } catch (err) {
@@ -59,9 +54,9 @@ const LoginPage = () => {
         <div className="login-card">
           <div className="login-header">
             <div className="login-logo">SARTHI</div>
-            <h1 className="login-title">Vendor Login</h1>
+            <h1 className="login-title">Sign In</h1>
             <p className="login-subtitle">
-              Sign in to access Vendor Dashboard
+              Access your inspection dashboard
             </p>
           </div>
 
@@ -75,6 +70,20 @@ const LoginPage = () => {
 
             <div className="login-form-group">
               <label className="login-label">
+                Login Type <span className="login-required">*</span>
+              </label>
+              <select
+                className="login-input"
+                value={loginType}
+                onChange={(e) => setLoginType(e.target.value)}
+                disabled={isLoading}
+              >
+                <option value="Vendor">Vendor</option>
+              </select>
+            </div>
+
+            <div className="login-form-group">
+              <label className="login-label">
                 User ID <span className="login-required">*</span>
               </label>
               <input
@@ -82,7 +91,7 @@ const LoginPage = () => {
                 className="login-input"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                placeholder="Enter your User ID"
+                placeholder="Enter your User ID / Employee Code"
                 disabled={isLoading}
               />
             </div>

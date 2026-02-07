@@ -1,10 +1,4 @@
-/**
- * Authentication Service
- * Handles login API calls and token management
- */
-
-const API_BASE_URL = process.env.REACT_APP_API_URL ||
-  'https://sarthibackendservice-bfe2eag3byfkbsa6.canadacentral-01.azurewebsites.net/sarthi-backend';
+import { getBaseUrl } from './apiConfig';
 
 /**
  * Hardcoded credentials for CM, CallDesk, and Finance users
@@ -40,32 +34,34 @@ const HARDCODED_USERS = {
 };
 
 /**
- * Login user with userId and password
- * @param {string} userId - User ID
+ * Login user with loginId, password and loginType
+ * @param {string} loginId - User ID or Employee Code
  * @param {string} password - User password
+ * @param {string} loginType - Type of login (IE, VENDOR, etc.)
  * @returns {Promise<Object>} Login response with user data and token
  */
-export const loginUser = async (userId, password) => {
+export const loginUser = async (loginId, password, loginType = 'IE') => {
   // Check for hardcoded CM and CallDesk users first
-  if (HARDCODED_USERS[userId]) {
-    if (HARDCODED_USERS[userId].password === password) {
-      console.log(` Hardcoded login successful for ${userId}`);
-      return HARDCODED_USERS[userId].userData;
+  if (HARDCODED_USERS[loginId]) {
+    if (HARDCODED_USERS[loginId].password === password) {
+      console.log(` Hardcoded login successful for ${loginId}`);
+      return HARDCODED_USERS[loginId].userData;
     } else {
       throw new Error('Invalid password');
     }
   }
 
-  // For other users (IE), call the real API
+  // Call the new loginBasedOnType API
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    const response = await fetch(`${getBaseUrl()}/auth/loginBasedOnType`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        userId: parseInt(userId, 10),
-        password: password,
+        loginType,
+        loginId,
+        password,
       }),
     });
 
@@ -96,7 +92,7 @@ export const storeAuthData = (authData) => {
   localStorage.setItem('userId', authData.userId);
   localStorage.setItem('userName', authData.userName);
   localStorage.setItem('roleName', authData.roleName);
-   localStorage.setItem('rio', authData.rio);
+  localStorage.setItem('rio', authData.rio);
 };
 
 /**
