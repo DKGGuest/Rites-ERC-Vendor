@@ -100,7 +100,7 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
     } else {
       setFormData(initialFormState);
     }
-  }, [editData, initialFormState]);
+  }, [editData]);
 
   // Fetch suppliers when raw material is selected
   useEffect(() => {
