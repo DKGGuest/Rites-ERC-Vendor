@@ -3139,26 +3139,23 @@ export const RaiseInspectionCallForm = ({
                             {loadingHeats ? "Loading..." : processHeatNumbers.length === 0 ? "Select RM IC first" : "Select Heat Number"}
                           </option>
                           {processHeatNumbers.map((heat) => {
-                            // Format accepted quantity: show up to 2 decimal places or "N/A"
-                            let acceptedQtyDisplay = 'N/A';
-                            if (heat.weightAcceptedMt != null && heat.weightAcceptedMt > 0) {
-                              acceptedQtyDisplay = `${parseFloat(heat.weightAcceptedMt).toFixed(2)} MT`;
-                            }
-
                             const compositeKey = `${heat.heatNumber}|${heat.manufacturer}`;
                             return (
                               <option key={compositeKey} value={compositeKey}>
-                                {heat.heatNumber} - ({heat.manufacturer}) 
+                                {heat.heatNumber} - ({heat.manufacturer})
                               </option>
                             );
                           })}
                         </select>
                       </FormField>
 
-                      {/* Offered Quantity (Accepted: {acceptedQtyDisplay})*/}
+                      {/* Offered Quantity */}
                       {(() => {
                         const heatSummary = lotHeat.heatNumber ? heatSummaryData.find(h => h.heatNo === lotHeat.heatNumber) : null;
                         const offeredQty = parseInt(lotHeat.offeredQty) || 0;
+
+                        // Format accepted weight for display in label
+                        const acceptedWeightDisplay = heatSummary ? `${parseFloat(heatSummary.acceptedMt).toFixed(2)} MT` : '';
 
                         // Calculate available balance for THIS lot
                         // Available = Max ERC - Offered Earlier - (Total offered by OTHER lots using same heat)
@@ -3176,7 +3173,7 @@ export const RaiseInspectionCallForm = ({
 
                         return (
                           <FormField
-                            label="Decalred Quantity of Lot in Nos."
+                            label={`Decalred Quantity of Lot in Nos. ${acceptedWeightDisplay ? `(Accepted: ${acceptedWeightDisplay})` : ''}`}
                             name={`process_offered_qty_${lotHeat.id}`}
                             required
                             hint={heatSummary ? `Available Future Balance: ${availableBalance} ERCs` : "Select heat number first"}
