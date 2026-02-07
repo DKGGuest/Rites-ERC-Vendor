@@ -3148,14 +3148,14 @@ export const RaiseInspectionCallForm = ({
                             const compositeKey = `${heat.heatNumber}|${heat.manufacturer}`;
                             return (
                               <option key={compositeKey} value={compositeKey}>
-                                {heat.heatNumber} - ({heat.manufacturer}) (Accepted: {acceptedQtyDisplay})
+                                {heat.heatNumber} - ({heat.manufacturer}) 
                               </option>
                             );
                           })}
                         </select>
                       </FormField>
 
-                      {/* Offered Quantity */}
+                      {/* Offered Quantity (Accepted: {acceptedQtyDisplay})*/}
                       {(() => {
                         const heatSummary = lotHeat.heatNumber ? heatSummaryData.find(h => h.heatNo === lotHeat.heatNumber) : null;
                         const offeredQty = parseInt(lotHeat.offeredQty) || 0;
