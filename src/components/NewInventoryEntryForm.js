@@ -5,33 +5,34 @@ import { RAW_MATERIAL_GRADE_MAPPING } from '../data/vendorMockData';
 import inventoryService from '../services/inventoryService';
 import { getStoredUser } from '../services/authService';
 
+const initialFormState = {
+  companyId: '',
+  companyName: '',
+  unitId: '',
+  unitName: '',
+  rawMaterial: '',
+  supplierName: '',
+  supplierAddress: '',
+  gradeSpecification: '',
+  heatNumber: '',
+  tcNumber: '',
+  tcDate: '',
+  invoiceNumber: '',
+  invoiceDate: '',
+  subPoNumber: '',
+  subPoDate: '',
+  subPoQty: '',
+  rateOfMaterial: '',
+  rateOfGst: '',
+  declaredQuantity: '',
+  numberOfBundles: '',
+  baseValuePO: '',
+  totalPO: '',
+  lengthOfBars: '',
+  unitOfMeasurement: ''
+};
+
 const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmit, onCancel, editData = null, isLoading = false }) => {
-  const initialFormState = {
-    companyId: '',
-    companyName: '',
-    unitId: '',
-    unitName: '',
-    rawMaterial: '',
-    supplierName: '',
-    supplierAddress: '',
-    gradeSpecification: '',
-    heatNumber: '',
-    tcNumber: '',
-    tcDate: '',
-    invoiceNumber: '',
-    invoiceDate: '',
-    subPoNumber: '',
-    subPoDate: '',
-    subPoQty: '',
-    rateOfMaterial: '',
-    rateOfGst: '',
-    declaredQuantity: '',
-    numberOfBundles: '',
-    baseValuePO: '',
-    totalPO: '',
-    lengthOfBars: '',
-    unitOfMeasurement: ''
-  };
 
   const [formData, setFormData] = useState(initialFormState);
   const [errors, setErrors] = useState({});
@@ -99,7 +100,7 @@ const NewInventoryEntryForm = ({ masterData = {}, inventoryEntries = [], onSubmi
     } else {
       setFormData(initialFormState);
     }
-  }, [editData]);
+  }, [editData, initialFormState]);
 
   // Fetch suppliers when raw material is selected
   useEffect(() => {
