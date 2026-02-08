@@ -720,14 +720,14 @@ export const RaiseInspectionCallForm = ({
 
   // Step 1: Fetch RM IC certificates when Final inspection type is selected
   useEffect(() => {
-    console.log('🔄 Final IC useEffect triggered - type_of_call:', formData.type_of_call, 'vendorId:', vendorId);
+    console.log('🔄 Final IC useEffect triggered - type_of_call:', formData.type_of_call, 'po_serial_no:', formData.po_serial_no);
 
     const fetchRmIcCertificates = async () => {
-      if (formData.type_of_call === 'Final' && vendorId) {
+      if (formData.type_of_call === 'Final' && formData.po_serial_no) {
         setLoadingRmIcsForFinal(true);
         try {
-          console.log('🔍 Fetching RM IC certificates for vendor:', vendorId);
-          const response = await inspectionCallService.getRmIcCertificates(vendorId);
+          console.log('🔍 Fetching RM IC certificates for PO Serial No:', formData.po_serial_no);
+          const response = await inspectionCallService.getRmIcCertificates(formData.po_serial_no);
           console.log('📦 RM IC certificates response:', response);
 
           if (response && response.data) {
@@ -750,7 +750,7 @@ export const RaiseInspectionCallForm = ({
     };
 
     fetchRmIcCertificates();
-  }, [formData.type_of_call, vendorId]);
+  }, [formData.type_of_call, formData.po_serial_no]);
 
   // Step 2: Fetch Process IC certificates when RM IC certificate is selected
   useEffect(() => {

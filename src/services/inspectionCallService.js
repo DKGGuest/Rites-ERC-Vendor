@@ -600,14 +600,14 @@ const inspectionCallService = {
   /**
    * Get RM IC certificate numbers for Final Inspection Call (NEW FLOW)
    * Fetches from inspection_complete_details where CALL_NO starts with 'ER'
-   * Filtered by vendor_id
-   * @param {string} vendorId - Vendor ID
+   * Filtered by PO Serial Number
+   * @param {string} poSerialNo - PO Serial Number
    * @returns {Promise<Object>} - API response with list of RM IC certificate numbers
    */
-  getRmIcCertificates: async (vendorId) => {
+  getRmIcCertificates: async (poSerialNo) => {
     try {
       const response = await httpClient.get(
-        `/final-material/rm-ic-certificates?vendorId=${vendorId}`
+        `/final-material/rm-ic-certificates?poSerialNo=${encodeURIComponent(poSerialNo)}`
       );
       return response;
     } catch (error) {
