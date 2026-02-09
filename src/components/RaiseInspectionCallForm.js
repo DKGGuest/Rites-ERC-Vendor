@@ -241,6 +241,7 @@ const getInitialFormState = (selectedPO = null) => {
         isLoading: false,
         isLoadingChemical: false, // Loading state for chemical analysis auto-fetch
         chemicalAutoFetched: false, // Flag to indicate if chemical data was auto-fetched
+        chemicalReadOnly: false, // Flag to indicate if chemical data should be read-only
         // Chemical Analysis - Now per heat number
         chemical_carbon: '',
         chemical_manganese: '',
@@ -1653,6 +1654,7 @@ export const RaiseInspectionCallForm = ({
           isLoading: false,
           isLoadingChemical: false,
           chemicalAutoFetched: false,
+          chemicalReadOnly: false,
           // Chemical Analysis - Now per heat number
           chemical_carbon: '',
           chemical_manganese: '',
@@ -1697,21 +1699,51 @@ export const RaiseInspectionCallForm = ({
             tcQtyRemaining: '',
             maxQty: '',
             unit: '',
-            isLoadingChemical: true // Add loading state for chemical analysis
+            isLoadingChemical: heatNumber ? true : false,
+            chemicalReadOnly: false // Default to editable
           }
           : heat
       )
     }));
 
-    // Auto-fetch chemical analysis from backend if heat number is provided
+    // Auto-fetch chemical analysis if heat number is provided
     if (heatNumber) {
+      // 1. Check if this heat number already exists in ANOTHER row of the current form
+      const existingEntry = formData.rm_heat_tc_mapping.find(
+        h => h.id !== id && h.heatNumber === heatNumber && h.chemical_carbon !== ''
+      );
+
+      if (existingEntry) {
+        console.log(`🔬 Found existing entry for heat ${heatNumber} in the current form. Auto-populating...`);
+        setFormData(prev => ({
+          ...prev,
+          rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
+            heat.id === id
+              ? {
+                ...heat,
+                chemical_carbon: existingEntry.chemical_carbon || '',
+                chemical_manganese: existingEntry.chemical_manganese || '',
+                chemical_silicon: existingEntry.chemical_silicon || '',
+                chemical_sulphur: existingEntry.chemical_sulphur || '',
+                chemical_phosphorus: existingEntry.chemical_phosphorus || '',
+                isLoadingChemical: false,
+                chemicalAutoFetched: true,
+                chemicalReadOnly: false // Allow editing
+              }
+              : heat
+          )
+        }));
+        return; // Skip API call
+      }
+
+      // 2. If not found in current form, fetch from backend
       try {
-        console.log(`🔬 Auto-fetching chemical analysis for heat number: ${heatNumber}`);
+        console.log(`🔬 Auto-fetching chemical analysis from database for heat number: ${heatNumber}`);
         const response = await inspectionCallService.getChemicalAnalysisByHeatNumber(heatNumber);
 
         if (response && response.data) {
           const analysis = response.data;
-          console.log('✅ Chemical analysis found:', analysis);
+          console.log('✅ Chemical analysis found in database:', analysis);
 
           // Update the specific heat mapping with fetched chemical analysis
           setFormData(prev => ({
@@ -1726,7 +1758,8 @@ export const RaiseInspectionCallForm = ({
                   chemical_sulphur: analysis.sulphur || '',
                   chemical_phosphorus: analysis.phosphorus || '',
                   isLoadingChemical: false,
-                  chemicalAutoFetched: true // Flag to show visual indicator
+                  chemicalAutoFetched: true,
+                  chemicalReadOnly: false // Allow editing
                 }
                 : heat
             )
@@ -1737,7 +1770,7 @@ export const RaiseInspectionCallForm = ({
           setFormData(prev => ({
             ...prev,
             rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
-              heat.id === id ? { ...heat, isLoadingChemical: false, chemicalAutoFetched: false } : heat
+              heat.id === id ? { ...heat, isLoadingChemical: false, chemicalAutoFetched: false, chemicalReadOnly: false } : heat
             )
           }));
         }
@@ -1747,7 +1780,7 @@ export const RaiseInspectionCallForm = ({
         setFormData(prev => ({
           ...prev,
           rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
-            heat.id === id ? { ...heat, isLoadingChemical: false, chemicalAutoFetched: false } : heat
+            heat.id === id ? { ...heat, isLoadingChemical: false, chemicalAutoFetched: false, chemicalReadOnly: false } : heat
           )
         }));
       }
@@ -1840,33 +1873,45 @@ export const RaiseInspectionCallForm = ({
 
   // Handle chemical analysis change for a specific heat
   const handleHeatChemicalChange = (id, fieldName, value) => {
+    const heatMapping = formData.rm_heat_tc_mapping.find(h => h.id === id);
+    if (!heatMapping) return;
+
+    const heatNumber = heatMapping.heatNumber;
+
     setFormData(prev => ({
       ...prev,
-      rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat =>
-        heat.id === id ? { ...heat, [fieldName]: value } : heat
-      )
+      rm_heat_tc_mapping: prev.rm_heat_tc_mapping.map(heat => {
+        // Sync chemical data for all rows with the same heat number
+        if (heat.id === id || (heatNumber && heat.heatNumber === heatNumber)) {
+          return { ...heat, [fieldName]: value };
+        }
+        return heat;
+      })
     }));
 
-    // Find the index of this heat for error key
-    const heatIndex = formData.rm_heat_tc_mapping.findIndex(h => h.id === id);
-    const errorKey = `heat_${heatIndex}_${fieldName}`;
+    // Find all indices for the same heat to update errors
+    formData.rm_heat_tc_mapping.forEach((h, idx) => {
+      if (h.heatNumber === heatNumber || h.id === id) {
+        const errorKey = `heat_${idx}_${fieldName}`;
 
-    // Check if value is out of range and set error immediately
-    if (isChemistryOutOfRange(fieldName, value)) {
-      setErrors(prev => ({
-        ...prev,
-        [errorKey]: 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry'
-      }));
-    } else {
-      // Clear error if value is now in range
-      if (errors[errorKey]) {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[errorKey];
-          return newErrors;
-        });
+        // Check if value is out of range and set error immediately
+        if (isChemistryOutOfRange(fieldName, value)) {
+          setErrors(prev => ({
+            ...prev,
+            [errorKey]: 'Ladle Analysis of Heat should be in tolerance of the Grade Chemistry'
+          }));
+        } else {
+          // Clear error if value is now in range
+          if (errors[errorKey]) {
+            setErrors(prev => {
+              const newErrors = { ...prev };
+              delete newErrors[errorKey];
+              return newErrors;
+            });
+          }
+        }
       }
-    }
+    });
   };
 
   // Helper function to check if chemistry value is out of range
@@ -2240,7 +2285,6 @@ export const RaiseInspectionCallForm = ({
         qtyLeft: parseFloat(heat.tcQtyRemaining) || 0
       }));
 
-      // Transform chemical analysis data per heat
       const chemicalAnalysis = formData.rm_heat_tc_mapping.map(heat => ({
         heatNumber: heat.heatNumber,
         carbon: heat.chemical_carbon ? parseFloat(heat.chemical_carbon) : null,
@@ -2824,7 +2868,9 @@ export const RaiseInspectionCallForm = ({
                         gap: '8px'
                       }}>
                         <span>✅</span>
-                        <span><strong>Auto-fetched from previous IC:</strong> Chemical analysis data has been automatically populated from the most recent inspection call for this heat number. You can edit these values if needed.</span>
+                        <span>
+                          <strong>Auto-populated:</strong> Chemical analysis data has been automatically filled based on previous entries or database records for this heat number. You can edit these values if needed.
+                        </span>
                       </div>
                     )}
 
