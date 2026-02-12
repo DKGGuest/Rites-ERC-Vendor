@@ -4,6 +4,15 @@ import { getBaseUrl } from './apiConfig';
  * Hardcoded credentials for CM, CallDesk, and Finance users
  */
 const HARDCODED_USERS = {
+  '1': {
+    password: 'password',
+    userData: {
+      userId: '1',
+      userName: 'Sleeper Vendor',
+      roleName: 'SLEEPER_VENDOR',
+      token: 'sleeper-vendor-token-' + Date.now()
+    }
+  },
   'Cm': {
     password: 'password',
     userData: {

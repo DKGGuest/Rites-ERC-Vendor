@@ -10,8 +10,9 @@ import VisualMaterialTestingPage from './pages/VisualMaterialTestingPage';
 import SummaryReportsPage from './pages/SummaryReportsPage';
 import VendorDashboardPage from './pages/VendorDashboardPage';
 import Header from './components/Header';
-import { isAuthenticated } from './services/authService';
+import { isAuthenticated, getStoredUser } from './services/authService';
 import LoginPage from './pages/LoginPage';
+import SleeperVendorHost from './pages/SleeperVendorHost';
 
 
 const App = () => {
@@ -25,14 +26,14 @@ const App = () => {
   const [rmHeats, setRmHeats] = useState([{ heatNo: '', weight: '' }]);
   const [rmProductModel, setRmProductModel] = useState('MK-III');
 
- 
+
 
   useEffect(() => {
     try {
       window.scrollTo(0, 0);
       const mainEl = document.querySelector('.main-content');
       if (mainEl) mainEl.scrollTop = 0;
-    } catch (e) {}
+    } catch (e) { }
   }, [currentPage]);
 
   const handleStartInspection = (call) => {
@@ -71,15 +72,19 @@ const App = () => {
     setCurrentPage('raw-material');
   };
 
+  const user = getStoredUser();
+
   return (
-  !isAuthenticated() ? (
-    <LoginPage />
-  ) : (
-    <div>
-      
-      <Header />
-  
-      {/* <header className="app-header">
+    !isAuthenticated() ? (
+      <LoginPage />
+    ) : user?.roleName === 'SLEEPER_VENDOR' ? (
+      <SleeperVendorHost />
+    ) : (
+      <div>
+
+        <Header />
+
+        {/* <header className="app-header">
         <div className="header-left">
           <div className="app-logo">SARTHI</div>
           <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
@@ -115,21 +120,21 @@ const App = () => {
         </div>
       </header> */}
 
-      <div className={`app-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <div className={`app-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
 
-        <aside className={`sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-          <button
-            className="sidebar-toggle-btn"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {isSidebarCollapsed ? '»' : '«'}
-          </button>
+          <aside className={`sidebar ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+            <button
+              className="sidebar-toggle-btn"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isSidebarCollapsed ? '»' : '«'}
+            </button>
 
-          <nav>
-            <ul className="sidebar-nav">
+            <nav>
+              <ul className="sidebar-nav">
 
-              {/* <li
+                {/* <li
                 className={`sidebar-item ${currentPage === 'landing' ? 'active' : ''}`}
                 onClick={() => { handleBackToLanding(); setIsSidebarOpen(false); }}
                 title="Landing Page"
@@ -168,100 +173,100 @@ const App = () => {
                 <span className="sidebar-text">Final Product Inspection</span>
               </li> */}
 
-              {/* ⭐ Vendor Dashboard Sidebar Button */}
-              <li
-                className={`sidebar-item ${currentPage === 'vendor-dashboard' ? 'active' : ''}`}
-                onClick={() => { setCurrentPage('vendor-dashboard'); setIsSidebarOpen(false); }}
-                title="Vendor Dashboard"
-              >
-                <span className="sidebar-icon">🏭</span>
-                <span className="sidebar-text">Vendor Dashboard</span>
-              </li>
+                {/* ⭐ Vendor Dashboard Sidebar Button */}
+                <li
+                  className={`sidebar-item ${currentPage === 'vendor-dashboard' ? 'active' : ''}`}
+                  onClick={() => { setCurrentPage('vendor-dashboard'); setIsSidebarOpen(false); }}
+                  title="Vendor Dashboard"
+                >
+                  <span className="sidebar-icon">🏭</span>
+                  <span className="sidebar-text">Vendor Dashboard</span>
+                </li>
 
-            </ul>
-          </nav>
-        </aside>
+              </ul>
+            </nav>
+          </aside>
 
-        {/* Mobile overlay */}
-        {isSidebarOpen && (
-          <div
-            className="sidebar-overlay"
-            onClick={() => setIsSidebarOpen(false)}
-            aria-hidden="true"
-          />
-        )}
-
-        <main className="main-content">
-
-          {currentPage === 'landing' && (
-            <IELandingPage
-              onStartInspection={handleStartInspection}
-              onStartMultipleInspections={handleStartMultipleInspections}
+          {/* Mobile overlay */}
+          {isSidebarOpen && (
+            <div
+              className="sidebar-overlay"
+              onClick={() => setIsSidebarOpen(false)}
+              aria-hidden="true"
             />
           )}
 
-          {currentPage === 'initiation' && selectedCall && (
-            <InspectionInitiationPage
-              call={selectedCall}
-              onProceed={handleProceedToInspection}
-              onBack={handleBackToLanding}
-            />
-          )}
+          <main className="main-content">
 
-          {currentPage === 'multi-initiation' && selectedCalls.length > 0 && (
-            <MultiTabInspectionInitiationPage
-              calls={selectedCalls}
-              onProceed={handleProceedToInspection}
-              onBack={handleBackToLanding}
-            />
-          )}
+            {currentPage === 'landing' && (
+              <IELandingPage
+                onStartInspection={handleStartInspection}
+                onStartMultipleInspections={handleStartMultipleInspections}
+              />
+            )}
 
-          {currentPage === 'raw-material' && (
-            <RawMaterialDashboard
-              onBack={handleBackToLanding}
-              onNavigateToSubModule={handleNavigateToSubModule}
-              onHeatsChange={setRmHeats}
-              onProductModelChange={setRmProductModel}
-            />
-          )}
+            {currentPage === 'initiation' && selectedCall && (
+              <InspectionInitiationPage
+                call={selectedCall}
+                onProceed={handleProceedToInspection}
+                onBack={handleBackToLanding}
+              />
+            )}
 
-          {currentPage === 'process' && (
-            <ProcessDashboard onBack={handleBackToLanding} />
-          )}
+            {currentPage === 'multi-initiation' && selectedCalls.length > 0 && (
+              <MultiTabInspectionInitiationPage
+                calls={selectedCalls}
+                onProceed={handleProceedToInspection}
+                onBack={handleBackToLanding}
+              />
+            )}
 
-          {currentPage === 'final-product' && (
-            <FinalProductDashboard onBack={handleBackToLanding} />
-          )}
+            {currentPage === 'raw-material' && (
+              <RawMaterialDashboard
+                onBack={handleBackToLanding}
+                onNavigateToSubModule={handleNavigateToSubModule}
+                onHeatsChange={setRmHeats}
+                onProductModelChange={setRmProductModel}
+              />
+            )}
 
-          {/* ⭐ Vendor Dashboard Page Render */}
-          {currentPage === 'vendor-dashboard' && (
-            <VendorDashboardPage onBack={handleBackToLanding} />
-          )}
+            {currentPage === 'process' && (
+              <ProcessDashboard onBack={handleBackToLanding} />
+            )}
 
-          {/* Sub Module Pages */}
-          {currentPage === 'calibration-documents' && (
-            <CalibrationDocumentsPage
-              onBack={handleBackToRawMaterial}
-              heats={rmHeats}
-            />
-          )}
+            {currentPage === 'final-product' && (
+              <FinalProductDashboard onBack={handleBackToLanding} />
+            )}
 
-          {currentPage === 'visual-material-testing' && (
-            <VisualMaterialTestingPage
-              onBack={handleBackToRawMaterial}
-              heats={rmHeats}
-              productModel={rmProductModel}
-            />
-          )}
+            {/* ⭐ Vendor Dashboard Page Render */}
+            {currentPage === 'vendor-dashboard' && (
+              <VendorDashboardPage onBack={handleBackToLanding} />
+            )}
 
-          {currentPage === 'summary-reports' && (
-            <SummaryReportsPage onBack={handleBackToRawMaterial} />
-          )}
+            {/* Sub Module Pages */}
+            {currentPage === 'calibration-documents' && (
+              <CalibrationDocumentsPage
+                onBack={handleBackToRawMaterial}
+                heats={rmHeats}
+              />
+            )}
 
-        </main>
+            {currentPage === 'visual-material-testing' && (
+              <VisualMaterialTestingPage
+                onBack={handleBackToRawMaterial}
+                heats={rmHeats}
+                productModel={rmProductModel}
+              />
+            )}
+
+            {currentPage === 'summary-reports' && (
+              <SummaryReportsPage onBack={handleBackToRawMaterial} />
+            )}
+
+          </main>
+        </div>
       </div>
-    </div>
-  )
+    )
   );
 
 };
