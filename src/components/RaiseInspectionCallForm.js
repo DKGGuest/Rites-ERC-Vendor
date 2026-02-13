@@ -1978,6 +1978,7 @@ export const RaiseInspectionCallForm = ({
     console.log('📋 Validation starting...');
 
     const newErrors = {};
+    // const today = getTodayDate();
     // const maxDate = getMaxDate();
 
     // Common validations
