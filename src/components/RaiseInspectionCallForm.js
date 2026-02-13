@@ -1996,8 +1996,6 @@ export const RaiseInspectionCallForm = ({
 
     if (!formData.desired_inspection_date) {
       newErrors.desired_inspection_date = 'Desired Inspection Date is required';
-    } else if (formData.desired_inspection_date < today) {
-      newErrors.desired_inspection_date = 'Date cannot be in the past';
     } else if (formData.desired_inspection_date > getMaxDate()) {
       newErrors.desired_inspection_date = 'Desired Date of Inspection should not be more than 6 days from today';
     }
@@ -2150,9 +2148,10 @@ export const RaiseInspectionCallForm = ({
             if (!item.offeredQty || parseFloat(item.offeredQty) <= 0) {
               newErrors[`process_lot_${index}_offeredQty`] = `Offered Quantity must be greater than 0 for entry ${index + 1}`;
             }
-            if (!item.tentativeStartDate) {
-              newErrors[`process_lot_${index}_tentativeStartDate`] = `Tentative Start Date is required for entry ${index + 1}`;
-            }
+            // Commented out as per requirement: open from minus infinite to infinite
+            // if (!item.tentativeStartDate) {
+            //   newErrors[`process_lot_${index}_tentativeStartDate`] = `Tentative Start Date is required for entry ${index + 1}`;
+            // }
 
             // Validate that offered quantity doesn't exceed future balance
             if (item.offeredQty && item.heatNumber) {
@@ -2458,7 +2457,7 @@ export const RaiseInspectionCallForm = ({
             className="ric-form-input"
             value={formData.desired_inspection_date}
             onChange={handleChange}
-            min={getTodayDate()}
+            // min={getTodayDate()}
             max={getMaxDate()}
           />
         </FormField>
@@ -3244,7 +3243,7 @@ export const RaiseInspectionCallForm = ({
                       <FormField
                         label="Tentative Date of Start of Production"
                         name={`process_tentative_start_date_${lotHeat.id}`}
-                        required
+                        // required // Commented out to allow infinite range
                         hint="Expected date when production will start for this lot"
                       >
                         <input
@@ -3252,7 +3251,7 @@ export const RaiseInspectionCallForm = ({
                           className="ric-form-input"
                           value={lotHeat.tentativeStartDate}
                           onChange={(e) => handleProcessTentativeStartDateChange(lotHeat.id, e.target.value)}
-                          min={new Date().toISOString().split('T')[0]}
+                        // min={new Date().toISOString().split('T')[0]} // Removed to allow infinite range
                         />
                       </FormField>
                     </div>
