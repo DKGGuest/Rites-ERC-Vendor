@@ -122,7 +122,7 @@ const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder })
 
 
 // Helper functions
-const getTodayDate = () => new Date().toISOString().split('T')[0];
+// const getTodayDate = () => new Date().toISOString().split('T')[0];
 const getMaxDate = () => {
   const date = new Date();
   date.setDate(date.getDate() + 6);
