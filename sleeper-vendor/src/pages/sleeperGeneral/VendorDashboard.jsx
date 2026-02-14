@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import PlantDeclarationDashboard from './plantDeclaration/PlantDeclarationDashboard';
 import ProductionDeclarationDashboard from './ProductionDeclarationDashboard';
+import InventoryManagementDashboard from './inventoryManagement/InventoryManagementDashboard';
 
 const VendorDashboard = () => {
-    const [selectedModule, setSelectedModule] = useState('plant-declaration');
+    const [selectedModule, setSelectedModule] = useState('inventory-management');
 
     const modules = [
         { id: 'plant-declaration', title: 'Plant Declaration', subtitle: 'Plant setup & masters' },
@@ -18,6 +19,8 @@ const VendorDashboard = () => {
                 return <PlantDeclarationDashboard />;
             case 'production-declaration':
                 return <ProductionDeclarationDashboard />;
+            case 'inventory-management':
+                return <InventoryManagementDashboard />;
             default:
                 return (
                     <div style={{ textAlign: 'center', padding: '100px 0', color: '#94a3b8', background: '#fff', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
