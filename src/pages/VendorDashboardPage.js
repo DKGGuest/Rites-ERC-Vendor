@@ -12,6 +12,7 @@ import AddSubPOForm from '../components/AddSubPOForm';
 import ViewInventoryEntryModal from '../components/ViewInventoryEntryModal';
 import ViewMasterEntryModal from '../components/ViewMasterEntryModal';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import Notification from '../components/Notification';
 import {
   // VENDOR_PO_LIST,
   VENDOR_REQUESTED_CALLS,
@@ -114,6 +115,9 @@ const VendorDashboardPage = ({ onBack }) => {
   const [selectedInventoryEntry, setSelectedInventoryEntry] = useState(null);
   const [editingInventoryEntry, setEditingInventoryEntry] = useState(null);
   const [isDeletingEntry, setIsDeletingEntry] = useState(false);
+
+  // Notification state
+  const [notification, setNotification] = useState({ message: '', type: 'error' });
 
 
   // PO Assigned data state - using real API
@@ -913,11 +917,17 @@ const VendorDashboardPage = ({ onBack }) => {
           });
 
           console.log('✅ Workflow initiated:', workflowResponse);
-          alert(`✅ ${data.type_of_call} Inspection Request saved successfully!\n\nIC Number: ${savedInspectionCall.icNumber}\nItem: ${selectedPOItem?.item?.item_name}\n\nData has been saved to the database.`);
+          setNotification({
+            message: `✅ ${data.type_of_call} Inspection Request saved successfully!\n\nIC Number: ${savedInspectionCall.icNumber}\n\nData has been saved to the database.`,
+            type: 'success'
+          });
         } catch (workflowError) {
           // If workflow initiation fails, still show success for the save
           console.warn('⚠️ Workflow initiation failed (optional):', workflowError);
-          alert(`✅ ${data.type_of_call} Inspection Request saved successfully!\n\nIC Number: ${savedInspectionCall.icNumber}\nItem: ${selectedPOItem?.item?.item_name}\n\nData has been saved to the database.\n\nNote: Workflow initiation pending - will be retried automatically.`);
+          setNotification({
+            message: `✅ ${data.type_of_call} Inspection Request saved successfully!\n\nIC Number: ${savedInspectionCall.icNumber}\n\nNote: Workflow initiation pending.`,
+            type: 'success'
+          });
         }
       } else {
         throw new Error('Failed to save inspection call');
@@ -952,13 +962,10 @@ const VendorDashboardPage = ({ onBack }) => {
       }
 
       // Show user-friendly error message
-      alert(`❌ Failed to Submit Inspection Request\n\n${errorMessage}${errorDetails}\n\n` +
-        `Please check:\n` +
-        `1. All required fields are filled correctly\n` +
-        `2. Offered quantities do not exceed available inventory\n` +
-        `3. API server is running (http://localhost:8080)\n` +
-        `4. Database connection is working\n\n` +
-        `Your form data has been preserved. Please fix the errors and try again.`);
+      setNotification({
+        message: `❌ Failed to raise inspection call\n\n${errorMessage}${errorDetails}`,
+        type: 'error'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -1033,12 +1040,18 @@ const VendorDashboardPage = ({ onBack }) => {
           // Update in local state
           setInventoryEntries(prev => prev.map(entry => entry.id === editingInventoryEntry.id ? savedEntry : entry));
           setEditingInventoryEntry(null);
-          alert(`✅ Inventory entry updated successfully!\n\nMaterial: ${data.rawMaterial}\nHeat Number: ${data.heatNumber}`);
+          setNotification({
+            message: `✅ Inventory entry updated successfully!\n\nMaterial: ${data.rawMaterial}\nHeat Number: ${data.heatNumber}`,
+            type: 'success'
+          });
         } else {
           // Add to inventory entries state
           setInventoryEntries(prev => [savedEntry, ...prev]);
           // Show success message
-          alert(`✅ Inventory entry saved successfully!\n\nMaterial: ${data.rawMaterial}\nSupplier: ${data.supplierName}\nQuantity: ${data.declaredQuantity} ${data.unitOfMeasurement}`);
+          setNotification({
+            message: `✅ Inventory entry saved successfully!\n\nMaterial: ${data.rawMaterial}\nSupplier: ${data.supplierName}\nQuantity: ${data.declaredQuantity} ${data.unitOfMeasurement}`,
+            type: 'success'
+          });
         }
 
         // Return true to signal form to reset
@@ -1049,7 +1062,10 @@ const VendorDashboardPage = ({ onBack }) => {
 
     } catch (error) {
       console.error('❌ Error saving inventory entry:', error);
-      alert(`❌ Failed to save inventory entry.\n\nError: ${error.message}\n\nPlease check:\n1. API server is running (http://localhost:8080)\n2. Database connection is working\n3. All required fields are filled`);
+      setNotification({
+        message: `❌ Failed to save inventory entry.\n\nError: ${error.message}`,
+        type: 'error'
+      });
       return false;
     } finally {
       setIsLoading(false);
@@ -3742,6 +3758,15 @@ const VendorDashboardPage = ({ onBack }) => {
         isDeleting={false}
         title="Delete Master Entry"
         message={`Are you sure you want to delete the master entry for ${masterToDelete?.company_name} - ${masterToDelete?.unit_name}?`}
+      />
+
+      {/* Global Notification */}
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ message: '', type: 'error' })}
+        autoClose={true}
+        autoCloseDelay={5000}
       />
     </div>
   );

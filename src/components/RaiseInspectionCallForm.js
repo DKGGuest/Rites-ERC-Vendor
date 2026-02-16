@@ -19,6 +19,7 @@ import {
 import inspectionCallService from '../services/inspectionCallService';
 import poiMappingService from '../services/poiMappingService';
 import HeatSummaryTable from './HeatSummaryTable';
+import Notification from './Notification';
 import '../styles/raiseInspectionCall.css';
 
 // Multi-Select Dropdown Component
@@ -346,6 +347,9 @@ export const RaiseInspectionCallForm = ({
   const [loadingCompanies, setLoadingCompanies] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [loadingUnitDetails, setLoadingUnitDetails] = useState(false);
+
+  // Notification state
+  const [notification, setNotification] = useState({ message: '', type: 'error' });
 
   // Heat Summary states
   const [heatSummaryData, setHeatSummaryData] = useState([]);
@@ -2230,7 +2234,10 @@ export const RaiseInspectionCallForm = ({
 
       const additionalErrors = errorCount > 5 ? `\n... and ${errorCount - 5} more errors` : '';
 
-      alert(`❌ Form Validation Failed\n\nPlease fix the following errors:\n\n${errorMessages}${additionalErrors}\n\nThe form has been scrolled to the first error.`);
+      setNotification({
+        message: `❌ Form Validation Failed\n\nPlease fix the errors highlighted below.`,
+        type: 'error'
+      });
 
       return;
     }
@@ -3643,6 +3650,15 @@ export const RaiseInspectionCallForm = ({
           </div>
         </>
       )}
+
+      {/* Global Notification */}
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ message: '', type: 'error' })}
+        autoClose={true}
+        autoCloseDelay={5000}
+      />
     </div>
   );
 };

@@ -19,7 +19,7 @@ export class ApiError extends Error {
 const fetchWithTimeout = async (url, options, timeout = REQUEST_TIMEOUT) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -41,11 +41,11 @@ const fetchWithTimeout = async (url, options, timeout = REQUEST_TIMEOUT) => {
  */
 const parseResponse = async (response) => {
   const contentType = response.headers.get('content-type');
-  
+
   if (contentType && contentType.includes('application/json')) {
     return response.json();
   }
-  
+
   return response.text();
 };
 
@@ -72,8 +72,10 @@ const request = async (endpoint, options = {}) => {
     const data = await parseResponse(response);
 
     if (!response.ok) {
+      // Backend might wrap error in responseStatus.message
+      const errorMessage = data?.responseStatus?.message || data?.message || `HTTP Error ${response.status}`;
       throw new ApiError(
-        data?.message || `HTTP Error ${response.status}`,
+        errorMessage,
         response.status,
         data
       );
@@ -130,31 +132,31 @@ const request = async (endpoint, options = {}) => {
  * HTTP Methods
  */
 export const httpClient = {
-  get: (endpoint, options = {}) => 
+  get: (endpoint, options = {}) =>
     request(endpoint, { ...options, method: 'GET' }),
-  
-  post: (endpoint, data, options = {}) => 
-    request(endpoint, { 
-      ...options, 
-      method: 'POST', 
-      body: JSON.stringify(data) 
+
+  post: (endpoint, data, options = {}) =>
+    request(endpoint, {
+      ...options,
+      method: 'POST',
+      body: JSON.stringify(data)
     }),
-  
-  put: (endpoint, data, options = {}) => 
-    request(endpoint, { 
-      ...options, 
-      method: 'PUT', 
-      body: JSON.stringify(data) 
+
+  put: (endpoint, data, options = {}) =>
+    request(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: JSON.stringify(data)
     }),
-  
-  patch: (endpoint, data, options = {}) => 
-    request(endpoint, { 
-      ...options, 
-      method: 'PATCH', 
-      body: JSON.stringify(data) 
+
+  patch: (endpoint, data, options = {}) =>
+    request(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: JSON.stringify(data)
     }),
-  
-  delete: (endpoint, options = {}) => 
+
+  delete: (endpoint, options = {}) =>
     request(endpoint, { ...options, method: 'DELETE' })
 };
 
