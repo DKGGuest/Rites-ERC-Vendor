@@ -2226,14 +2226,6 @@ export const RaiseInspectionCallForm = ({
       }
 
       // Show validation summary alert
-      const errorCount = Object.keys(newErrors).length;
-      const errorMessages = Object.entries(newErrors)
-        .slice(0, 5) // Show first 5 errors
-        .map(([, message]) => `• ${message}`)
-        .join('\n');
-
-      const additionalErrors = errorCount > 5 ? `\n... and ${errorCount - 5} more errors` : '';
-
       setNotification({
         message: `❌ Form Validation Failed\n\nPlease fix the errors highlighted below.`,
         type: 'error'
