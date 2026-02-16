@@ -2319,7 +2319,8 @@ export const RaiseInspectionCallForm = ({
         final_hdpe_bags: formData.final_hdpe_bags,
         final_rm_ic_numbers: formData.final_rm_ic_numbers,
         final_process_ic_numbers: formData.final_process_ic_numbers,
-        final_total_accepted_qty_process: formData.final_total_accepted_qty_process
+        final_total_accepted_qty_process: formData.final_total_accepted_qty_process,
+        final_lots_data: formData.final_lots_data
         // Note: unit_id, unit_name, unit_address are already in filteredData from common fields
       };
     }

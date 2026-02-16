@@ -858,12 +858,12 @@ const VendorDashboardPage = ({ onBack }) => {
             totalLots: data.final_lot_numbers ? data.final_lot_numbers.length : 0,
             totalOfferedQty: parseInt(data.final_total_qty) || 0
           },
-          finalLotDetails: data.final_lot_numbers ? data.final_lot_numbers.map(lotNumber => ({
-            lotNumber: lotNumber,
-            heatNumber: data.final_manufacturer_heat ? data.final_manufacturer_heat.split(' - ')[1] : '',
-            manufacturer: data.final_manufacturer_heat ? data.final_manufacturer_heat.split(' - ')[0] : '',
-            manufacturerHeat: data.final_manufacturer_heat || '',
-            offeredQty: Math.floor(parseInt(data.final_total_qty) / data.final_lot_numbers.length) || 0,
+          finalLotDetails: data.final_lots_data ? data.final_lots_data.map(lot => ({
+            lotNumber: lot.lotNumber,
+            heatNumber: lot.heatNo || '',
+            manufacturer: '', // Manufacturer name not directly available in final_lots_data
+            manufacturerHeat: lot.heatNo || '', // Using heat number as fallback
+            offeredQty: parseInt(lot.offeredQty) || 0,
             processIcNumber: data.final_process_ic_numbers && data.final_process_ic_numbers.length > 0
               ? data.final_process_ic_numbers[0]
               : null
