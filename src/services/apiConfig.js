@@ -71,13 +71,13 @@ export const API_ENDPOINTS = {
     UPDATE: '/inspection/update',
     DELETE: '/inspection/delete'
   },
-  
+
   CALIBRATION: {
     GET_ALL: '/calibration/all',
     CREATE: '/calibration/create',
     UPDATE: '/calibration/update'
   },
-  
+
   PAYMENT: {
     GET_ALL: '/payment/all',
     CREATE: '/payment/create',
@@ -93,7 +93,7 @@ export const API_ENDPOINTS = {
 };
 
 // HTTP request timeout in milliseconds
-export const REQUEST_TIMEOUT = 30000;
+export const REQUEST_TIMEOUT = 60000;
 
 // Default headers for API requests
 export const getDefaultHeaders = (token = null) => {
@@ -101,11 +101,11 @@ export const getDefaultHeaders = (token = null) => {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   };
-  
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
+
   return headers;
 };
 
