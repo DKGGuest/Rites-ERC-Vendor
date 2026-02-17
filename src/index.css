@@ -1575,6 +1575,40 @@ select.form-control {
   border: 1px solid rgba(var(--color-warning-rgb), 0.25);
 }
 
+/* Custom Inspection Statuses */
+.status-badge[class*="raised"] {
+  background: rgba(var(--color-info-rgb), 0.15);
+  color: var(--color-info);
+  border: 1px solid rgba(var(--color-info-rgb), 0.25);
+}
+
+.status-badge[class*="returned"] {
+  background: rgba(var(--color-error-rgb), 0.15);
+  color: var(--color-error);
+  border: 1px solid rgba(var(--color-error-rgb), 0.25);
+}
+
+.status-badge[class*="assigned"],
+.status-badge[class*="scheduled"],
+.status-badge[class*="completed"] {
+  background: rgba(var(--color-success-rgb), 0.15);
+  color: var(--color-success);
+  border: 1px solid rgba(var(--color-success-rgb), 0.25);
+}
+
+.status-badge[class*="inspection"],
+.status-badge[class*="witheld"] {
+  background: rgba(var(--color-warning-rgb), 0.15);
+  color: var(--color-warning);
+  border: 1px solid rgba(var(--color-warning-rgb), 0.25);
+}
+
+.status-badge[class*="cancelled"] {
+  background: rgba(var(--color-error-rgb), 0.15);
+  color: var(--color-error);
+  border: 1px solid rgba(var(--color-error-rgb), 0.25);
+}
+
 /* Stats Grid */
 .stats-grid {
   display: grid;

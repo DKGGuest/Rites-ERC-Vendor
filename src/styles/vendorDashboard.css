@@ -669,7 +669,7 @@
   background-color: #fafbfc;
 }
 
-.po-items-row > td {
+.po-items-row>td {
   padding: 0 !important;
   border-top: none;
 }
@@ -931,7 +931,7 @@
   background-color: #fafbfc;
 }
 
-.call-actions-row > td {
+.call-actions-row>td {
   padding: 0 !important;
   border-top: none;
 }
@@ -1138,7 +1138,7 @@
   background-color: #fafbfc;
 }
 
-.completed-actions-row > td {
+.completed-actions-row>td {
   padding: 0 !important;
   border-top: none;
 }

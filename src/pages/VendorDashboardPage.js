@@ -71,6 +71,7 @@ const VendorDashboardPage = ({ onBack }) => {
   const [loadingRMICs, setLoadingRMICs] = useState({});
 
   // Expanded Inspection Call rows state (for Requested Calls tab)
+  // eslint-disable-next-line no-unused-vars
   const [expandedCallRows, setExpandedCallRows] = useState({});
 
   // Modals for Inspection Call Details and Rectification
@@ -316,8 +317,18 @@ const VendorDashboardPage = ({ onBack }) => {
             location: call.placeOfInspection || '',
             status: call.workflowStatus || call.jobStatus || 'Pending',
             // Additional fields for expanded view
+            rlyShortName: call.rlyShortName || 'N/A',
+            ercType: call.ercType || 'N/A',
+            noOfHeatsRM: call.noOfHeatsRM,
+            lotNoProcess: call.lotNoProcess,
+            lotNoFinal: call.lotNoFinal,
+            ieName: call.ieName || 'Not Assigned',
+            uom: call.uom || '',
+            scheduledDate: call.scheduledDate,
+            unitName: call.unitName || call.placeOfInspection || 'N/A',
+            poSerialNo: call.poSerialNo || 'N/A',
             inspection_details: {
-              inspector_name: call.currentRoleName || 'N/A',
+              inspector_name: call.ieName || 'N/A',
               inspection_date: call.desiredInspectionDate || '',
               remarks: call.nextRoleName ? `Next: ${call.nextRoleName}` : '',
               documents: []
@@ -351,11 +362,29 @@ const VendorDashboardPage = ({ onBack }) => {
 
   // Filtered payment items based on status and date
   const filteredPaymentItems = useMemo(() => {
+    // Start with existing payment items
+    let items = [...paymentItems];
+
+    // Add cancelled calls from requestedCalls that need payment
+    const cancelledCallsForPayment = requestedCalls.filter(
+      c => c.status === 'Call cancelled & payment Pending'
+    ).map(c => ({
+      id: `cancelled-${c.id}`,
+      call_no: c.call_no,
+      po_no: c.po_no,
+      inspection_type: c.stage,
+      payment_status: 'Payment Pending',
+      total_payable_amount: 0,
+      call_date: c.call_date
+    }));
+
+    items = [...items, ...cancelledCallsForPayment];
+
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    return paymentItems.filter(item => {
+    return items.filter(item => {
       // Status filter
       if (paymentStatusFilter !== 'all' && item.payment_status !== paymentStatusFilter) {
         return false;
@@ -367,7 +396,7 @@ const VendorDashboardPage = ({ onBack }) => {
       }
       return true;
     });
-  }, [paymentItems, paymentStatusFilter, showOldApproved]);
+  }, [paymentItems, requestedCalls, paymentStatusFilter, showOldApproved]);
 
   // ============ COMPLIANCE STATUS CALCULATION ============
   // Get requirements for current vendor's product type
@@ -1174,6 +1203,7 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   // ============ INSPECTION CALL ROW HANDLERS ============
+  // eslint-disable-next-line no-unused-vars
   const toggleCallRow = (callId) => {
     setExpandedCallRows(prev => ({
       ...prev,
@@ -1182,6 +1212,7 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   // View Full Inspection Call Details modal handlers
+  // eslint-disable-next-line no-unused-vars
   const handleOpenCallDetailsModal = (call) => {
     setSelectedCall(call);
     setIsCallDetailsModalOpen(true);
@@ -1193,6 +1224,7 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   // Update Rectification Details modal handlers
+  // eslint-disable-next-line no-unused-vars
   const handleOpenRectificationModal = (call) => {
     setSelectedCall(call);
     setIsRectificationModalOpen(true);
@@ -1204,6 +1236,7 @@ const VendorDashboardPage = ({ onBack }) => {
   };
 
   // Download Acknowledged Documents handler
+  // eslint-disable-next-line no-unused-vars
   const handleDownloadDocuments = (call) => {
     console.log('Downloading documents for:', call.call_no);
     alert(`Downloading documents for ${call.call_no}:\n- ${call.inspection_details?.documents?.join('\n- ') || 'No documents available'}`);
@@ -1337,11 +1370,19 @@ const VendorDashboardPage = ({ onBack }) => {
 
   // Summary numbers for tab badges
   const totalPOs = poAssignedList.length;
-  const pendingRequests = useMemo(
-    () => VENDOR_REQUESTED_CALLS.filter(c => c.status === 'Pending').length,
-    []
+
+  const fetchedRequestedCalls = useMemo(
+    () => requestedCalls.filter(c => c.status !== 'IC Issued' && c.status !== 'Completed'),
+    [requestedCalls]
   );
-  const completedCalls = VENDOR_COMPLETED_CALLS.length;
+
+  const fetchedCompletedCalls = useMemo(
+    () => requestedCalls.filter(c => c.status === 'IC Issued' || c.status === 'Completed'),
+    [requestedCalls]
+  );
+
+  const pendingRequests = fetchedRequestedCalls.length;
+  const completedCallsCount = fetchedCompletedCalls.length > 0 ? fetchedCompletedCalls.length : VENDOR_COMPLETED_CALLS.length;
 
   // Primary tabs with counts (displayed in a box)
   const primaryTabs = [
@@ -1361,7 +1402,7 @@ const VendorDashboardPage = ({ onBack }) => {
       id: 'completed-calls',
       label: 'Completed Calls',
       description: 'Inspection Calls & IC Download',
-      count: completedCalls
+      count: completedCallsCount
     }
   ];
 
@@ -1454,6 +1495,24 @@ const VendorDashboardPage = ({ onBack }) => {
     setSelectedMasterEntry(null);
   }, []);
 
+  const handleModifyCall = (call) => {
+    // Logic to modify call - this would typically open the Raise Inspection Call form with populated data
+    alert(`Opening modification form for Call: ${call.call_no}`);
+    // In real implementation:
+    // setSelectedPOItem({ po: ..., item: ..., subPO: ... });
+    // setEditingCall(call);
+    // setIsInspectionModalOpen(true);
+  };
+
+  const handleWithdrawCall = (call) => {
+    const confirmed = window.confirm(`Are you sure you want to withdraw Inspection Call ${call.call_no}?`);
+    if (confirmed) {
+      alert(`Call ${call.call_no} has been withdrawn.`);
+      // In real implementation, call an API to withdraw the call
+      // inspectionCallService.withdrawCall(call.id).then(() => fetchRequestedCalls());
+    }
+  };
+
   // Column definitions for DataTable
 
   const poColumns = [
@@ -1476,20 +1535,111 @@ const VendorDashboardPage = ({ onBack }) => {
 
   const requestedColumns = [
     { key: 'call_no', label: 'Call No.' },
-    { key: 'po_no', label: 'PO No.' },
-    { key: 'item_name', label: 'Item Name' },
-    { key: 'stage', label: 'Stage' },
+    {
+      key: 'poCombined',
+      label: 'PO/ Sr. No.',
+      render: (_, row) => `${row.rlyShortName} / ${row.po_no} / ${row.poSerialNo}`
+    },
+    {
+      key: 'inspectionDetail',
+      label: 'Detail of Inspection Call',
+      render: (_, row) => {
+        let details = `${row.ercType || ''} (${row.stage})`;
+        if (row.stage === 'Raw Material' && row.noOfHeatsRM) details += ` - ${row.noOfHeatsRM} Heats`;
+        if (row.stage === 'Process' && row.lotNoProcess) details += ` - Lot: ${row.lotNoProcess}`;
+        if (row.stage === 'Final' && row.lotNoFinal) details += ` - Lot: ${row.lotNoFinal}`;
+        return details;
+      }
+    },
+    { key: 'ieName', label: 'IE Assigned' },
     {
       key: 'call_date',
-      label: 'Call Date',
+      label: 'Desired Date of Call',
       render: (value) => formatDate(value)
     },
-    { key: 'quantity_offered', label: 'Qty Offered' },
-    { key: 'location', label: 'Location' },
+    {
+      key: 'quantity_offered',
+      label: 'Qty Offered',
+      render: (val, row) => `${val} ${row.uom || ''}`
+    },
+    { key: 'unitName', label: 'Unit Name' },
     {
       key: 'status',
       label: 'Status',
-      render: (value) => <StatusBadge status={value} />
+      render: (val, row) => (
+        <div>
+          <StatusBadge status={val} />
+          {val === 'SCHEDULED' && row.scheduledDate && (
+            <div style={{ fontSize: '11px', marginTop: '4px', color: '#666' }}>
+              Scheduled: {formatDate(row.scheduledDate)}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Action',
+      render: (_, row) => {
+        // Statuses that require workflow approval for modify/withdraw
+        const workflowRequiredStatuses = [
+          'Call assigned to IE',
+          'Call Scheduled by IE',
+          'Under Inspection',
+          'Call Withheld',
+          'Inspection Completed & Pending for IC Issuance'
+        ];
+
+        const needsWorkflow = workflowRequiredStatuses.includes(row.status);
+
+        return (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
+            <button
+              className="master-action-btn master-action-edit"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (needsWorkflow) {
+                  alert(`⚠️ Workflow Required\n\nModifying call ${row.call_no} with status "${row.status}" requires workflow approval.\n\nThe modification request will be sent for approval.`);
+                }
+                handleModifyCall(row);
+              }}
+              title={needsWorkflow ? "Modify Call (Requires Workflow Approval)" : "Modify Call"}
+              style={{
+                width: 'auto',
+                minWidth: '75px',
+                padding: '6px 12px',
+                fontSize: '13px',
+                backgroundColor: '#dbeafe',
+                borderColor: '#3b82f6',
+                color: '#1e40af',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Modify
+            </button>
+            <button
+              className="master-action-btn master-action-delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (needsWorkflow) {
+                  alert(`⚠️ Workflow Required\n\nWithdrawing call ${row.call_no} with status "${row.status}" requires workflow approval.\n\nThe withdrawal request will be sent for approval.`);
+                }
+                handleWithdrawCall(row);
+              }}
+              title={needsWorkflow ? "Withdraw Call (Requires Workflow Approval)" : "Withdraw Call"}
+              style={{
+                width: 'auto',
+                minWidth: '85px',
+                padding: '6px 12px',
+                fontSize: '13px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Withdraw
+            </button>
+          </div>
+        );
+      }
     }
   ];
 
@@ -1550,7 +1700,7 @@ const VendorDashboardPage = ({ onBack }) => {
 
   // Filter, sort, and paginate requested calls
   const filteredAndSortedRequestedCalls = useMemo(() => {
-    let result = [...requestedCalls];
+    let result = [...fetchedRequestedCalls];
 
     // Apply search filter
     if (requestedCallsSearchTerm) {
@@ -1581,7 +1731,7 @@ const VendorDashboardPage = ({ onBack }) => {
     }
 
     return result;
-  }, [requestedCalls, requestedCallsSearchTerm, requestedCallsSortColumn, requestedCallsSortDirection]);
+  }, [fetchedRequestedCalls, requestedCallsSearchTerm, requestedCallsSortColumn, requestedCallsSortDirection]);
 
   // Paginate the filtered and sorted calls
   const paginatedRequestedCalls = useMemo(() => {
@@ -2453,10 +2603,10 @@ const VendorDashboardPage = ({ onBack }) => {
                         {requestedColumns.map(col => (
                           <th
                             key={col.key}
-                            onClick={() => handleRequestedCallsSort(col.key)}
-                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                            onClick={col.key !== 'actions' ? () => handleRequestedCallsSort(col.key) : undefined}
+                            style={{ cursor: col.key !== 'actions' ? 'pointer' : 'default', userSelect: 'none' }}
                           >
-                            {col.label} {requestedCallsSortColumn === col.key && (requestedCallsSortDirection === 'asc' ? '↑' : '↓')}
+                            {col.label} {col.key !== 'actions' && requestedCallsSortColumn === col.key && (requestedCallsSortDirection === 'asc' ? '↑' : '↓')}
                           </th>
                         ))}
                       </tr>
@@ -2472,66 +2622,13 @@ const VendorDashboardPage = ({ onBack }) => {
                         </tr>
                       ) : (
                         paginatedRequestedCalls.map((call) => (
-                          <React.Fragment key={call.id}>
-                            {/* Call Row */}
-                            <tr
-                              className={`call-row ${expandedCallRows[call.id] ? 'expanded' : ''}`}
-                              onClick={() => toggleCallRow(call.id)}
-                              style={{ cursor: 'pointer' }}
-                            >
-                              {requestedColumns.map(col => (
-                                <td key={col.key} data-label={col.label}>
-                                  {col.render ? col.render(call[col.key], call) : call[col.key]}
-                                </td>
-                              ))}
-                            </tr>
-                            {/* Expanded Actions Row */}
-                            {expandedCallRows[call.id] && (
-                              <tr className="call-actions-row">
-                                <td colSpan={requestedColumns.length}>
-                                  <div className="call-actions-container">
-                                    <button
-                                      className="btn btn-sm btn-outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenCallDetailsModal(call);
-                                      }}
-                                    >
-                                      View Full Inspection Call Details
-                                    </button>
-                                    <button
-                                      className="btn btn-sm btn-outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleViewTransitionHistory(call);
-                                      }}
-                                      disabled={workflowLoading.transitionHistory}
-                                    >
-                                      {workflowLoading.transitionHistory ? 'Loading...' : 'View Workflow History'}
-                                    </button>
-                                    <button
-                                      className="btn btn-sm btn-outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenRectificationModal(call);
-                                      }}
-                                    >
-                                      Update Rectification Details
-                                    </button>
-                                    <button
-                                      className="btn btn-sm btn-outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDownloadDocuments(call);
-                                      }}
-                                    >
-                                      Download Acknowledged Documents
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
+                          <tr key={call.id} className="call-row">
+                            {requestedColumns.map(col => (
+                              <td key={col.key} data-label={col.label}>
+                                {col.render ? col.render(call[col.key], call) : call[col.key]}
+                              </td>
+                            ))}
+                          </tr>
                         ))
                       )}
                     </tbody>
