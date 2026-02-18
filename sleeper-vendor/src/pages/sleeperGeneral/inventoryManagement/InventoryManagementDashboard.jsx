@@ -13,138 +13,137 @@ const InventoryManagementDashboard = () => {
         { id: 'dowel', name: 'Dowel', unit: 'Nos', quantity: 3200, alerts: [], icon: '📍' },
     ];
 
-    if (selectedMaterial) {
-        return (
-            <InventoryDetail
-                material={selectedMaterial}
-                onBack={() => setSelectedMaterial(null)}
-            />
-        );
-    }
-
     return (
-        <div className="inventory-dashboard fade-in">
+        <div className="inventory-dashboard fade-in" style={{ padding: '20px' }}>
+            <div style={{ marginBottom: '16px' }}>
+                <h2 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '800', color: '#1e293b' }}>Inventory Overview</h2>
+                <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>Select a material to view details and manage stock</p>
+            </div>
+
+            {/* Horizontal Row of Material Cards */}
             <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: '24px',
-                padding: '10px 0'
+                display: 'flex',
+                gap: '16px',
+                padding: '10px 4px 20px 4px',
+                overflowX: 'auto',
+                scrollbarWidth: 'thin',
+                msOverflowStyle: 'none'
             }}>
                 {materials.map(material => (
                     <div
                         key={material.id}
-                        onClick={() => setSelectedMaterial(material)}
+                        onClick={() => setSelectedMaterial(selectedMaterial?.id === material.id ? null : material)}
                         style={{
-                            background: 'white',
-                            borderRadius: '24px',
-                            padding: '24px',
+                            minWidth: '240px',
+                            flex: '0 0 auto',
+                            background: selectedMaterial?.id === material.id ? '#f0f9ff' : 'white',
+                            borderRadius: '16px',
+                            padding: '16px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
-                            border: '1px solid #e2e8f0',
-                            position: 'relative',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '16px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-5px)';
-                            e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
-                            e.currentTarget.style.borderColor = '#42818c';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
-                            e.currentTarget.style.borderColor = '#e2e8f0';
-                        }}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div style={{
-                                width: '48px',
-                                height: '48px',
-                                borderRadius: '14px',
-                                background: '#f0fdfa',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '24px'
-                            }}>
-                                {material.icon}
-                            </div>
-                            {material.alerts.length > 0 && (
-                                <div style={{
-                                    background: '#fee2e2',
-                                    color: '#b91c1c',
-                                    padding: '4px 12px',
-                                    borderRadius: '20px',
-                                    fontSize: '12px',
-                                    fontWeight: '600',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                }}>
-                                    ⚠️ {material.alerts.length} Alert{material.alerts.length > 1 ? 's' : ''}
-                                </div>
-                            )}
-                        </div>
-
-                        <div>
-                            <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>
-                                {material.name}
-                            </h3>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                                <span style={{ fontSize: '28px', fontWeight: '800', color: '#42818c' }}>
-                                    {material.quantity.toLocaleString()}
-                                </span>
-                                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>
-                                    {material.unit} available
-                                </span>
-                            </div>
-                        </div>
-
-                        {material.alerts.length > 0 && (
-                            <div style={{
-                                background: '#fff7ed',
-                                border: '1px solid #ffedd5',
-                                borderRadius: '12px',
-                                padding: '10px 12px'
-                            }}>
-                                {material.alerts.map((alert, idx) => (
-                                    <div key={idx} style={{ fontSize: '12px', color: '#9a3412', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        • {alert}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        <div style={{
-                            marginTop: 'auto',
+                            border: `2px solid ${selectedMaterial?.id === material.id ? '#0ea5e9' : '#e2e8f0'}`,
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'space-between',
-                            paddingTop: '16px',
-                            borderTop: '1px solid #f1f5f9'
+                            gap: '16px',
+                            boxShadow: selectedMaterial?.id === material.id ? '0 10px 15px -3px rgba(14, 165, 233, 0.1)' : '0 1px 3px rgba(0,0,0,0.1)',
+                            position: 'relative'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (selectedMaterial?.id !== material.id) {
+                                e.currentTarget.style.borderColor = '#0ea5e9';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (selectedMaterial?.id !== material.id) {
+                                e.currentTarget.style.borderColor = '#e2e8f0';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                            }
+                        }}
+                    >
+                        <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            background: selectedMaterial?.id === material.id ? '#e0f2fe' : '#f8fafc',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '20px'
                         }}>
-                            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>View Details</span>
-                            <div style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '50%',
-                                background: '#f8fafc',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#42818c'
-                            }}>
-                                →
+                            {material.icon}
+                        </div>
+
+                        <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>
+                                    {material.name}
+                                </h3>
+                                {material.alerts.length > 0 && (
+                                    <span title={material.alerts.join(', ')} style={{ color: '#ef4444', fontSize: '14px' }}>⚠️</span>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                                <span style={{ fontSize: '18px', fontWeight: '800', color: '#0369a1' }}>
+                                    {material.quantity.toLocaleString()}
+                                </span>
+                                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>
+                                    {material.unit}
+                                </span>
                             </div>
                         </div>
+
+                        {selectedMaterial?.id === material.id && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '-10px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                width: '0',
+                                height: '0',
+                                borderLeft: '10px solid transparent',
+                                borderRight: '10px solid transparent',
+                                borderBottom: '10px solid #f8fafc',
+                                zIndex: 10
+                            }}></div>
+                        )}
                     </div>
                 ))}
             </div>
+
+            {/* Detail View Below the Row */}
+            {selectedMaterial ? (
+                <div style={{
+                    marginTop: '20px',
+                    padding: '24px',
+                    background: '#f8fafc',
+                    borderRadius: '24px',
+                    border: '1px solid #e2e8f0',
+                    minHeight: '400px'
+                }}>
+                    <InventoryDetail
+                        material={selectedMaterial}
+                        onBack={() => setSelectedMaterial(null)}
+                    />
+                </div>
+            ) : (
+                <div style={{
+                    marginTop: '20px',
+                    padding: '60px',
+                    textAlign: 'center',
+                    background: 'white',
+                    borderRadius: '24px',
+                    border: '2px dashed #e2e8f0',
+                    color: '#94a3b8'
+                }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+                    <h3 style={{ margin: '0 0 8px 0', color: '#64748b' }}>No Material Selected</h3>
+                    <p style={{ margin: 0 }}>Click on any material above to view its detailed inventory and management options.</p>
+                </div>
+            )}
         </div>
     );
 };
 
 export default InventoryManagementDashboard;
+

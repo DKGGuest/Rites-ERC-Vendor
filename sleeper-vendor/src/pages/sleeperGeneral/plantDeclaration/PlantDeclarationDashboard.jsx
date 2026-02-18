@@ -6,6 +6,16 @@ import MixDesignSection from './sections/MixDesignSection';
 
 const PlantDeclarationDashboard = () => {
     const [selectedTab, setSelectedTab] = useState('plant-profile');
+    const [profiles, setProfiles] = useState([
+        {
+            id: 1,
+            plantName: 'M/s ABC Sleepers - Nagpur Plant',
+            vendorCode: 'V-10294',
+            type: 'Stress Bench – Twin',
+            shedsLines: 2,
+            status: 'Verified & Locked'
+        }
+    ]);
 
     const tabs = [
         { id: 'plant-profile', title: 'Plant Profile', subtitle: 'General information' },
@@ -17,9 +27,9 @@ const PlantDeclarationDashboard = () => {
     const renderContent = () => {
         switch (selectedTab) {
             case 'plant-profile':
-                return <PlantProfileSection />;
+                return <PlantProfileSection profiles={profiles} setProfiles={setProfiles} />;
             case 'bench-mould':
-                return <BenchMouldMasterSection />;
+                return <BenchMouldMasterSection profiles={profiles} />;
             case 'raw-material':
                 return <RawMaterialSourceSection />;
             case 'mix-design':

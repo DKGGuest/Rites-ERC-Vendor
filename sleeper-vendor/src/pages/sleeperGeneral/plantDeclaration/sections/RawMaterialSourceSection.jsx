@@ -1,62 +1,304 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const RawMaterialSourceSection = () => {
-    const materials = [
+    const materialTypes = [
         'Cement', 'HTS Wire', 'Dowel', 'SGCI Insert',
         'Aggregates - CA1', 'Aggregates - CA2', 'Aggregates - FA',
         'Admixtures', 'Water Source'
     ];
 
+    const [entries, setEntries] = useState([
+        {
+            id: 1,
+            rawMaterialType: 'Cement',
+            source: 'ACC Limited, Wadi',
+            approvalReference: 'RITES/QA/2023/123',
+            validityFrom: '2024-01-01',
+            validityTo: '2024-12-31',
+            status: 'Verified & Locked'
+        },
+        {
+            id: 2,
+            rawMaterialType: 'HTS Wire',
+            source: 'Tata Steel, Jamshedpur',
+            approvalReference: 'RDSO/2023/CIVIL/045',
+            validityFrom: '2024-02-15',
+            validityTo: '2025-02-14',
+            status: 'Verification Pending'
+        },
+        {
+            id: 3,
+            rawMaterialType: 'Admixtures',
+            source: 'Sika India, Mumbai',
+            approvalReference: 'RITES/QA/AD/2023/089',
+            validityFrom: '2024-03-01',
+            validityTo: '2025-02-28',
+            status: 'Unlocked for Modification'
+        }
+    ]);
+
+    const initialFormState = {
+        rawMaterialType: '',
+        source: '',
+        approvalReference: '',
+        validityFrom: '',
+        validityTo: ''
+    };
+
+    const [formData, setFormData] = useState(initialFormState);
+    const [editingId, setEditingId] = useState(null);
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (editingId) {
+            setEntries(entries.map(entry =>
+                entry.id === editingId
+                    ? { ...formData, id: editingId, status: 'Verification Pending' }
+                    : entry
+            ));
+            setEditingId(null);
+        } else {
+            const newEntry = {
+                ...formData,
+                id: Date.now(),
+                status: 'Verification Pending'
+            };
+            setEntries([...entries, newEntry]);
+        }
+        setFormData(initialFormState);
+    };
+
+    const handleEdit = (entry) => {
+        if (entry.status === 'Verified & Locked') return;
+        setFormData({
+            rawMaterialType: entry.rawMaterialType,
+            source: entry.source,
+            approvalReference: entry.approvalReference,
+            validityFrom: entry.validityFrom,
+            validityTo: entry.validityTo
+        });
+        setEditingId(entry.id);
+    };
+
+    const handleDelete = (id, status) => {
+        if (status === 'Verified & Locked') return;
+        setEntries(entries.filter(entry => entry.id !== id));
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'Verified & Locked': return '#10b981';
+            case 'Verification Pending': return '#f59e0b';
+            case 'Unlocked for Modification': return '#3b82f6';
+            default: return '#64748b';
+        }
+    };
+
     return (
-        <div className="fade-in">
-            <h3 style={{ color: '#1e293b', marginBottom: '16px' }}>Raw Material Source Declaration</h3>
+        <div className="fade-in" style={{ padding: '20px' }}>
+            <h3 style={{ color: '#1e293b', marginBottom: '24px', fontSize: '20px', fontWeight: '700' }}>
+                Raw Material Source Declaration
+            </h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {materials.map((mat, index) => (
-                    <div key={index} style={{ background: '#fff', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#42818c' }}></div>
-                            <h4 style={{ margin: 0, color: '#0f172a', fontSize: '14px' }}>{mat}</h4>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>Supplier Name</label>
-                                <input type="text" placeholder="Enter supplier" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>Source Location</label>
-                                <input type="text" placeholder="Enter location" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>Approval Ref (RDSO/RITES)</label>
-                                <input type="text" placeholder="Enter reference" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>Validity Period</label>
-                                <div style={{ display: 'flex', gap: '4px' }}>
-                                    <input type="date" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-                                    <input type="date" style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px' }} />
-                                </div>
-                            </div>
+            {/* Form Section */}
+            <div style={{
+                background: 'linear-gradient(145deg, #ffffff, #f8fafc)',
+                padding: '24px',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                marginBottom: '32px'
+            }}>
+                <h4 style={{ margin: '0 0 20px 0', color: '#334155', fontSize: '16px' }}>
+                    {editingId ? 'Modify Entry' : 'Add New Raw Material Source'}
+                </h4>
+                <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Raw Material Type</label>
+                        <select
+                            name="rawMaterialType"
+                            value={formData.rawMaterialType}
+                            onChange={handleInputChange}
+                            required
+                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '14px' }}
+                        >
+                            <option value="">Select Material</option>
+                            {materialTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Source / Supplier</label>
+                        <input
+                            name="source"
+                            type="text"
+                            placeholder="Enter supplier name"
+                            value={formData.source}
+                            onChange={handleInputChange}
+                            required
+                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                        />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Approval Reference</label>
+                        <input
+                            name="approvalReference"
+                            type="text"
+                            placeholder="RDSO/RITES Reference"
+                            value={formData.approvalReference}
+                            onChange={handleInputChange}
+                            required
+                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
+                        />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Validity Period</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                                name="validityFrom"
+                                type="date"
+                                value={formData.validityFrom}
+                                onChange={handleInputChange}
+                                required
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                            />
+                            <input
+                                name="validityTo"
+                                type="date"
+                                value={formData.validityTo}
+                                onChange={handleInputChange}
+                                required
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                            />
                         </div>
                     </div>
-                ))}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                        <button type="submit" style={{
+                            flex: 1,
+                            background: '#42818c',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px',
+                            borderRadius: '8px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}>
+                            {editingId ? 'Update Entry' : 'Add Entry'}
+                        </button>
+                        {editingId && (
+                            <button
+                                type="button"
+                                onClick={() => { setEditingId(null); setFormData(initialFormState); }}
+                                style={{
+                                    padding: '10px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #cbd5e1',
+                                    background: '#fff',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        )}
+                    </div>
+                </form>
             </div>
 
-            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button style={{
-                    background: '#42818c',
-                    color: 'white',
-                    border: 'none',
-                    padding: '12px 32px',
-                    borderRadius: '8px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 6px -1px rgba(66, 129, 140, 0.2)'
-                }}>
-                    Save All Sources
-                </button>
+            {/* List Section */}
+            <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                            <th style={{ padding: '16px', fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Raw Material</th>
+                            <th style={{ padding: '16px', fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Source/Supplier</th>
+                            <th style={{ padding: '16px', fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Approval Ref.</th>
+                            <th style={{ padding: '16px', fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Validity</th>
+                            <th style={{ padding: '16px', fontSize: '13px', fontWeight: '600', color: '#64748b' }}>Status</th>
+                            <th style={{ padding: '16px', fontSize: '13px', fontWeight: '600', color: '#64748b', textAlign: 'center' }}>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {entries.length === 0 ? (
+                            <tr>
+                                <td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>No entries found. Add a source above.</td>
+                            </tr>
+                        ) : (
+                            entries.map((entry) => (
+                                <tr key={entry.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
+                                    <td style={{ padding: '16px', fontSize: '14px', fontWeight: '500', color: '#0f172a' }}>{entry.rawMaterialType}</td>
+                                    <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{entry.source}</td>
+                                    <td style={{ padding: '16px', fontSize: '14px', color: '#475569' }}>{entry.approvalReference}</td>
+                                    <td style={{ padding: '16px', fontSize: '13px', color: '#475569' }}>
+                                        {entry.validityFrom} <span style={{ color: '#94a3b8' }}>to</span> {entry.validityTo}
+                                    </td>
+                                    <td style={{ padding: '16px' }}>
+                                        <span style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            padding: '4px 10px',
+                                            borderRadius: '20px',
+                                            fontSize: '11px',
+                                            fontWeight: '600',
+                                            backgroundColor: getStatusColor(entry.status) + '15',
+                                            color: getStatusColor(entry.status),
+                                            border: `1px solid ${getStatusColor(entry.status)}30`
+                                        }}>
+                                            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: getStatusColor(entry.status), marginRight: '6px' }}></div>
+                                            {entry.status}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: '16px', textAlign: 'center' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                                            <button
+                                                onClick={() => handleEdit(entry)}
+                                                disabled={entry.status === 'Verified & Locked'}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    borderRadius: '6px',
+                                                    fontSize: '12px',
+                                                    fontWeight: '600',
+                                                    cursor: entry.status === 'Verified & Locked' ? 'not-allowed' : 'pointer',
+                                                    background: entry.status === 'Verified & Locked' ? '#f1f5f9' : '#fff',
+                                                    color: entry.status === 'Verified & Locked' ? '#94a3b8' : '#42818c',
+                                                    border: `1px solid ${entry.status === 'Verified & Locked' ? '#e2e8f0' : '#42818c'}`,
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                Modify
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(entry.id, entry.status)}
+                                                disabled={entry.status === 'Verified & Locked'}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    borderRadius: '6px',
+                                                    fontSize: '12px',
+                                                    fontWeight: '600',
+                                                    cursor: entry.status === 'Verified & Locked' ? 'not-allowed' : 'pointer',
+                                                    background: entry.status === 'Verified & Locked' ? '#f1f5f9' : '#fff',
+                                                    color: entry.status === 'Verified & Locked' ? '#94a3b8' : '#ef4444',
+                                                    border: `1px solid ${entry.status === 'Verified & Locked' ? '#e2e8f0' : '#ef4444'}`,
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style={{ marginTop: '24px', textAlign: 'right', color: '#64748b', fontSize: '13px', fontStyle: 'italic' }}>
+                * New entries are set to 'Verification Pending' by default. Locked entries cannot be modified or deleted.
             </div>
         </div>
     );

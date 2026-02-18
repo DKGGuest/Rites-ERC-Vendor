@@ -11,20 +11,46 @@ const InventoryDetail = ({ material, onBack }) => {
             case 'cement':
                 return [{
                     id: 'INV-CEM-101', ...common, qty: 50, details: {
-                        consignmentNo: 'C-78923', cementType: 'OPC 53', mfgWeek: 5, mfgYear: 2026, manufacturer: 'Ultratech',
-                        lotNo: 'L22', noOfBags: 1000, bagWeight: 50, mtcNo: 'MTC-99', age: 0.5
+                        grade: 'OPC 53',
+                        manufacturer: 'ACC Limited, Wadi',
+                        ewayBillNo: 'EW-78923',
+                        ewayDate: '2026-02-10',
+                        batches: [
+                            { week: 5, year: 2026, mtcNo: 'MTC-99', quantity: 25 },
+                            { week: 6, year: 2026, mtcNo: 'MTC-100', quantity: 25 }
+                        ]
                     }
                 }];
             case 'hts-wire':
                 return [{
                     id: 'INV-HTS-202', ...common, status: 'Verified', qty: 25, details: {
-                        grade: 'Class I', manufacturer: 'JSW', serialNumbers: 'C-1, C-2, C-3', relaxationDate: '2026-01-15'
+                        grade: '3ply 3mm', manufacturer: 'Tata Steel', serialNumbers: 'C-1, C-2, C-3', ewayBillNo: 'EW-77281', relaxationDate: '2026-01-15',
+                        coils: [{ coilNumber: 'C-1', lotNo: 'L22', quantity: 5 }, { coilNumber: 'C-2', lotNo: 'L22', quantity: 10 }, { coilNumber: 'C-3', lotNo: 'L22', quantity: 10 }],
+                        icNo: 'IC-772', icDate: '2026-01-14', relaxationTest: 'Y'
                     }
                 }];
             case 'aggregates':
                 return [{
                     id: 'INV-AGG-303', ...common, qty: 120, details: {
-                        type: 'CA1', source: 'Approved Source A', truckNo: 'RJ-14-GA-1234'
+                        type: 'CA1', source: 'Approved Source A', challanNo: 'CH-45678', challanDate: '2026-02-11'
+                    }
+                }];
+            case 'sgci-insert':
+                return [{
+                    id: 'INV-SGCI-404', ...common, qty: 5000, details: {
+                        grade: 'MK-III Insert', manufacturer: 'Adianth', ewayBillNo: 'EW-8821', ewayDate: '2026-02-12', icNo: 'IC-882', icDate: '2026-02-10'
+                    }
+                }];
+            case 'dowel':
+                return [{
+                    id: 'INV-DWL-404', ...common, qty: 5000, details: {
+                        grade: 'Type A', manufacturer: 'Manufacturer 1', ewayBillNo: 'EW-9921', ewayDate: '2026-02-12', icNo: 'IC-992', icDate: '2026-02-10'
+                    }
+                }];
+            case 'admixture':
+                return [{
+                    id: 'INV-ADX-505', ...common, qty: 450, details: {
+                        manufacturer: 'FOSROC', ewayBillNo: 'EW-12345', ewayDate: '2026-02-10', lotNo: 'L-99', mtcNo: 'MTC-101', grade: 'Type 1'
                     }
                 }];
             default:
@@ -69,56 +95,64 @@ const InventoryDetail = ({ material, onBack }) => {
         switch (material.id) {
             case 'cement':
                 return [
-                    'Date of Receipt', 'Consignment Number', 'Inventory ID (auto Generated)', 'Cement Type',
-                    'Manufacturer Name', 'Manufacturing Week', 'Manufacturing Year', 'Lot No.',
-                    'No. of Bags', 'Weight of Each Bag (Kg)', 'MTC No.', 'Age of cement (Months)', 'Total Qty Received (MT)'
+                    'Date of Receipt', 'Grade/Spec', 'Manufacturer', 'Eway Bill No.',
+                    'Total Quantity', 'Batch Numbers in consignment'
                 ];
             case 'hts-wire':
                 return [
-                    'Date of Receipt', 'Inventory ID (auto Generated)', 'Grade / Spec',
-                    'Manufacturer Name', 'Serial Number of Coils (multiple entries)', 'Relaxation Test Pass Date', 'Total Qty Received (MT)'
+                    'Date of Receipt', 'Grade/Spec', 'Manufacturer', 'Eway Bill No.', 'Total Quantity', 'Coil Serial Number'
                 ];
             case 'aggregates':
                 return [
-                    'Date of Receipt', 'Type of Aggregate (CA1, CA2, Fine Aggregate)', 'Inventory ID (System Generated)',
-                    'Source (as declared and approved by IE)', 'Truck No.', 'Quantity (MT)'
+                    'Date of Receipt', 'Aggregate Type',
+                    'Source', 'Challan Number', 'Total Quantity'
+                ];
+            case 'sgci-insert':
+                return [
+                    'Date of Receipt', 'Grade/Spec', 'Manufacturer', 'Eway Bill No.', 'Total Quantity'
+                ];
+            case 'dowel':
+                return [
+                    'Date of Receipt', 'Grade/Spec', 'Manufacturer', 'Eway Bill No.', 'Total Quantity'
+                ];
+            case 'admixture':
+                return [
+                    'Date of Receipt', 'Manufacturer', 'E Way Bill Number', 'E Way Bill Date', 'Total Quantity'
                 ];
             default:
-                return ['Data of Receipt', 'Inventory ID (auto Generated)', 'Grade / Spec', 'Manufacturer Name', 'Total Qty Received (Nos.)'];
+                return ['Date of Receipt', 'Inventory ID', 'Grade / Spec', 'Manufacturer Name', 'Quantity'];
         }
     };
 
     const renderRow = (entry) => {
         const tdStyle = { padding: '16px 24px', color: '#1e293b', fontSize: '13px', whiteSpace: 'nowrap' };
+        const boldStyle = { ...tdStyle, fontWeight: '700' };
+
         switch (material.id) {
             case 'cement':
                 return (
                     <>
                         <td style={tdStyle}>{entry.date}</td>
-                        <td style={tdStyle}>{entry.details.consignmentNo}</td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{entry.id}</td>
-                        <td style={tdStyle}>{entry.details.cementType}</td>
+                        <td style={tdStyle}>{entry.details.grade || 'OPC 53'}</td>
                         <td style={tdStyle}>{entry.details.manufacturer}</td>
-                        <td style={tdStyle}>{entry.details.mfgWeek}</td>
-                        <td style={tdStyle}>{entry.details.mfgYear}</td>
-                        <td style={tdStyle}>{entry.details.lotNo}</td>
-                        <td style={tdStyle}>{entry.details.noOfBags}</td>
-                        <td style={tdStyle}>{entry.details.bagWeight}</td>
-                        <td style={tdStyle}>{entry.details.mtcNo}</td>
-                        <td style={tdStyle}>{entry.details.age || '0'}</td>
-                        <td style={{ ...tdStyle, fontWeight: '700' }}>{entry.qty}</td>
+                        <td style={tdStyle}>{entry.details.ewayBillNo || '-'}</td>
+                        <td style={boldStyle}>{entry.qty}</td>
+                        <td style={tdStyle}>
+                            {entry.details.batches?.map(b => b.mtcNo).join(', ') || '-'}
+                        </td>
                     </>
                 );
             case 'hts-wire':
                 return (
                     <>
                         <td style={tdStyle}>{entry.date}</td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{entry.id}</td>
-                        <td style={tdStyle}>{entry.details.grade}</td>
-                        <td style={tdStyle}>{entry.details.manufacturer}</td>
-                        <td style={tdStyle}>{entry.details.serialNumbers}</td>
-                        <td style={tdStyle}>{entry.details.relaxationDate}</td>
-                        <td style={{ ...tdStyle, fontWeight: '700' }}>{entry.qty}</td>
+                        <td style={tdStyle}>{entry.details.grade || '-'}</td>
+                        <td style={tdStyle}>{entry.details.manufacturer || '-'}</td>
+                        <td style={tdStyle}>{entry.details.ewayBillNo || '-'}</td>
+                        <td style={boldStyle}>{entry.qty}</td>
+                        <td style={tdStyle}>
+                            {entry.details.coils?.map(c => c.coilNumber).join(', ') || entry.details.serialNumbers || '-'}
+                        </td>
                     </>
                 );
             case 'aggregates':
@@ -126,10 +160,39 @@ const InventoryDetail = ({ material, onBack }) => {
                     <>
                         <td style={tdStyle}>{entry.date}</td>
                         <td style={tdStyle}>{entry.details.type}</td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{entry.id}</td>
                         <td style={tdStyle}>{entry.details.source}</td>
-                        <td style={tdStyle}>{entry.details.truckNo}</td>
-                        <td style={{ ...tdStyle, fontWeight: '700' }}>{entry.qty}</td>
+                        <td style={tdStyle}>{entry.details.challanNo}</td>
+                        <td style={boldStyle}>{entry.qty}</td>
+                    </>
+                );
+            case 'sgci-insert':
+                return (
+                    <>
+                        <td style={tdStyle}>{entry.date}</td>
+                        <td style={tdStyle}>{entry.details.grade}</td>
+                        <td style={tdStyle}>{entry.details.manufacturer}</td>
+                        <td style={tdStyle}>{entry.details.ewayBillNo}</td>
+                        <td style={boldStyle}>{entry.qty}</td>
+                    </>
+                );
+            case 'dowel':
+                return (
+                    <>
+                        <td style={tdStyle}>{entry.date}</td>
+                        <td style={tdStyle}>{entry.details.grade}</td>
+                        <td style={tdStyle}>{entry.details.manufacturer}</td>
+                        <td style={tdStyle}>{entry.details.ewayBillNo || '-'}</td>
+                        <td style={boldStyle}>{entry.qty}</td>
+                    </>
+                );
+            case 'admixture':
+                return (
+                    <>
+                        <td style={tdStyle}>{entry.date}</td>
+                        <td style={tdStyle}>{entry.details.manufacturer}</td>
+                        <td style={tdStyle}>{entry.details.ewayBillNo}</td>
+                        <td style={tdStyle}>{entry.details.ewayDate}</td>
+                        <td style={boldStyle}>{entry.qty}</td>
                     </>
                 );
             default:
@@ -137,13 +200,14 @@ const InventoryDetail = ({ material, onBack }) => {
                     <>
                         <td style={tdStyle}>{entry.date}</td>
                         <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{entry.id}</td>
-                        <td style={tdStyle}>{entry.details.grade}</td>
+                        <td style={tdStyle}>{entry.details.grade || '-'}</td>
                         <td style={tdStyle}>{entry.details.manufacturer}</td>
-                        <td style={{ ...tdStyle, fontWeight: '700' }}>{entry.qty}</td>
+                        <td style={boldStyle}>{entry.qty}</td>
                     </>
                 );
         }
     };
+
 
     return (
         <div className="inventory-detail fade-in">
@@ -182,28 +246,27 @@ const InventoryDetail = ({ material, onBack }) => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
                             <tr style={{ background: '#f8fafc' }}>
-                                <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>Status</th>
                                 {getColumns().map(col => (<th key={col} style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: '#475569', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{col}</th>))}
+                                <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>Status</th>
                                 <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: '700', color: '#475569', borderBottom: '1px solid #e2e8f0' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {entries.map((entry, idx) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
-                                    <td style={{ padding: '16px 24px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', width: 'fit-content', background: entry.status === 'Verified' ? '#f0fdf4' : '#fff1f2', color: entry.status === 'Verified' ? '#16a34a' : '#e11d48', border: `1px solid ${entry.status === 'Verified' ? '#dcfce7' : '#ffe4e6'}` }}>
-                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'currentColor' }}></span>{entry.status}
-                                        </div>
-                                    </td>
                                     {renderRow(entry)}
                                     <td style={{ padding: '16px 24px' }}>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            {entry.status === 'Unverified' ? (
-                                                <><button onClick={() => handleVerify(entry.id)} style={{ background: '#42818c10', border: '1px solid #42818c30', color: '#42818c', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}>Verify</button>
-                                                    <button onClick={() => handleEdit(entry)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px' }}>Edit</button>
-                                                    <button onClick={() => handleDelete(entry.id)} style={{ background: '#fff1f2', border: '1px solid #ffe4e6', color: '#e11d48', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px' }}>Delete</button></>
-                                            ) : (<div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>🔒 Locked</div>)}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', width: 'fit-content', background: entry.status === 'Verified' ? '#f0fdf4' : '#fff1f2', color: entry.status === 'Verified' ? '#16a34a' : '#e11d48', border: `1px solid ${entry.status === 'Verified' ? '#dcfce7' : '#ffe4e6'}` }}>
+                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'currentColor' }}></span>{entry.status === 'Verified' ? 'Verified & Locked' : entry.status}
                                         </div>
+                                    </td>
+                                    <td style={{ padding: '16px 24px' }}>
+                                        {entry.status === 'Unverified' && (
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button onClick={() => handleEdit(entry)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}>Edit</button>
+                                                <button onClick={() => handleDelete(entry.id)} style={{ background: '#fff1f2', border: '1px solid #ffe4e6', color: '#e11d48', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}>Delete</button>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
