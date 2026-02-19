@@ -16,15 +16,13 @@ const VendorDashboard = () => {
         { id: 'inventory-management', title: 'Inventory Management System', subtitle: 'Stock & consumption', icon: '📦' },
         { id: 'production-declaration', title: 'Production Declaration', subtitle: 'Daily production logs', icon: '📝' },
         { id: 'calibration-approval', title: 'Calibration & Approval', subtitle: 'Equipment validation', icon: '⚖️' },
-        { id: 'po-assigned', title: 'PO Assigned', subtitle: 'POs assigned to vendor with status', count: 1 },
+        { id: 'po-assigned', title: 'PO Assigned to Vendor', subtitle: 'PO status & details', count: 1 },
         { id: 'calls-requested', title: 'Requested Calls', subtitle: 'Request Inspection Call Status', count: 0 },
         { id: 'calls-completed', title: 'Completed Calls', subtitle: 'Inspection Calls & IC Download', count: 4 },
         { id: 'finance', title: 'Finance', subtitle: 'Payments & Billings', count: 2 },
         { id: 'master-updating', title: 'Master Updating', subtitle: 'Resource masters', count: 3 }
     ];
 
-    const quickOverviewModules = modules.slice(4);
-    const plantManagementModules = modules.slice(0, 4);
 
     const renderContent = () => {
         switch (selectedModule) {
@@ -61,121 +59,114 @@ const VendorDashboard = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <h1 style={{
-                            fontSize: '28px',
+                            fontSize: '32px',
                             fontWeight: '800',
-                            color: '#1e293b',
-                            margin: '0 0 4px 0',
+                            color: '#0f172a',
+                            margin: '0 0 8px 0',
                             letterSpacing: '-0.025em'
                         }}>
                             Sleeper Vendor Dashboard
                         </h1>
-                        <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+                        <p style={{ margin: 0, color: '#64748b', fontSize: '15px' }}>
                             Quality assurance and production management system
                         </p>
                     </div>
                 </div>
             </header>
 
-            {/* Quick Overview Section */}
+            {/* Dashboard Modules Section */}
             <div style={{
                 background: 'white',
-                borderRadius: '16px',
-                padding: '24px',
-                marginBottom: '32px',
+                borderRadius: '12px',
+                padding: '20px',
+                marginBottom: '24px',
                 border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
             }}>
-                <div style={{ marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0' }}>Quick Overview</h2>
-                    <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Monitor your POs and inspection calls at a glance</p>
-                </div>
-
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                    gap: '16px'
+                    gridTemplateColumns: 'repeat(5, 1fr)',
+                    gap: '10px'
                 }}>
-                    {quickOverviewModules.map(mod => (
+                    {modules.map(mod => (
                         <div
                             key={mod.id}
                             onClick={() => setSelectedModule(mod.id)}
                             style={{
-                                background: selectedModule === mod.id ? '#eff6ff' : 'white',
-                                border: `1.5px solid ${selectedModule === mod.id ? '#2563eb' : '#e2e8f0'}`,
-                                borderRadius: '16px',
-                                padding: '20px',
+                                background: selectedModule === mod.id ? '#f0f7ff' : '#ffffff',
+                                border: `1px solid ${selectedModule === mod.id ? '#3b82f6' : '#e5e7eb'}`,
+                                borderRadius: '10px',
+                                padding: '10px 14px',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s ease',
                                 display: 'flex',
-                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                boxShadow: selectedModule === mod.id ? '0 4px 12px rgba(37, 99, 235, 0.1)' : 'none'
+                                justifyContent: 'space-between',
+                                height: '85px',
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                boxShadow: selectedModule === mod.id ? '0 0 0 1px #3b82f6' : 'none'
                             }}
                         >
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '2px',
+                                flex: 1,
+                                minWidth: 0
+                            }}>
                                 <span style={{
                                     fontWeight: '700',
-                                    fontSize: '16px',
-                                    color: selectedModule === mod.id ? '#1e40af' : '#1e293b'
+                                    fontSize: '13px',
+                                    color: selectedModule === mod.id ? '#1e40af' : '#111827',
+                                    lineHeight: '1.2',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
                                 }}>
                                     {mod.title}
                                 </span>
                                 <span style={{
-                                    fontSize: '12px',
-                                    color: selectedModule === mod.id ? '#3b82f6' : '#64748b',
-                                    fontWeight: '500'
+                                    fontSize: '10px',
+                                    color: selectedModule === mod.id ? '#3b82f6' : '#6b7280',
+                                    fontWeight: '500',
+                                    lineHeight: '1.1',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
                                 }}>
                                     {mod.subtitle}
                                 </span>
                             </div>
-                            <span style={{
-                                fontSize: '32px',
-                                fontWeight: '800',
-                                color: selectedModule === mod.id ? '#2563eb' : '#0f172a',
-                                opacity: selectedModule === mod.id ? 1 : 0.8
-                            }}>
-                                {mod.count}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Plant Management Section */}
-            <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '16px' }}>Plant Management</h2>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                    gap: '16px'
-                }}>
-                    {plantManagementModules.map(mod => (
-                        <div
-                            key={mod.id}
-                            onClick={() => setSelectedModule(mod.id)}
-                            style={{
-                                background: selectedModule === mod.id ? '#f0f9fa' : 'white',
-                                border: `2px solid ${selectedModule === mod.id ? '#42818c' : '#e2e8f0'}`,
-                                borderRadius: '24px',
-                                padding: '20px',
-                                cursor: 'pointer',
-                                transition: 'all 0.3s ease',
+                            <div style={{
                                 display: 'flex',
-                                flexDirection: 'column',
                                 alignItems: 'center',
-                                textAlign: 'center',
-                                gap: '8px'
-                            }}
-                        >
-                            <div style={{ fontSize: '24px' }}>{mod.icon}</div>
-                            <span style={{
-                                fontWeight: '700',
-                                fontSize: '14px',
-                                color: '#42818c'
+                                justifyContent: 'center',
+                                marginLeft: '6px'
                             }}>
-                                {mod.title}
-                            </span>
-                            <span style={{ fontSize: '11px', color: '#64748b' }}>{mod.subtitle}</span>
+                                {mod.count !== undefined ? (
+                                    <span style={{
+                                        fontSize: '28px',
+                                        fontWeight: '800',
+                                        color: selectedModule === mod.id ? '#2563eb' : '#000000',
+                                        lineHeight: '1'
+                                    }}>
+                                        {mod.count}
+                                    </span>
+                                ) : (
+                                    <div style={{
+                                        fontSize: '18px',
+                                        background: mod.id === 'calibration-approval' ? '#3b82f6' : 'transparent',
+                                        padding: mod.id === 'calibration-approval' ? '6px' : '0',
+                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        {mod.icon}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>

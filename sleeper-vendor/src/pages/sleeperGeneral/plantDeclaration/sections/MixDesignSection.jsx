@@ -113,16 +113,6 @@ const MixDesignSection = () => {
                         </select>
                     </div>
                     <div>
-                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>Water (Litres)</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            value={newMix.water}
-                            onChange={(e) => setNewMix({ ...newMix, water: e.target.value })}
-                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                        />
-                    </div>
-                    <div>
                         <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>Cement (Kg/m³)</label>
                         <input
                             type="number"
@@ -162,36 +152,48 @@ const MixDesignSection = () => {
                             style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
                         />
                     </div>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>Water (Litres)</label>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={newMix.water}
+                            onChange={(e) => setNewMix({ ...newMix, water: e.target.value })}
+                            style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                        />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>A/C (Auto)</label>
+                        <div style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: '700', color: '#42818c', fontSize: '13px' }}>
+                            {calculateAC(newMix)}
+                        </div>
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: '#64748b', marginBottom: '6px' }}>W/C (Auto)</label>
+                        <div style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: '700', color: '#42818c', fontSize: '13px' }}>
+                            {calculateWC(newMix)}
+                        </div>
+                    </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '24px', marginTop: '20px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                    <div>
-                        <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', display: 'block' }}>A/C Ratio (Auto)</span>
-                        <span style={{ fontSize: '18px', fontWeight: '700', color: '#42818c' }}>{calculateAC(newMix)}</span>
-                    </div>
-                    <div>
-                        <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', display: 'block' }}>W/C Ratio (Auto)</span>
-                        <span style={{ fontSize: '18px', fontWeight: '700', color: '#42818c' }}>{calculateWC(newMix)}</span>
-                    </div>
-                    <div style={{ marginLeft: 'auto', alignSelf: 'center', display: 'flex', gap: '10px' }}>
-                        {editingId && (
-                            <button
-                                onClick={() => {
-                                    setEditingId(null);
-                                    setNewMix({ iden: '', grade: 'M60', authority: 'RDSO', cement: '', ca1: '', ca2: '', fa: '', water: '', status: 'Verification Pending' });
-                                }}
-                                style={{ background: '#cbd5e1', color: '#1e293b', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
-                            >
-                                Cancel
-                            </button>
-                        )}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                    {editingId && (
                         <button
-                            onClick={handleAddMix}
-                            style={{ background: '#42818c', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                            onClick={() => {
+                                setEditingId(null);
+                                setNewMix({ iden: '', grade: 'M60', authority: 'RDSO', cement: '', ca1: '', ca2: '', fa: '', water: '', status: 'Verification Pending' });
+                            }}
+                            style={{ background: '#cbd5e1', color: '#1e293b', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
                         >
-                            {editingId ? 'Update Entry' : 'Add to List'}
+                            Cancel
                         </button>
-                    </div>
+                    )}
+                    <button
+                        onClick={handleAddMix}
+                        style={{ background: '#42818c', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                    >
+                        {editingId ? 'Update Entry' : 'Add to List'}
+                    </button>
                 </div>
             </div>
 

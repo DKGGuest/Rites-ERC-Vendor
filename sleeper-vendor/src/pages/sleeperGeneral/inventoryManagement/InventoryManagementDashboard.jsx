@@ -23,28 +23,28 @@ const InventoryManagementDashboard = () => {
             {/* Horizontal Row of Material Cards */}
             <div style={{
                 display: 'flex',
-                gap: '16px',
+                gap: '12px',
                 padding: '10px 4px 20px 4px',
-                overflowX: 'auto',
-                scrollbarWidth: 'thin',
-                msOverflowStyle: 'none'
+                flexWrap: 'wrap',
+                justifyContent: 'flex-start'
             }}>
                 {materials.map(material => (
                     <div
                         key={material.id}
                         onClick={() => setSelectedMaterial(selectedMaterial?.id === material.id ? null : material)}
                         style={{
-                            minWidth: '240px',
-                            flex: '0 0 auto',
+                            minWidth: '180px',
+                            flex: '1 1 180px',
+                            maxWidth: '220px',
                             background: selectedMaterial?.id === material.id ? '#f0f9ff' : 'white',
                             borderRadius: '16px',
-                            padding: '16px',
+                            padding: '12px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             border: `2px solid ${selectedMaterial?.id === material.id ? '#0ea5e9' : '#e2e8f0'}`,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '16px',
+                            gap: '12px',
                             boxShadow: selectedMaterial?.id === material.id ? '0 10px 15px -3px rgba(14, 165, 233, 0.1)' : '0 1px 3px rgba(0,0,0,0.1)',
                             position: 'relative'
                         }}

@@ -222,11 +222,11 @@ const InventoryDetail = ({ material, onBack }) => {
             </div>
 
             <div style={{ marginBottom: '16px', fontSize: '14px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Cumulative Status</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '32px' }}>
                 {[{ label: 'Procured', value: stats.procured, color: '#42818c' }, { label: 'Used', value: stats.used, color: '#64748b' }, { label: 'Balance', value: stats.balance, color: '#10b981' }].map(stat => (
-                    <div key={stat.label} style={{ background: 'white', padding: '24px', borderRadius: '24px', border: `1px solid #e2e8f0`, textAlign: 'left', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                    <div key={stat.label} style={{ background: 'white', padding: '16px 20px', borderRadius: '20px', border: `1px solid #e2e8f0`, textAlign: 'left', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
                         <div style={{ fontSize: '12px', color: stat.color, fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</div>
-                        <div style={{ fontSize: '28px', fontWeight: '800', color: '#1e293b' }}>{stat.value} <span style={{ fontSize: '14px', fontWeight: '600', color: '#64748b' }}>{material.unit}</span></div>
+                        <div style={{ fontSize: '22px', fontWeight: '800', color: '#1e293b' }}>{stat.value} <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>{material.unit}</span></div>
                     </div>
                 ))}
             </div>

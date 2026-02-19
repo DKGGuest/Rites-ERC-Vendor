@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
 
 const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
+    const AVAILABLE_SHEDS = [
+        { name: 'Shed A', type: 'Twin', mouldsPerBench: 8 },
+        { name: 'Shed B', type: 'Single', mouldsPerBench: 4 },
+        { name: 'Shed C', type: 'Twin', mouldsPerBench: 8 },
+    ];
+    const AVAILABLE_LINES = [
+        { name: 'Line 1', type: 'Long Line', mouldsPerGang: 8 },
+        { name: 'Line 2', type: 'Long Line', mouldsPerGang: 8 },
+    ];
+
+    const getCurrentTime = () => {
+        const now = new Date();
+        return now.toTimeString().split(' ')[0].substring(0, 5);
+    };
+
     const [activeSections, setActiveSections] = useState({ 1: true, 2: false, 3: false });
     const [plantType, setPlantType] = useState('Stress Bench'); // Stress Bench or Long Line
     const [formHeader, setFormHeader] = useState({
@@ -10,10 +25,24 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
         shift: 'Day Shift',
         batchNo: lastBatchNumber + 1,
         mixDesign: 'M60 - Design A (Active)',
-        timeLbc: ''
+        timeLbc: getCurrentTime()
     });
-    const [chambers, setChambers] = useState([{ id: 1, chamberNo: '', benches: [''] }]);
-    const [longLineInput, setLongLineInput] = useState('');
+
+    const [chambers, setChambers] = useState([{
+        id: 1,
+        chamberNo: '',
+        benchGroups: [{ id: Date.now(), benches: [''], mouldsPerBench: 8, sleeperType: '' }]
+    }]);
+
+    const [longLineEntries, setLongLineEntries] = useState([]);
+    const [longLineForm, setLongLineForm] = useState({
+        entryMode: 'range',
+        fromNo: '',
+        toNo: '',
+        singleNo: '',
+        mouldsPerGang: 8,
+        sleeperType: 'RT-8746'
+    });
 
     const getSleeperTypeForBench = (benchNo) => {
         if (!benchNo) return null;
@@ -21,34 +50,23 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
         return parseInt(benchNo) % 2 === 0 ? 'RT-8746' : 'RT-8521';
     };
 
-    const getChamberSleeperTypes = (benches) => {
-        const types = benches.map(b => getSleeperTypeForBench(b)).filter(t => t);
-        return [...new Set(types)].join(', ');
-    };
-
-    const isBenchDuplicate = (benchNo, currentChamberId, currentBenchIdx) => {
+    const isBenchDuplicate = (benchNo, currentChamberId, currentGroupId, currentBenchIdx) => {
         if (!benchNo) return false;
-        const inOtherChambers = chambers.some(c => c.id !== currentChamberId && c.benches.includes(benchNo));
-        const currentChamber = chambers.find(c => c.id === currentChamberId);
-        const inSameChamber = currentChamber?.benches.some((b, idx) => idx !== currentBenchIdx && b === benchNo);
-        return inOtherChambers || inSameChamber;
-    };
-
-    const parseGangs = (input) => {
-        const parts = input.split(',').map(p => p.trim()).filter(p => p);
-        const gangs = [];
-        parts.forEach(p => {
-            if (p.includes('-')) {
-                const [start, end] = p.split('-').map(n => parseInt(n.trim()));
-                if (!isNaN(start) && !isNaN(end)) {
-                    for (let i = Math.min(start, end); i <= Math.max(start, end); i++) gangs.push(i);
-                }
-            } else {
-                const n = parseInt(p);
-                if (!isNaN(n)) gangs.push(n);
-            }
+        let count = 0;
+        chambers.forEach(c => {
+            c.benchGroups.forEach(g => {
+                g.benches.forEach((b, idx) => {
+                    if (b === benchNo) {
+                        if (c.id === currentChamberId && g.id === currentGroupId && idx === currentBenchIdx) {
+                            // self
+                        } else {
+                            count++;
+                        }
+                    }
+                });
+            });
         });
-        return [...new Set(gangs)];
+        return count > 0;
     };
 
     const toggleSection = (id) => {
@@ -56,53 +74,93 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
     };
 
     const addChamber = () => {
-        setChambers([...chambers, { id: Date.now(), chamberNo: '', benches: [''] }]);
+        setChambers([...chambers, {
+            id: Date.now(),
+            chamberNo: '',
+            benchGroups: [{ id: Date.now() + 1, benches: [''], mouldsPerBench: formHeader.shedType === 'Single' ? 4 : 8, sleeperType: '' }]
+        }]);
     };
 
-    const updateChamber = (index, field, value) => {
+    const updateChamberNo = (index, value) => {
         const newChambers = [...chambers];
-        newChambers[index][field] = value;
+        newChambers[index].chamberNo = value;
         setChambers(newChambers);
     };
 
-    const addBenchToChamber = (chamberIndex) => {
+    const addBenchGroup = (cIdx) => {
         const newChambers = [...chambers];
-        newChambers[chamberIndex].benches.push('');
+        newChambers[cIdx].benchGroups.push({
+            id: Date.now(),
+            benches: [''],
+            mouldsPerBench: formHeader.shedType === 'Single' ? 4 : 8,
+            sleeperType: ''
+        });
         setChambers(newChambers);
     };
 
-    const updateBench = (chamberIndex, benchIndex, value) => {
+    const updateBenchInGroup = (cIdx, gIdx, bIdx, value) => {
         const newChambers = [...chambers];
-        newChambers[chamberIndex].benches[benchIndex] = value;
+        const group = newChambers[cIdx].benchGroups[gIdx];
+        group.benches[bIdx] = value;
+
+        // Auto determine sleeper type
+        const types = group.benches.map(b => getSleeperTypeForBench(b)).filter(t => t);
+        const uniqueTypes = [...new Set(types)];
+        if (uniqueTypes.length > 1) {
+            group.error = 'Mixed sleeper types in same group';
+            group.sleeperType = 'Error';
+        } else {
+            group.error = null;
+            group.sleeperType = uniqueTypes[0] || '';
+        }
+
+        setChambers(newChambers);
+    };
+
+    const addBenchToGroup = (cIdx, gIdx) => {
+        const newChambers = [...chambers];
+        newChambers[cIdx].benchGroups[gIdx].benches.push('');
+        setChambers(newChambers);
+    };
+
+    const updateMouldsInGroup = (cIdx, gIdx, value) => {
+        const newChambers = [...chambers];
+        newChambers[cIdx].benchGroups[gIdx].mouldsPerBench = parseInt(value) || 0;
         setChambers(newChambers);
     };
 
     const calculateTotalCast = () => {
         if (plantType === 'Stress Bench') {
-            const sleepersPerBench = formHeader.shedType === 'Single' ? 4 : 8;
-            return chambers.reduce((acc, c) => acc + (c.benches.filter(b => b.trim()).length * sleepersPerBench), 0);
+            return chambers.reduce((acc, c) => {
+                return acc + c.benchGroups.reduce((gAcc, g) => {
+                    const validBenches = g.benches.filter(b => b.trim()).length;
+                    return gAcc + (validBenches * g.mouldsPerBench);
+                }, 0);
+            }, 0);
         } else {
-            const gangs = parseGangs(longLineInput);
-            return gangs.length * 8;
+            return longLineEntries.reduce((acc, e) => {
+                const count = e.entryMode === 'range' ? (parseInt(e.toNo) - parseInt(e.fromNo) + 1) : 1;
+                return acc + (count * e.mouldsPerGang);
+            }, 0);
         }
     };
 
     const getProductionBreakdown = () => {
         const counts = {};
         if (plantType === 'Stress Bench') {
-            const sleepersPerBench = formHeader.shedType === 'Single' ? 4 : 8;
             chambers.forEach(c => {
-                c.benches.forEach(b => {
-                    const type = getSleeperTypeForBench(b);
-                    if (type) {
-                        counts[type] = (counts[type] || 0) + sleepersPerBench;
+                c.benchGroups.forEach(g => {
+                    if (g.sleeperType && g.sleeperType !== 'Error') {
+                        const validBenches = g.benches.filter(b => b.trim()).length;
+                        counts[g.sleeperType] = (counts[g.sleeperType] || 0) + (validBenches * g.mouldsPerBench);
                     }
                 });
             });
         } else {
-            const gangs = parseGangs(longLineInput);
-            const type = 'RT-8746';
-            if (gangs.length > 0) counts[type] = gangs.length * 8;
+            longLineEntries.forEach(e => {
+                const count = e.entryMode === 'range' ? (parseInt(e.toNo) - parseInt(e.fromNo) + 1) : 1;
+                counts[e.sleeperType] = (counts[e.sleeperType] || 0) + (count * e.mouldsPerGang);
+            });
         }
         return counts;
     };
@@ -119,7 +177,18 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
     };
 
     const labelStyle = { display: 'block', fontSize: '12px', fontWeight: '800', color: '#475569', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' };
-    const inputStyle = { width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '14px', transition: 'border-color 0.2s' };
+    const inputStyle = {
+        width: '100%',
+        padding: '0 16px',
+        borderRadius: '10px',
+        border: '1px solid #cbd5e1',
+        fontSize: '14px',
+        backgroundColor: '#ffffff',
+        height: '45px',
+        color: '#1e293b',
+        transition: 'border-color 0.2s',
+        outline: 'none'
+    };
     const radioStyle = { width: '18px', height: '18px', cursor: 'pointer', accentColor: '#42818c' };
 
     return (
@@ -142,54 +211,73 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
                 </div>
                 {activeSections[1] && (
                     <div style={{ padding: '24px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '20px' }}>
                             <div style={{ gridColumn: 'span 2' }}>
                                 <label style={labelStyle}>Plant Type</label>
                                 <div style={{ display: 'flex', gap: '30px', marginTop: '10px' }}>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '16px', fontWeight: '600' }}>
-                                        <input type="radio" name="plantType" checked={plantType === 'Stress Bench'} onChange={() => setPlantType('Stress Bench')} style={radioStyle} />
+                                        <input
+                                            type="radio"
+                                            name="plantType"
+                                            checked={plantType === 'Stress Bench'}
+                                            onChange={() => {
+                                                setPlantType('Stress Bench');
+                                                setFormHeader({ ...formHeader, unit: AVAILABLE_SHEDS[0].name, shedType: AVAILABLE_SHEDS[0].type });
+                                            }}
+                                            style={radioStyle}
+                                        />
                                         Stress Bench
                                     </label>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '16px', fontWeight: '600' }}>
-                                        <input type="radio" name="plantType" checked={plantType === 'Long Line'} onChange={() => setPlantType('Long Line')} style={radioStyle} />
+                                        <input
+                                            type="radio"
+                                            name="plantType"
+                                            checked={plantType === 'Long Line'}
+                                            onChange={() => {
+                                                setPlantType('Long Line');
+                                                setFormHeader({ ...formHeader, unit: AVAILABLE_LINES[0].name, shedType: 'Long Line' });
+                                            }}
+                                            style={radioStyle}
+                                        />
                                         Long Line
                                     </label>
                                 </div>
                             </div>
+
                             <div>
                                 <label style={labelStyle}>{plantType === 'Stress Bench' ? 'Production Unit (Shed No.)' : 'Production Unit (Line No.)'}</label>
                                 <select
-                                    style={inputStyle}
+                                    style={{ ...inputStyle, background: 'white', cursor: 'pointer' }}
                                     value={formHeader.unit}
-                                    onChange={(e) => setFormHeader({ ...formHeader, unit: e.target.value })}
+                                    onChange={(e) => {
+                                        const selectedUnit = e.target.value;
+                                        const unitData = plantType === 'Stress Bench'
+                                            ? AVAILABLE_SHEDS.find(s => s.name === selectedUnit)
+                                            : AVAILABLE_LINES.find(l => l.name === selectedUnit);
+                                        setFormHeader({
+                                            ...formHeader,
+                                            unit: selectedUnit,
+                                            shedType: unitData ? unitData.type : ''
+                                        });
+                                    }}
                                 >
                                     <option value="">Select Unit</option>
-                                    {plantType === 'Stress Bench' ? (
-                                        <>
-                                            <option value="Shed A">Shed A</option>
-                                            <option value="Shed B">Shed B</option>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <option value="Line 1">Line 1</option>
-                                            <option value="Line 2">Line 2</option>
-                                        </>
-                                    )}
+                                    {(plantType === 'Stress Bench' ? AVAILABLE_SHEDS : AVAILABLE_LINES).map(u => (
+                                        <option key={u.name} value={u.name}>{u.name}</option>
+                                    ))}
                                 </select>
                             </div>
-                            {plantType === 'Stress Bench' && (
-                                <div>
-                                    <label style={labelStyle}>Shed Type</label>
-                                    <select
-                                        style={inputStyle}
-                                        value={formHeader.shedType}
-                                        onChange={(e) => setFormHeader({ ...formHeader, shedType: e.target.value })}
-                                    >
-                                        <option value="Single">Single (4 Moulds)</option>
-                                        <option value="Twin">Twin (8 Moulds)</option>
-                                    </select>
-                                </div>
-                            )}
+
+                            <div>
+                                <label style={labelStyle}>Type of Unit</label>
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={formHeader.shedType}
+                                    style={{ ...inputStyle, background: '#f8fafc', color: '#64748b' }}
+                                />
+                            </div>
+
                             <div>
                                 <label style={labelStyle}>Date of Casting</label>
                                 <input
@@ -203,7 +291,7 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
                             <div>
                                 <label style={labelStyle}>Shift</label>
                                 <select
-                                    style={inputStyle}
+                                    style={{ ...inputStyle, background: 'white', cursor: 'pointer' }}
                                     value={formHeader.shift}
                                     onChange={(e) => setFormHeader({ ...formHeader, shift: e.target.value })}
                                 >
@@ -229,7 +317,7 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
                             <div>
                                 <label style={labelStyle}>Mix Design Reference</label>
                                 <select
-                                    style={inputStyle}
+                                    style={{ ...inputStyle, background: 'white', cursor: 'pointer' }}
                                     value={formHeader.mixDesign}
                                     onChange={(e) => setFormHeader({ ...formHeader, mixDesign: e.target.value })}
                                 >
@@ -239,7 +327,12 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
                             </div>
                             <div>
                                 <label style={labelStyle}>Time of L.B.C (Last Bench Casting)</label>
-                                <input type="time" style={inputStyle} value={formHeader.timeLbc} onChange={(e) => setFormHeader({ ...formHeader, timeLbc: e.target.value })} />
+                                <input
+                                    type="time"
+                                    style={inputStyle}
+                                    value={formHeader.timeLbc}
+                                    onChange={(e) => setFormHeader({ ...formHeader, timeLbc: e.target.value })}
+                                />
                             </div>
                         </div>
                     </div>
@@ -257,98 +350,190 @@ const ShiftProductionForm = ({ onBack, onSave, lastBatchNumber }) => {
                         {plantType === 'Stress Bench' ? (
                             <div>
                                 <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Map benches grouped by steam chambers. Each chamber requires 1 test sample.</p>
-                                    <button onClick={addChamber} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>+ Add Chamber Group</button>
+                                    <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>Map multiple bench groups to steam chambers. Each chamber requires individual monitoring.</p>
+                                    <button onClick={addChamber} style={{ background: '#42818c', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>+ Add Chamber</button>
                                 </div>
 
                                 {chambers.map((chamber, cIdx) => (
-                                    <div key={chamber.id} style={{ background: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.5fr 0.8fr 1.5fr 0.8fr', gap: '20px', alignItems: 'start' }}>
-                                            <div>
+                                    <div key={chamber.id} style={{ background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
+                                            <div style={{ width: '200px' }}>
                                                 <label style={labelStyle}>Chamber No.</label>
-                                                <input type="number" value={chamber.chamberNo} onChange={(e) => updateChamber(cIdx, 'chamberNo', e.target.value)} style={inputStyle} />
+                                                <input type="number" value={chamber.chamberNo} onChange={(e) => updateChamberNo(cIdx, e.target.value)} style={{ ...inputStyle, background: 'white' }} placeholder="e.g. 1" />
                                             </div>
-                                            <div>
-                                                <label style={labelStyle}>Benches Cast (Bench #)</label>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                                    {chamber.benches.map((bench, bIdx) => {
-                                                        const isDuplicate = isBenchDuplicate(bench, chamber.id, bIdx);
-                                                        return (
-                                                            <div key={bIdx} style={{ position: 'relative' }}>
-                                                                <input
-                                                                    type="text"
-                                                                    value={bench}
-                                                                    onChange={(e) => updateBench(cIdx, bIdx, e.target.value)}
-                                                                    style={{
-                                                                        ...inputStyle,
-                                                                        width: '60px',
-                                                                        padding: '8px',
-                                                                        borderColor: isDuplicate ? '#ef4444' : '#cbd5e1',
-                                                                        backgroundColor: isDuplicate ? '#fef2f2' : 'white'
-                                                                    }}
-                                                                />
-                                                                {isDuplicate && <span style={{ position: 'absolute', bottom: '-14px', left: 0, fontSize: '9px', color: '#ef4444', fontWeight: 'bold' }}>Duplicate</span>}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    <button onClick={() => addBenchToChamber(cIdx)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: 'white', cursor: 'pointer' }}>+</button>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label style={labelStyle}>Benches</label>
-                                                <div style={{ ...inputStyle, background: '#f1f5f9', textAlign: 'center', fontWeight: 'bold' }}>
-                                                    {chamber.benches.filter(b => b.trim()).length}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label style={labelStyle}>Sleeper Type</label>
-                                                <div style={{ ...inputStyle, background: '#f1f5f9', color: '#475569', minHeight: '45px', display: 'flex', alignItems: 'center', fontSize: '13px' }}>
-                                                    {getChamberSleeperTypes(chamber.benches) || 'N/A'}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label style={labelStyle}>Mould per bench</label>
-                                                <div style={{ ...inputStyle, background: '#f1f5f9', textAlign: 'center', fontWeight: 'bold' }}>
-                                                    {formHeader.shedType === 'Single' ? 4 : 8}
-                                                </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>Manage Benches</div>
+                                                <button onClick={() => addBenchGroup(cIdx)} style={{ background: '#42818c', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>+ Add Bench Group</button>
                                             </div>
                                         </div>
+                                        <div style={{ marginBottom: '16px' }}>
+                                            <h4 style={{ margin: 0, color: '#1e293b', fontSize: '14px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{ width: '4px', height: '16px', background: '#42818c', borderRadius: '2px' }}></span>
+                                                Bench Groups in Chamber
+                                            </h4>
+                                        </div>
+
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'left', padding: '12px 8px' }}>Benches Cast</th>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'center', padding: '12px 8px', width: '100px' }}>Count</th>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'left', padding: '12px 8px', width: '200px' }}>Sleeper Type</th>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'center', padding: '12px 8px', width: '150px' }}>Moulds / Bench</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {chamber.benchGroups.map((group, gIdx) => (
+                                                    <tr key={group.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                                        <td style={{ padding: '16px 8px', verticalAlign: 'top' }}>
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                                {group.benches.map((bench, bIdx) => {
+                                                                    const isDuplicate = isBenchDuplicate(bench, chamber.id, group.id, bIdx);
+                                                                    return (
+                                                                        <div key={bIdx} style={{ position: 'relative' }}>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={bench}
+                                                                                onChange={(e) => updateBenchInGroup(cIdx, gIdx, bIdx, e.target.value)}
+                                                                                style={{
+                                                                                    ...inputStyle,
+                                                                                    width: '70px',
+                                                                                    padding: '10px',
+                                                                                    borderColor: isDuplicate ? '#ef4444' : '#cbd5e1',
+                                                                                    backgroundColor: isDuplicate ? '#fef2f2' : 'white'
+                                                                                }}
+                                                                                placeholder="No."
+                                                                            />
+                                                                            {isDuplicate && <span style={{ position: 'absolute', bottom: '-14px', left: 0, fontSize: '9px', color: '#ef4444', fontWeight: 'bold' }}>Duplicate</span>}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                                <button onClick={() => addBenchToGroup(cIdx, gIdx)} style={{ width: '42px', height: '42px', borderRadius: '10px', border: '1px dashed #cbd5e1', background: 'white', cursor: 'pointer', fontSize: '20px', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '16px 8px', textAlign: 'center', verticalAlign: 'top' }}>
+                                                            <div style={{ ...inputStyle, background: '#f1f5f9', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '42px' }}>
+                                                                {group.benches.filter(b => b.trim()).length}
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '16px 8px', verticalAlign: 'top' }}>
+                                                            <div style={{
+                                                                ...inputStyle,
+                                                                background: group.error ? '#fef2f2' : '#f1f5f9',
+                                                                color: group.error ? '#ef4444' : '#1e293b',
+                                                                fontSize: '13px',
+                                                                fontWeight: '600',
+                                                                minHeight: '42px',
+                                                                display: 'flex',
+                                                                alignItems: 'center'
+                                                            }}>
+                                                                {group.sleeperType || 'Identify...'}
+                                                            </div>
+                                                            {group.error && <div style={{ fontSize: '10px', color: '#ef4444', fontWeight: 'bold', marginTop: '4px' }}>{group.error}</div>}
+                                                        </td>
+                                                        <td style={{ padding: '16px 8px', verticalAlign: 'top' }}>
+                                                            <input
+                                                                type="number"
+                                                                value={group.mouldsPerBench}
+                                                                onChange={(e) => updateMouldsInGroup(cIdx, gIdx, e.target.value)}
+                                                                style={{ ...inputStyle, textAlign: 'center', background: 'white', minHeight: '42px' }}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
-                                <div style={{ display: 'grid', gap: '24px' }}>
-                                    <div>
-                                        <label style={labelStyle}>Enter Gangs (e.g. 1-5, 8, 10-12)</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter range or individual numbers separated by comma"
-                                            value={longLineInput}
-                                            onChange={(e) => setLongLineInput(e.target.value)}
-                                            style={inputStyle}
-                                        />
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '16px' }}>
-                                        <div style={{ flex: 1 }}>
-                                            <label style={labelStyle}>Total Gangs Count</label>
-                                            <div style={{ ...inputStyle, background: '#f1f5f9', fontWeight: '700' }}>
-                                                {parseGangs(longLineInput).length}
-                                            </div>
+                            <div>
+                                <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                        <h4 style={{ margin: 0, color: '#1e293b' }}>Long Line Entry</h4>
+                                        <div style={{ display: 'flex', gap: '20px' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                                                <input type="radio" checked={longLineForm.entryMode === 'range'} onChange={() => setLongLineForm({ ...longLineForm, entryMode: 'range' })} style={radioStyle} />
+                                                Range
+                                            </label>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                                                <input type="radio" checked={longLineForm.entryMode === 'single'} onChange={() => setLongLineForm({ ...longLineForm, entryMode: 'single' })} style={radioStyle} />
+                                                Single
+                                            </label>
                                         </div>
-                                        <div style={{ flex: 1 }}>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', alignItems: 'end' }}>
+                                        {longLineForm.entryMode === 'range' ? (
+                                            <>
+                                                <div>
+                                                    <label style={labelStyle}>Gang No. From</label>
+                                                    <input type="number" value={longLineForm.fromNo} onChange={(e) => setLongLineForm({ ...longLineForm, fromNo: e.target.value })} style={{ ...inputStyle, background: 'white' }} placeholder="Start" />
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>Gang No. To</label>
+                                                    <input type="number" value={longLineForm.toNo} onChange={(e) => setLongLineForm({ ...longLineForm, toNo: e.target.value })} style={{ ...inputStyle, background: 'white' }} placeholder="End" />
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div style={{ gridColumn: 'span 2' }}>
+                                                <label style={labelStyle}>Gang No.</label>
+                                                <input type="number" value={longLineForm.singleNo} onChange={(e) => setLongLineForm({ ...longLineForm, singleNo: e.target.value })} style={{ ...inputStyle, background: 'white' }} placeholder="Enter No." />
+                                            </div>
+                                        )}
+                                        <div>
                                             <label style={labelStyle}>Sleeper Type</label>
-                                            <div style={{ ...inputStyle, background: '#f1f5f9', fontWeight: '700' }}>
-                                                RT-8746 (Default)
-                                            </div>
+                                            <select value={longLineForm.sleeperType} onChange={(e) => setLongLineForm({ ...longLineForm, sleeperType: e.target.value })} style={{ ...inputStyle, background: 'white' }}>
+                                                <option value="RT-8746">RT-8746</option>
+                                                <option value="RT-8521">RT-8521</option>
+                                            </select>
                                         </div>
+                                        <button
+                                            onClick={() => {
+                                                const newEntry = { ...longLineForm, id: Date.now() };
+                                                setLongLineEntries([...longLineEntries, newEntry]);
+                                                setLongLineForm({ ...longLineForm, fromNo: '', toNo: '', singleNo: '' });
+                                            }}
+                                            style={{ background: '#42818c', color: 'white', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}
+                                        >
+                                            Add Entry
+                                        </button>
                                     </div>
                                 </div>
-                                <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', border: '1px dashed #cbd5e1' }}>
-                                    <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Sleepers per Gang</p>
-                                    <h2 style={{ margin: 0, fontSize: '36px', color: '#42818c', fontWeight: '900' }}>8</h2>
-                                    <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#94a3b8' }}>(Fixed for Long Line)</p>
-                                </div>
+
+                                {longLineEntries.length > 0 && (
+                                    <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'left', padding: '12px 8px' }}>Mode</th>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'left', padding: '12px 8px' }}>Gangs</th>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'center', padding: '12px 8px', width: '100px' }}>Count</th>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'left', padding: '12px 8px', width: '180px' }}>Sleeper Type</th>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'center', padding: '12px 8px', width: '130px' }}>Moulds/Gang</th>
+                                                    <th style={{ ...labelStyle, display: 'table-cell', marginBottom: 0, textAlign: 'center', padding: '12px 8px', width: '100px' }}>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {longLineEntries.map((entry) => {
+                                                    const count = entry.entryMode === 'range' ? (parseInt(entry.toNo) - parseInt(entry.fromNo) + 1) : 1;
+                                                    return (
+                                                        <tr key={entry.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                            <td style={{ padding: '12px 8px', textTransform: 'capitalize', color: '#1e293b' }}>{entry.entryMode}</td>
+                                                            <td style={{ padding: '12px 8px', fontWeight: '600', color: '#1e293b' }}>{entry.entryMode === 'range' ? `${entry.fromNo} - ${entry.toNo}` : entry.singleNo}</td>
+                                                            <td style={{ padding: '12px 8px', textAlign: 'center', color: '#1e293b' }}>{count}</td>
+                                                            <td style={{ padding: '12px 8px', color: '#1e293b' }}>{entry.sleeperType}</td>
+                                                            <td style={{ padding: '12px 8px', textAlign: 'center', color: '#1e293b' }}>{entry.mouldsPerGang}</td>
+                                                            <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                                                                <button onClick={() => setLongLineEntries(longLineEntries.filter(e => e.id !== entry.id))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '12px' }}>Remove</button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

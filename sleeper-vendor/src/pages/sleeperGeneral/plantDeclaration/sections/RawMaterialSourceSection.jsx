@@ -107,86 +107,165 @@ const RawMaterialSourceSection = () => {
 
             {/* Form Section */}
             <div style={{
-                background: 'linear-gradient(145deg, #ffffff, #f8fafc)',
-                padding: '24px',
-                borderRadius: '16px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                background: '#ffffff',
+                padding: '30px',
+                borderRadius: '20px',
+                border: '1px solid #f1f5f9',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                 marginBottom: '32px'
             }}>
-                <h4 style={{ margin: '0 0 20px 0', color: '#334155', fontSize: '16px' }}>
+                <h4 style={{
+                    margin: '0 0 30px 0',
+                    color: '#3e4c59',
+                    fontSize: '18px',
+                    fontWeight: '700'
+                }}>
                     {editingId ? 'Modify Entry' : 'Add New Raw Material Source'}
                 </h4>
-                <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Raw Material Type</label>
-                        <select
-                            name="rawMaterialType"
-                            value={formData.rawMaterialType}
-                            onChange={handleInputChange}
-                            required
-                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '14px' }}
-                        >
-                            <option value="">Select Material</option>
-                            {materialTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Source / Supplier</label>
-                        <input
-                            name="source"
-                            type="text"
-                            placeholder="Enter supplier name"
-                            value={formData.source}
-                            onChange={handleInputChange}
-                            required
-                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
-                        />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Approval Reference</label>
-                        <input
-                            name="approvalReference"
-                            type="text"
-                            placeholder="RDSO/RITES Reference"
-                            value={formData.approvalReference}
-                            onChange={handleInputChange}
-                            required
-                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
-                        />
-                    </div>
-                    <div>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#64748b', marginBottom: '8px' }}>Validity Period</label>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                <form onSubmit={handleSubmit}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                        gap: '24px',
+                        marginBottom: '30px'
+                    }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8c9fb1', marginBottom: '12px' }}>Raw Material Type</label>
+                            <div style={{ position: 'relative' }}>
+                                <select
+                                    name="rawMaterialType"
+                                    value={formData.rawMaterialType}
+                                    onChange={handleInputChange}
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        height: '48px',
+                                        padding: '0 40px 0 16px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #ebf0f5',
+                                        backgroundColor: '#fdfdfd',
+                                        fontSize: '14px',
+                                        color: '#3e4c59',
+                                        outline: 'none',
+                                        appearance: 'none',
+                                        cursor: 'pointer',
+                                        lineHeight: '48px'
+                                    }}
+                                >
+                                    <option value="">Select Material</option>
+                                    {materialTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                                </select>
+                                <div style={{
+                                    position: 'absolute',
+                                    right: '16px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    pointerEvents: 'none',
+                                    color: '#8c9fb1',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8c9fb1', marginBottom: '12px' }}>Source / Supplier</label>
                             <input
-                                name="validityFrom"
-                                type="date"
-                                value={formData.validityFrom}
+                                name="source"
+                                type="text"
+                                placeholder="Enter supplier name"
+                                value={formData.source}
                                 onChange={handleInputChange}
                                 required
-                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                            />
-                            <input
-                                name="validityTo"
-                                type="date"
-                                value={formData.validityTo}
-                                onChange={handleInputChange}
-                                required
-                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                                style={{
+                                    width: '100%',
+                                    padding: '14px 16px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #ebf0f5',
+                                    backgroundColor: '#fdfdfd',
+                                    fontSize: '14px',
+                                    color: '#3e4c59',
+                                    outline: 'none'
+                                }}
                             />
                         </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8c9fb1', marginBottom: '12px' }}>Approval Reference</label>
+                            <input
+                                name="approvalReference"
+                                type="text"
+                                placeholder="RDSO/RITES Reference"
+                                value={formData.approvalReference}
+                                onChange={handleInputChange}
+                                required
+                                style={{
+                                    width: '100%',
+                                    padding: '14px 16px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #ebf0f5',
+                                    backgroundColor: '#fdfdfd',
+                                    fontSize: '14px',
+                                    color: '#3e4c59',
+                                    outline: 'none'
+                                }}
+                            />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#8c9fb1', marginBottom: '12px' }}>Validity Period</label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                    name="validityFrom"
+                                    type="date"
+                                    value={formData.validityFrom}
+                                    onChange={handleInputChange}
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px 12px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #ebf0f5',
+                                        backgroundColor: '#fdfdfd',
+                                        fontSize: '14px',
+                                        color: '#3e4c59',
+                                        outline: 'none'
+                                    }}
+                                />
+                                <input
+                                    name="validityTo"
+                                    type="date"
+                                    value={formData.validityTo}
+                                    onChange={handleInputChange}
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px 12px',
+                                        borderRadius: '12px',
+                                        border: '1px solid #ebf0f5',
+                                        backgroundColor: '#fdfdfd',
+                                        fontSize: '14px',
+                                        color: '#3e4c59',
+                                        outline: 'none'
+                                    }}
+                                />
+                            </div>
+                        </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
                         <button type="submit" style={{
-                            flex: 1,
-                            background: '#42818c',
+                            background: '#47848d',
                             color: 'white',
                             border: 'none',
-                            padding: '10px',
-                            borderRadius: '8px',
-                            fontWeight: '600',
+                            padding: '14px 44px',
+                            borderRadius: '12px',
+                            fontWeight: '700',
+                            fontSize: '15px',
                             cursor: 'pointer',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            boxShadow: '0 4px 6px rgba(71, 132, 141, 0.1)'
                         }}>
                             {editingId ? 'Update Entry' : 'Add Entry'}
                         </button>
@@ -195,10 +274,13 @@ const RawMaterialSourceSection = () => {
                                 type="button"
                                 onClick={() => { setEditingId(null); setFormData(initialFormState); }}
                                 style={{
-                                    padding: '10px',
-                                    borderRadius: '8px',
-                                    border: '1px solid #cbd5e1',
+                                    padding: '14px 32px',
+                                    borderRadius: '12px',
+                                    border: '1px solid #ebf0f5',
                                     background: '#fff',
+                                    color: '#8c9fb1',
+                                    fontWeight: '600',
+                                    fontSize: '15px',
                                     cursor: 'pointer'
                                 }}
                             >

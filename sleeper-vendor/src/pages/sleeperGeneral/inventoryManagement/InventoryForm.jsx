@@ -260,7 +260,9 @@ const InventoryForm = ({ material, onClose, onSubmit, initialData }) => {
                                     <option value="N">No</option>
                                 </select>
                             </div>
-                            <div style={groupStyle}><label style={labelStyle}>Relaxation Test Date</label><input type="date" value={formData.details.relaxationDate || ''} onChange={(e) => handleChange(e, 'relaxationDate', true)} style={inputStyle} /></div>
+                            {formData.details.relaxationTest !== 'N' && (
+                                <div style={groupStyle}><label style={labelStyle}>Relaxation Test Date</label><input type="date" value={formData.details.relaxationDate || ''} onChange={(e) => handleChange(e, 'relaxationDate', true)} style={inputStyle} /></div>
+                            )}
                         </div>
 
                         <div style={{ background: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>

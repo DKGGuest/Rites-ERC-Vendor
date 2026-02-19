@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
 
+const STATUSES = {
+    PENDING: 'Verification Pending',
+    LOCKED: 'Verified & Locked',
+    UNLOCKED: 'Unlocked for Modification'
+};
+
 const BenchMouldMasterSection = ({ profiles = [] }) => {
     // Generate dynamic tabs based on profiles
     const dynamicTabs = [];
@@ -37,7 +43,42 @@ const BenchMouldMasterSection = ({ profiles = [] }) => {
     });
 
     const [activeTabId, setActiveTabId] = useState('');
-    const [tabEntries, setTabEntries] = useState({});
+    const [tabEntries, setTabEntries] = useState({
+        'shed-1': [
+            {
+                id: 101,
+                entryMode: 'range',
+                fromNo: '1',
+                toNo: '4',
+                numItems: 4,
+                numMouldsPerItem: 8,
+                totalMoulds: 32,
+                sleeperCategory: 'RT-8527 (Pre-stressed)',
+                status: STATUSES.PENDING
+            },
+            {
+                id: 102,
+                entryMode: 'range',
+                fromNo: '5',
+                toNo: '8',
+                numItems: 4,
+                numMouldsPerItem: 8,
+                totalMoulds: 32,
+                sleeperCategory: 'RT-8527 (Pre-stressed)',
+                status: STATUSES.LOCKED
+            },
+            {
+                id: 103,
+                entryMode: 'single',
+                singleNo: '9',
+                numItems: 1,
+                numMouldsPerItem: 8,
+                totalMoulds: 8,
+                sleeperCategory: 'RT-4852 (Wider)',
+                status: STATUSES.UNLOCKED
+            }
+        ]
+    });
 
     // Form State
     const [formState, setFormState] = useState({
@@ -49,7 +90,8 @@ const BenchMouldMasterSection = ({ profiles = [] }) => {
         numMouldsPerItem: '',
         sleeperCategory: 'RT-8527 (Pre-stressed)',
         isEditing: false,
-        editingId: null
+        editingId: null,
+        status: STATUSES.PENDING
     });
 
     useEffect(() => {
@@ -116,7 +158,7 @@ const BenchMouldMasterSection = ({ profiles = [] }) => {
             numMouldsPerItem: formState.numMouldsPerItem,
             totalMoulds: formState.numItems * formState.numMouldsPerItem,
             sleeperCategory: formState.sleeperCategory,
-            status: 'Completed'
+            status: formState.isEditing ? formState.status : STATUSES.PENDING
         };
 
         setTabEntries(prev => {
@@ -146,11 +188,16 @@ const BenchMouldMasterSection = ({ profiles = [] }) => {
                 ? tabEntries[activeTabId][0].sleeperCategory
                 : 'RT-8527 (Pre-stressed)',
             isEditing: false,
-            editingId: null
+            editingId: null,
+            status: STATUSES.PENDING
         });
     };
 
     const handleEdit = (entry) => {
+        if (entry.status === STATUSES.LOCKED) {
+            alert("Verified & Locked entries cannot be modified.");
+            return;
+        }
         setFormState({
             entryMode: entry.entryMode,
             fromNo: entry.fromNo,
@@ -160,16 +207,29 @@ const BenchMouldMasterSection = ({ profiles = [] }) => {
             numMouldsPerItem: entry.numMouldsPerItem,
             sleeperCategory: entry.sleeperCategory,
             isEditing: true,
-            editingId: entry.id
+            editingId: entry.id,
+            status: entry.status
         });
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = (id, status) => {
+        if (status === STATUSES.LOCKED) {
+            alert("Verified & Locked entries cannot be deleted.");
+            return;
+        }
         if (window.confirm("Are you sure you want to delete this entry?")) {
             setTabEntries(prev => ({
                 ...prev,
                 [activeTabId]: prev[activeTabId].filter(e => e.id !== id)
             }));
+        }
+    };
+
+    const getStatusStyle = (status) => {
+        switch (status) {
+            case STATUSES.LOCKED: return { color: '#059669', background: '#ecfdf5', border: '1px solid #10b981' };
+            case STATUSES.UNLOCKED: return { color: '#b45309', background: '#fffbeb', border: '1px solid #f59e0b' };
+            default: return { color: '#2563eb', background: '#eff6ff', border: '1px solid #3b82f6' };
         }
     };
 
@@ -211,7 +271,8 @@ const BenchMouldMasterSection = ({ profiles = [] }) => {
                                     numMouldsPerItem: tab.defaultMoulds,
                                     sleeperCategory: 'RT-8527 (Pre-stressed)',
                                     isEditing: false,
-                                    editingId: null
+                                    editingId: null,
+                                    status: STATUSES.PENDING
                                 });
                             }}
                             style={{
@@ -460,12 +521,11 @@ const BenchMouldMasterSection = ({ profiles = [] }) => {
                                                 <td style={{ padding: '12px', color: '#1e293b' }}>{entry.sleeperCategory}</td>
                                                 <td style={{ padding: '12px', textAlign: 'center' }}>
                                                     <span style={{
-                                                        padding: '4px 8px',
-                                                        background: '#ecfdf5',
-                                                        color: '#059669',
-                                                        borderRadius: '4px',
+                                                        padding: '4px 10px',
+                                                        borderRadius: '20px',
                                                         fontSize: '11px',
-                                                        fontWeight: 'bold'
+                                                        fontWeight: '600',
+                                                        ...getStatusStyle(entry.status)
                                                     }}>
                                                         {entry.status}
                                                     </span>
@@ -474,27 +534,29 @@ const BenchMouldMasterSection = ({ profiles = [] }) => {
                                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                                         <button
                                                             onClick={() => handleEdit(entry)}
+                                                            disabled={entry.status === STATUSES.LOCKED}
                                                             style={{
                                                                 padding: '6px 10px',
-                                                                background: '#f0f9fa',
-                                                                color: '#42818c',
-                                                                border: '1px solid #42818c',
+                                                                background: entry.status === STATUSES.LOCKED ? '#f8fafc' : '#f0f9fa',
+                                                                color: entry.status === STATUSES.LOCKED ? '#cbd5e1' : '#42818c',
+                                                                border: `1px solid ${entry.status === STATUSES.LOCKED ? '#e2e8f0' : '#42818c'}`,
                                                                 borderRadius: '6px',
-                                                                cursor: 'pointer',
+                                                                cursor: entry.status === STATUSES.LOCKED ? 'not-allowed' : 'pointer',
                                                                 fontSize: '11px'
                                                             }}
                                                         >
                                                             Modify
                                                         </button>
                                                         <button
-                                                            onClick={() => handleDelete(entry.id)}
+                                                            onClick={() => handleDelete(entry.id, entry.status)}
+                                                            disabled={entry.status === STATUSES.LOCKED}
                                                             style={{
                                                                 padding: '6px 10px',
-                                                                background: '#fef2f2',
-                                                                color: '#ef4444',
-                                                                border: '1px solid #ef4444',
+                                                                background: entry.status === STATUSES.LOCKED ? '#f8fafc' : '#fef2f2',
+                                                                color: entry.status === STATUSES.LOCKED ? '#cbd5e1' : '#ef4444',
+                                                                border: `1px solid ${entry.status === STATUSES.LOCKED ? '#fee2e2' : '#ef4444'}`,
                                                                 borderRadius: '6px',
-                                                                cursor: 'pointer',
+                                                                cursor: entry.status === STATUSES.LOCKED ? 'not-allowed' : 'pointer',
                                                                 fontSize: '11px'
                                                             }}
                                                         >
